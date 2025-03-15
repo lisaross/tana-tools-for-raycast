@@ -1,65 +1,78 @@
-# Tana Paste
+# Tana Paste - Raycast Extension
 
-A command-line tool that converts Markdown text to Tana Paste format for seamless integration with the Tana note-taking application.
-
-## Overview
-
-Tana Paste is a Python script that transforms Markdown content into a format compatible with Tana's paste functionality. It preserves the hierarchical structure of your Markdown documents, including headings, lists, and paragraphs, while converting them into Tana's node-based format.
+A Raycast extension that converts clipboard content to Tana Paste format. Perfect for quickly transforming Markdown text into Tana's node-based structure.
 
 ## Features
 
-- Converts Markdown headings (H1-H6) to Tana nodes with heading style
-- Preserves bullet and numbered lists with proper indentation
-- Maintains paragraph structure and formatting
-- Handles nested content and hierarchical relationships
-- Processes input from stdin for easy integration with other tools
+- Automatically converts clipboard content to Tana Paste format
+- Supports Markdown elements:
+  - Headings (H1-H6)
+  - Bullet lists (`-`, `*`, `+`)
+  - Numbered lists
+  - Paragraphs
+  - Nested content with proper indentation
+- No UI needed - works directly with your clipboard
+- Instant feedback via HUD notifications
 
 ## Installation
 
-1. Clone this repository:
-```bash
-git clone https://github.com/yourusername/tana-paste.git
-cd tana-paste
-```
-
-2. Make the script executable:
-```bash
-chmod +x script.py
-```
+1. Make sure you have [Raycast](https://raycast.com/) installed
+2. Install Node.js and npm if you haven't already
+3. Clone this repository:
+   ```bash
+   git clone https://github.com/yourusername/tana-paste.git
+   cd tana-paste
+   ```
+4. Install dependencies:
+   ```bash
+   npm install
+   ```
+5. Build the extension:
+   ```bash
+   npm run build
+   ```
+6. Start development mode:
+   ```bash
+   npm run dev
+   ```
 
 ## Usage
 
-The script reads Markdown content from stdin and outputs the converted Tana Paste format to stdout. Here are some examples:
+1. Copy your Markdown text to clipboard (⌘+C)
+2. Open Raycast (⌘+Space)
+3. Type "Copy Clipboard to Tana Paste"
+4. Press Enter
+5. Your clipboard now contains the Tana-formatted version
+6. Paste into Tana (⌘+V)
 
-### Basic Usage
-```bash
-echo "# My Heading\n- List item" | ./script.py
+### Example
+
+Input (in clipboard):
+```markdown
+# My Heading
+## Subheading
+- List item 1
+  - Nested item
+    - Deep nested item
+This is a paragraph.
 ```
 
-### Using with a File
-```bash
-cat my-document.md | ./script.py
-```
-
-### Output Format
-The script generates output in the following format:
+Output (after conversion):
 ```
 %%tana%%
-- !! Heading 1
-  - !! Heading 2
-    - List item
-    - Another list item
-  - Regular paragraph text
+- !! My Heading
+  - !! Subheading
+    - List item 1
+      - Nested item
+        - Deep nested item
+    - This is a paragraph.
 ```
 
-## Input Format Support
+## Development
 
-The script supports the following Markdown elements:
-- Headings (H1-H6) using `#` syntax
-- Bullet lists using `-`, `*`, or `+`
-- Numbered lists
-- Regular paragraphs
-- Nested content through indentation
+- `npm run dev` - Start development mode
+- `npm run build` - Build the extension
+- `npm run lint` - Run linter
 
 ## Contributing
 
@@ -67,9 +80,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- Inspired by the Tana note-taking application
-- Built with Python 3 
+This project is licensed under the MIT License - see the LICENSE file for details. 
