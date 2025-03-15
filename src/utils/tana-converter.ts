@@ -1,56 +1,33 @@
-import { Clipboard, showHUD } from "@raycast/api";
-
 /**
  * Represents different types of text elements that can be detected
  */
-type TextElement = {
+export type TextElement = {
   type: 'text' | 'url' | 'email' | 'lineBreak' | 'listItem';
   content: string;
   isNewSentence?: boolean;
 };
 
-export default async function Command() {
-  try {
-    // Get clipboard content
-    const clipboardText = await Clipboard.readText();
-    
-    if (!clipboardText) {
-      await showHUD("No text in clipboard");
-      return;
-    }
-
-    // Convert to Tana format
-    const tanaOutput = convertToTana(clipboardText);
-    
-    // Copy back to clipboard
-    await Clipboard.copy(tanaOutput);
-    
-    // Show success message
-    await showHUD("Converted to Tana format");
-  } catch (error) {
-    console.error('Error processing text:', error);
-    await showHUD("Failed to convert text");
-  }
-}
-
 /**
  * Converts any text input to Tana format, handling various text elements
  */
-function convertToTana(inputText: string): string {
+export function convertToTana(inputText: string): string {
+  // Remove any existing Tana headers to prevent duplication
+  const cleanedText = inputText.replace(/%%tana%%\n?/g, '');
+  
   // Start with the Tana Paste identifier
   let tanaOutput = "%%tana%%\n";
   
   // First, try to parse as markdown
-  if (isMarkdown(inputText)) {
-    return convertMarkdownToTana(inputText);
+  if (isMarkdown(cleanedText)) {
+    return convertMarkdownToTana(cleanedText);
   }
   
   // If not markdown, process as regular text
-  const elements = parseTextElements(inputText.trim());
+  const elements = parseTextElements(cleanedText.trim());
   let currentLevel = 0;
   let paragraphBuffer: TextElement[] = [];
   
-  elements.forEach((element, index) => {
+  elements.forEach((element) => {
     switch (element.type) {
       case 'lineBreak':
         if (paragraphBuffer.length > 0) {
@@ -61,13 +38,11 @@ function convertToTana(inputText: string): string {
         break;
         
       case 'listItem':
-        // Process any buffered paragraph before the list item
         if (paragraphBuffer.length > 0) {
           const indent = "  ".repeat(currentLevel);
           tanaOutput += `${indent}- ${formatParagraph(paragraphBuffer)}\n`;
           paragraphBuffer = [];
         }
-        // Add the list item with proper indentation
         const listIndent = "  ".repeat(currentLevel);
         tanaOutput += `${listIndent}- ${element.content}\n`;
         break;
@@ -75,7 +50,6 @@ function convertToTana(inputText: string): string {
       case 'url':
       case 'email':
       case 'text':
-        // If this is a new sentence and we have content, create a new node
         if (element.isNewSentence && paragraphBuffer.length > 0) {
           const indent = "  ".repeat(currentLevel);
           tanaOutput += `${indent}- ${formatParagraph(paragraphBuffer)}\n`;
@@ -86,7 +60,6 @@ function convertToTana(inputText: string): string {
     }
   });
   
-  // Process any remaining paragraph
   if (paragraphBuffer.length > 0) {
     const indent = "  ".repeat(currentLevel);
     tanaOutput += `${indent}- ${formatParagraph(paragraphBuffer)}\n`;
@@ -107,6 +80,10 @@ function isMarkdown(text: string): boolean {
     /\*\*.+\*\*/,       // Bold
     /_.+_/,             // Italic
     /```[\s\S]+```/,    // Code blocks
+    /^\s*>\s+/m,        // Blockquotes
+    /\|\s*[-:]+\s*\|/,  // Tables
+    /^\s*-{3,}/m,       // Horizontal rules
+    /\[\^.+\]:/m,       // Footnotes
   ];
   
   return markdownIndicators.some(indicator => indicator.test(text));
@@ -165,9 +142,9 @@ function parseTextElements(text: string): TextElement[] {
         const words = sentence.split(/\s+/);
         words.forEach((word, wordIndex) => {
           if (isUrl(word)) {
-            elements.push({ type: 'url', content: word, isNewSentence: wordIndex === 0 });
+            elements.push({ type: 'url', content: formatUrl(word), isNewSentence: wordIndex === 0 });
           } else if (isEmail(word)) {
-            elements.push({ type: 'email', content: word, isNewSentence: wordIndex === 0 });
+            elements.push({ type: 'email', content: formatEmail(word), isNewSentence: wordIndex === 0 });
           } else {
             elements.push({ 
               type: 'text', 
@@ -191,6 +168,110 @@ function parseTextElements(text: string): TextElement[] {
   }
   
   return elements;
+}
+
+/**
+ * Converts markdown text to Tana format with proper hierarchy
+ */
+function convertMarkdownToTana(markdownText: string): string {
+  let tanaOutput = "%%tana%%\n";
+  const lines = markdownText.trim().split('\n');
+  
+  let currentLevel = 0;
+  let listLevel = 0;
+  let inList = false;
+  let inBlockquote = false;
+  let blockquoteLevel = 0;
+  let paragraphBuffer: string[] = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmedLine = line.trim();
+    
+    // Skip empty lines but process any buffered content
+    if (!trimmedLine) {
+      if (paragraphBuffer.length > 0) {
+        const indent = "  ".repeat(currentLevel + (inList ? listLevel : 0) + (inBlockquote ? blockquoteLevel : 0));
+        tanaOutput += `${indent}- ${paragraphBuffer.join(' ')}\n`;
+        paragraphBuffer = [];
+      }
+      continue;
+    }
+    
+    // Handle headers
+    const headerMatch = trimmedLine.match(/^(#{1,6})\s+(.+)$/);
+    if (headerMatch) {
+      if (paragraphBuffer.length > 0) {
+        const indent = "  ".repeat(currentLevel);
+        tanaOutput += `${indent}- ${paragraphBuffer.join(' ')}\n`;
+        paragraphBuffer = [];
+      }
+      
+      const level = headerMatch[1].length - 1;
+      const content = headerMatch[2];
+      const indent = "  ".repeat(level);
+      tanaOutput += `${indent}- ${content}\n`;
+      currentLevel = level + 1;
+      continue;
+    }
+    
+    // Handle lists
+    const listMatch = trimmedLine.match(/^(\s*)([-*+]|\d+\.)\s+(.+)$/);
+    if (listMatch) {
+      if (paragraphBuffer.length > 0) {
+        const indent = "  ".repeat(currentLevel);
+        tanaOutput += `${indent}- ${paragraphBuffer.join(' ')}\n`;
+        paragraphBuffer = [];
+      }
+      
+      const indentLevel = Math.floor(listMatch[1].length / 2);
+      const content = listMatch[3];
+      const totalIndent = "  ".repeat(currentLevel + indentLevel);
+      tanaOutput += `${totalIndent}- ${content}\n`;
+      inList = true;
+      listLevel = indentLevel;
+      continue;
+    }
+    
+    // Handle blockquotes
+    const blockquoteMatch = trimmedLine.match(/^(>+)\s*(.+)$/);
+    if (blockquoteMatch) {
+      if (paragraphBuffer.length > 0) {
+        const indent = "  ".repeat(currentLevel);
+        tanaOutput += `${indent}- ${paragraphBuffer.join(' ')}\n`;
+        paragraphBuffer = [];
+      }
+      
+      const quoteLevel = blockquoteMatch[1].length;
+      const content = blockquoteMatch[2];
+      const indent = "  ".repeat(currentLevel + quoteLevel);
+      tanaOutput += `${indent}- ${content}\n`;
+      inBlockquote = true;
+      blockquoteLevel = quoteLevel;
+      continue;
+    }
+    
+    // Reset list and blockquote state if we're not in a list/blockquote anymore
+    if (!listMatch && inList) {
+      inList = false;
+      listLevel = 0;
+    }
+    if (!blockquoteMatch && inBlockquote) {
+      inBlockquote = false;
+      blockquoteLevel = 0;
+    }
+    
+    // Handle regular text and other elements
+    paragraphBuffer.push(trimmedLine);
+  }
+  
+  // Process any remaining content
+  if (paragraphBuffer.length > 0) {
+    const indent = "  ".repeat(currentLevel);
+    tanaOutput += `${indent}- ${paragraphBuffer.join(' ')}\n`;
+  }
+  
+  return tanaOutput;
 }
 
 /**
@@ -231,116 +312,4 @@ function isUrl(text: string): boolean {
  */
 function isEmail(text: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text);
-}
-
-function convertMarkdownToTana(markdownText: string): string {
-  // Start with the Tana Paste identifier
-  let tanaOutput = "%%tana%%\n";
-  
-  // Split into lines
-  const lines = markdownText.trim().split('\n');
-  
-  // Track the current heading level and content
-  let currentLevel = 0;
-  let paragraphBuffer: string[] = [];
-  let isInList = false;
-  let hadTextAfterHeading = false;
-  
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    
-    // Check for headings
-    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
-    
-    // Check for bullet or numbered lists
-    const listMatch = line.match(/^(\s*)([\*\-\+]|\d+\.)\s+(.+)$/);
-    
-    if (headingMatch) {
-      // Process any buffered paragraph
-      if (paragraphBuffer.length > 0) {
-        const indent = "  ".repeat(currentLevel);
-        tanaOutput += `${indent}- ${paragraphBuffer.join(" ")}\n`;
-        paragraphBuffer = [];
-      }
-      
-      const level = headingMatch[1].length;
-      const headingText = headingMatch[2];
-      
-      // Add heading as a node with heading style
-      const indent = "  ".repeat(level - 1);
-      tanaOutput += `${indent}- !! ${headingText}\n`;
-      
-      currentLevel = level;
-      isInList = false;
-      hadTextAfterHeading = false;
-      
-    } else if (listMatch) {
-      // Process any buffered paragraph before starting a list
-      if (paragraphBuffer.length > 0 && !isInList) {
-        const indent = "  ".repeat(currentLevel);
-        tanaOutput += `${indent}- ${paragraphBuffer.join(" ")}\n`;
-        paragraphBuffer = [];
-        hadTextAfterHeading = true;
-      }
-      
-      // Extract list content
-      const leadingSpace = listMatch[1];
-      const listContent = listMatch[3];
-      
-      // Calculate list level based on indentation
-      const listIndentLevel = leadingSpace.replace(/\t/g, "  ").length / 2;
-      
-      // Determine total indentation level
-      const totalIndentLevel = !hadTextAfterHeading && listIndentLevel === 0
-        ? currentLevel
-        : currentLevel + listIndentLevel + 1;
-        
-      const indent = "  ".repeat(totalIndentLevel);
-      
-      // Add as a node
-      tanaOutput += `${indent}- ${listContent}\n`;
-      isInList = true;
-      
-    } else if (line.trim() === "") {
-      // Empty line - flush paragraph buffer
-      if (paragraphBuffer.length > 0) {
-        const indent = "  ".repeat(currentLevel);
-        tanaOutput += `${indent}- ${paragraphBuffer.join(" ")}\n`;
-        paragraphBuffer = [];
-        hadTextAfterHeading = true;
-      }
-      isInList = false;
-      
-    } else {
-      // Regular text handling
-      if (!isInList) {
-        if (paragraphBuffer.length > 0) {
-          paragraphBuffer.push(line);
-        } else {
-          paragraphBuffer = [line];
-        }
-        hadTextAfterHeading = true;
-      } else {
-        // Handle continuation of list items or new paragraphs
-        if (line.startsWith("    ") && !line.match(/^\s*([\*\-\+]|\d+\.)\s+/)) {
-          const totalIndentLevel = !hadTextAfterHeading
-            ? currentLevel
-            : currentLevel + 1;
-          const indent = "  ".repeat(totalIndentLevel);
-          tanaOutput += `${indent}- ${line.trim()}\n`;
-        } else {
-          const indent = "  ".repeat(currentLevel);
-          tanaOutput += `${indent}- ${line.trim()}\n`;
-        }
-      }
-    }
-  }
-  
-  // Process any remaining paragraph
-  if (paragraphBuffer.length > 0) {
-    const indent = "  ".repeat(currentLevel);
-    tanaOutput += `${indent}- ${paragraphBuffer.join(" ")}\n`;
-  }
-  
-  return tanaOutput;
 } 
