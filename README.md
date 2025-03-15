@@ -4,6 +4,10 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
 
 ## Features
 
+- Multiple ways to convert content:
+  - Quick clipboard conversion (no UI)
+  - Paste and edit interface for reviewing before conversion
+  - Convert selected text directly
 - Automatically converts clipboard content to Tana Paste format
 - Supports Markdown elements:
   - Headings (H1-H6)
@@ -11,8 +15,10 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
   - Numbered lists
   - Paragraphs
   - Nested content with proper indentation
-- No UI needed - works directly with your clipboard
+- Real-time preview in edit mode
 - Instant feedback via HUD notifications
+- TypeScript implementation with strict typing
+- Comprehensive error handling
 
 ## Installation
 
@@ -38,11 +44,28 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
 
 ## Usage
 
+### Quick Clipboard Conversion
 1. Copy your Markdown text to clipboard (⌘+C)
 2. Open Raycast (⌘+Space)
-3. Type "Copy Clipboard to Tana Paste"
+3. Type "Quick Clipboard to Tana"
 4. Press Enter
 5. Your clipboard now contains the Tana-formatted version
+6. Paste into Tana (⌘+V)
+
+### Paste and Edit Mode
+1. Open Raycast (⌘+Space)
+2. Type "Paste and Edit for Tana"
+3. Press Enter
+4. Edit your text in the interface
+5. Press Enter to convert and copy to clipboard
+6. Paste into Tana (⌘+V)
+
+### Convert Selected Text
+1. Select text in any application
+2. Open Raycast (⌘+Space)
+3. Type "Convert Selected Text to Tana"
+4. Press Enter
+5. The converted text is now in your clipboard
 6. Paste into Tana (⌘+V)
 
 ### Example
@@ -73,6 +96,14 @@ Output (after conversion):
 - `npm run dev` - Start development mode
 - `npm run build` - Build the extension
 - `npm run lint` - Run linter
+
+## Technical Details
+
+- Built with TypeScript and strict type checking
+- Uses Raycast API v1.55.2
+- Follows functional programming principles
+- Implements comprehensive error handling
+- Includes proper input validation
 
 ## Contributing
 
