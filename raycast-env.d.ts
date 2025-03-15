@@ -17,6 +17,8 @@ declare namespace Preferences {
   export type QuickClipboardToTana = ExtensionPreferences & {}
   /** Preferences accessible in the `paste-and-edit` command */
   export type PasteAndEdit = ExtensionPreferences & {}
+  /** Preferences accessible in the `selected-to-tana` command */
+  export type SelectedToTana = ExtensionPreferences & {}
 }
 
 declare namespace Arguments {
@@ -24,5 +26,7 @@ declare namespace Arguments {
   export type QuickClipboardToTana = {}
   /** Arguments passed to the `paste-and-edit` command */
   export type PasteAndEdit = {}
+  /** Arguments passed to the `selected-to-tana` command */
+  export type SelectedToTana = {}
 }
 

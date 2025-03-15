@@ -7,11 +7,11 @@ const execAsync = promisify(exec);
 
 export default async function Command() {
   try {
-    // Get clipboard content
+    // Get clipboard content directly - no need to try selected text for quick clipboard command
     const clipboardText = await Clipboard.readText();
     
     if (!clipboardText) {
-      await showHUD("No text in clipboard");
+      await showHUD("Clipboard is empty");
       return;
     }
 
@@ -30,7 +30,7 @@ export default async function Command() {
       await showHUD("Tana format copied to clipboard (but couldn't open Tana) ✨");
     }
   } catch (error) {
-    console.error('Error processing text:', error);
-    await showHUD("Failed to convert text");
+    console.error('Error processing clipboard:', error);
+    await showHUD("Failed to process clipboard content");
   }
 } 

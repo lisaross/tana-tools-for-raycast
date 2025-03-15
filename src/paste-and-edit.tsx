@@ -1,5 +1,5 @@
 import { Form, ActionPanel, Action, showHUD, Clipboard } from "@raycast/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { convertToTana } from "./utils/tana-converter";
 import { exec } from "child_process";
 import { promisify } from "util";
@@ -12,18 +12,43 @@ interface FormValues {
 
 export default function Command() {
   const [text, setText] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  /**
+   * On mount, try to get clipboard content
+   */
+  useEffect(() => {
+    const initializeText = async () => {
+      try {
+        const clipboardText = await Clipboard.readText();
+        if (clipboardText) {
+          setText(clipboardText);
+        }
+      } catch (error) {
+        console.error("Error reading clipboard:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeText();
+  }, []);
 
   /**
    * Initializes the form with clipboard content
    */
   const loadClipboardContent = async () => {
     try {
+      setIsLoading(true);
       const clipboardText = await Clipboard.readText();
       if (clipboardText) {
         setText(clipboardText);
       }
     } catch (error) {
       console.error("Error reading clipboard:", error);
+      await showHUD("Could not load clipboard content");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -38,7 +63,6 @@ export default function Command() {
       }
 
       // Convert to Tana format
-      // Note: values.text contains the raw markdown, not the rendered HTML
       const tanaOutput = convertToTana(values.text);
       
       // Copy to clipboard
@@ -54,12 +78,13 @@ export default function Command() {
       }
     } catch (error) {
       console.error("Error converting text:", error);
-      await showHUD("Failed to convert text");
+      await showHUD("Failed to convert text. Please try again.");
     }
   };
 
   return (
     <Form
+      isLoading={isLoading}
       actions={
         <ActionPanel>
           <Action.SubmitForm title="Convert and Open in Tana" onSubmit={handleSubmit} />
@@ -77,7 +102,6 @@ export default function Command() {
         placeholder="Paste or type your text here..."
         value={text}
         onChange={setText}
-        // Don't enable markdown preview as we want to preserve the raw markdown
         enableMarkdown={false}
       />
     </Form>

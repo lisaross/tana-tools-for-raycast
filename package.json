@@ -17,6 +17,12 @@
       "title": "Paste and Edit for Tana",
       "description": "Paste text, edit it, then convert to Tana Paste format",
       "mode": "view"
+    },
+    {
+      "name": "selected-to-tana",
+      "title": "Convert Selected Text to Tana",
+      "description": "Convert currently selected text to Tana Paste format",
+      "mode": "no-view"
     }
   ],
   "dependencies": {
