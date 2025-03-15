@@ -7,18 +7,19 @@
   "license": "MIT",
   "commands": [
     {
-      "name": "convert-markdown",
-      "title": "Convert Markdown to Tana",
-      "description": "Convert Markdown text to Tana Paste format",
-      "mode": "view"
+      "name": "clipboard-to-tana",
+      "title": "Copy Clipboard to Tana Paste",
+      "description": "Convert clipboard content to Tana Paste format",
+      "mode": "no-view"
     }
   ],
   "dependencies": {
-    "@raycast/api": "latest"
+    "@raycast/api": "^1.55.2"
   },
   "devDependencies": {
     "@types/node": "18.8.3",
     "@types/react": "18.0.9",
+    "@types/react-dom": "18.0.5",
     "typescript": "^4.9.5"
   },
   "scripts": {
