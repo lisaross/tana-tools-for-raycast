@@ -1,0 +1,29 @@
+{
+  "name": "tana-paste",
+  "title": "Tana Paste",
+  "description": "Convert Markdown to Tana Paste format",
+  "icon": "command-icon.png",
+  "author": "your-name",
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "convert-markdown",
+      "title": "Convert Markdown to Tana",
+      "description": "Convert Markdown text to Tana Paste format",
+      "mode": "view"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "18.8.3",
+    "@types/react": "18.0.9",
+    "typescript": "^4.9.5"
+  },
+  "scripts": {
+    "build": "ray build -e dist",
+    "dev": "ray develop",
+    "lint": "ray lint"
+  }
+} 
