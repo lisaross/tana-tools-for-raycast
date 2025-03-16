@@ -7,162 +7,440 @@ export type TextElement = {
   level?: number;
 };
 
+interface Line {
+  content: string;
+  indent: number;
+  raw: string;
+  isHeader: boolean;
+  isCodeBlock: boolean;
+  parent?: number;
+}
+
 /**
- * Converts any text input to Tana format
- * @param inputText - The text to convert. Can be empty or undefined if text selection fails
- * @returns Formatted Tana text or error message if input is invalid
+ * Parse a line to determine its structure
  */
-export function convertToTana(inputText: string | undefined | null): string {
-  // Handle empty or invalid input
-  if (!inputText) {
-    return "No text selected. Please select some text and try again.";
-  }
-
-  if (typeof inputText !== 'string') {
-    return "Invalid input. Expected text but received " + typeof inputText;
-  }
-
-  // Remove any existing Tana headers to prevent duplication
-  let cleanedText = inputText.replace(/%%tana%%\n?/g, '');
+function parseLine(line: string): Line {
+  const raw = line;
   
-  // Clean up common web artifacts
-  cleanedText = cleanedText
-    // Remove language artifacts
-    .replace(/\s*\\.*?\[language\.\.\.\]\(language\.\.\.\)/g, '')
-    // Remove self-referential links like [team:](team:)
-    .replace(/\[([^\]]+:)\]\(\1\)/g, '$1')
-    // Remove duplicate colons
-    .replace(/:{2,}/g, ':')
-    // Clean up any remaining [text](text) style artifacts where text is identical
-    .replace(/\[([^\]]+)\]\(\1\)/g, '$1')
-    // Clean up any remaining [...] style artifacts
-    .replace(/\[([^\]]+\.\.\.)\]\([^\)]+\)/g, '$1')
-    // Clean up any remaining (...) style artifacts
-    .replace(/\([^\)]*\.\.\.\)/g, '')
-    .trim();
-
-  // Handle case where text is empty after cleaning
-  if (!cleanedText) {
-    return "Text is empty after cleaning. Please try with different text.";
-  }
-
-  // Start with the Tana Paste identifier
-  let tanaOutput = "%%tana%%\n";
+  // Calculate indent level based on spaces
+  const match = line.match(/^(\s*)/);
+  const spaces = match ? match[1].length : 0;
+  const indent = Math.floor(spaces / 2);
   
-  try {
-    // Split into lines and process each one
-    const lines = cleanedText.split('\n');
-    let currentIndentLevel = 0;
-    let inList = false;
-    let listIndentStack: number[] = [];
+  // Get content without indentation
+  const content = line.slice(spaces).trimEnd();
+  
+  // Detect if it's a header
+  const isHeader = content.startsWith('#');
+  
+  // Detect if it's a code block
+  const isCodeBlock = content.startsWith('```');
+  
+  return { content, indent, raw, isHeader, isCodeBlock, parent: undefined };
+}
 
-    for (let i = 0; i < lines.length; i++) {
-      let line = lines[i].trimEnd();
-      if (!line.trim()) continue;
-
-      // Process headers
-      const headerMatch = line.match(/^(#{1,6})\s+(.+)$/);
-      if (headerMatch) {
-        const level = headerMatch[1].length;
-        const content = headerMatch[2];
-        const indent = "  ".repeat(level - 1);
-        tanaOutput += `${indent}- ${content}\n`;
-        currentIndentLevel = level - 1;
-        continue;
+/**
+ * Build the hierarchy by linking lines to their parents
+ */
+function buildHierarchy(lines: Line[]): Line[] {
+  if (lines.length === 0) return lines;
+  
+  const result = [...lines];
+  let lastHeader: number | undefined = undefined;
+  let lastParentAtLevel: number[] = [-1];
+  let inCodeBlock = false;
+  let codeBlockParent: number | undefined = undefined;
+  
+  for (let i = 0; i < result.length; i++) {
+    const line = result[i];
+    const content = line.content.trim();
+    
+    // Skip empty lines
+    if (!content) continue;
+    
+    // Handle code blocks
+    if (line.isCodeBlock || inCodeBlock) {
+      if (!inCodeBlock) {
+        inCodeBlock = true;
+        codeBlockParent = lastParentAtLevel[lastParentAtLevel.length - 1];
       }
-
-      // Process unordered lists
-      const unorderedListMatch = line.match(/^(\s*)[*+-]\s+(.+)$/);
-      if (unorderedListMatch) {
-        const indentSpaces = unorderedListMatch[1].length;
-        const content = unorderedListMatch[2];
-        const level = Math.floor(indentSpaces / 2);
-        const indent = "  ".repeat(level);
-        tanaOutput += `${indent}- ${content}\n`;
-        inList = true;
-        listIndentStack = [level];
-        continue;
+      line.parent = codeBlockParent;
+      if (line.isCodeBlock && inCodeBlock) {
+        inCodeBlock = false;
+        codeBlockParent = undefined;
       }
-
-      // Process ordered lists
-      const orderedListMatch = line.match(/^(\s*)\d+\.\s+(.+)$/);
-      if (orderedListMatch) {
-        const indentSpaces = orderedListMatch[1].length;
-        const content = orderedListMatch[2];
-        const level = Math.floor(indentSpaces / 2);
-        const indent = "  ".repeat(level);
-        tanaOutput += `${indent}- ${content}\n`;
-        inList = true;
-        listIndentStack = [level];
-        continue;
-      }
-
-      // Process blockquotes
-      const blockquoteMatch = line.match(/^(\s*>+)\s*(.+)$/);
-      if (blockquoteMatch) {
-        const quoteLevel = blockquoteMatch[1].split('>').length - 1;
-        const content = blockquoteMatch[2];
-        const indent = "  ".repeat(quoteLevel);
-        tanaOutput += `${indent}- ${content}\n`;
-        continue;
-      }
-
-      // Process task lists
-      const taskListMatch = line.match(/^(\s*)-\s+\[([ x])\]\s+(.+)$/);
-      if (taskListMatch) {
-        const indentSpaces = taskListMatch[1].length;
-        const isChecked = taskListMatch[2] === 'x';
-        const content = `${isChecked ? '✓ ' : '☐ '}${taskListMatch[3]}`;
-        const level = Math.floor(indentSpaces / 2);
-        const indent = "  ".repeat(level);
-        tanaOutput += `${indent}- ${content}\n`;
-        continue;
-      }
-
-      // Process definition lists
-      const definitionMatch = line.match(/^:\s+(.+)$/);
-      if (definitionMatch) {
-        const content = definitionMatch[1];
-        const indent = "  ".repeat(currentIndentLevel + 1);
-        tanaOutput += `${indent}- ${content}\n`;
-        continue;
-      }
-
-      // Process tables
-      if (line.includes('|')) {
-        const cells = line.split('|').filter(cell => cell.trim());
-        if (cells.length > 0) {
-          // Skip table separators (lines with dashes and pipes)
-          if (!/^[-|]+$/.test(line.trim())) {
-            const indent = "  ".repeat(currentIndentLevel);
-            tanaOutput += `${indent}- ${cells.map(cell => cell.trim()).join(' | ')}\n`;
-          }
-          continue;
-        }
-      }
-
-      // Process horizontal rules
-      if (/^[-*_]{3,}$/.test(line.trim())) {
-        tanaOutput += "- ---\n";
-        continue;
-      }
-
-      // Handle regular paragraphs
-      if (!inList) {
-        const indent = "  ".repeat(currentIndentLevel);
-        tanaOutput += `${indent}- ${line}\n`;
-      } else {
-        // If it's a continuation of a list item, append to the previous line
-        const lastNewlineIndex = tanaOutput.lastIndexOf('\n', tanaOutput.length - 2);
-        const upToLastLine = tanaOutput.slice(0, lastNewlineIndex + 1);
-        const lastLine = tanaOutput.slice(lastNewlineIndex + 1, -1);
-        tanaOutput = upToLastLine + lastLine + ' ' + line + '\n';
-      }
+      continue;
     }
     
-    return tanaOutput;
-  } catch (error) {
-    console.error('Error converting text to Tana format:', error);
-    return "Error converting text. Please try again with different text.";
+    // Handle headers
+    if (line.isHeader) {
+      const level = content.match(/^#+/)?.[0].length ?? 1;
+      // Headers at same level as content
+      line.parent = -1;
+      lastHeader = i;
+      // Reset parent tracking at this level
+      lastParentAtLevel = lastParentAtLevel.slice(0, level);
+      lastParentAtLevel[level - 1] = i;
+      continue;
+    }
+    
+    // Handle list items and content
+    const effectiveIndent = line.indent;
+    
+    // Find the appropriate parent
+    while (lastParentAtLevel.length > effectiveIndent + 1) {
+      lastParentAtLevel.pop();
+    }
+    
+    // If we're at the first level under a header, link to the header
+    if (effectiveIndent === 0 && lastHeader !== undefined) {
+      line.parent = lastHeader;
+    } else {
+      // Otherwise link to the last item at the previous level
+      line.parent = lastParentAtLevel[effectiveIndent - 1] ?? -1;
+    }
+    
+    // Update parent tracking at this level
+    lastParentAtLevel[effectiveIndent] = i;
   }
+  
+  return result;
+}
+
+interface ParsedDate {
+  type: 'simple' | 'time' | 'week' | 'duration';
+  value: string;
+  isProcessed?: boolean;
+}
+
+/**
+ * Parse a date string into its components
+ */
+function parseDate(text: string): ParsedDate | null {
+  // Already a Tana date reference
+  if (text.startsWith('[[date:') && text.endsWith(']]')) {
+    return {
+      type: 'simple',
+      value: text,
+      isProcessed: true
+    };
+  }
+
+  // Week format
+  const weekMatch = text.match(/^Week (\d{1,2}),\s*(\d{4})$/);
+  if (weekMatch) {
+    const [_, week, year] = weekMatch;
+    return {
+      type: 'week',
+      value: `${year}-W${week.padStart(2, '0')}`
+    };
+  }
+
+  // Week range
+  const weekRangeMatch = text.match(/^Weeks (\d{1,2})-(\d{1,2}),\s*(\d{4})$/);
+  if (weekRangeMatch) {
+    const [_, week1, week2, year] = weekRangeMatch;
+    return {
+      type: 'duration',
+      value: `${year}-W${week1.padStart(2, '0')}/W${week2.padStart(2, '0')}`
+    };
+  }
+
+  // ISO date with time
+  const isoTimeMatch = text.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})$/);
+  if (isoTimeMatch) {
+    const [_, date, time] = isoTimeMatch;
+    return {
+      type: 'time',
+      value: `${date} ${time}`
+    };
+  }
+
+  // Legacy format with time
+  const legacyTimeMatch = text.match(/^(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s+)?([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,\s*(\d{4})(?:,\s*(\d{1,2}):(\d{2})\s*(AM|PM))?$/);
+  if (legacyTimeMatch) {
+    const [_, month, day, year, hour, min, ampm] = legacyTimeMatch;
+    if (hour && min && ampm) {
+      const h = parseInt(hour);
+      const adjustedHour = ampm === 'PM' && h < 12 ? h + 12 : (ampm === 'AM' && h === 12 ? 0 : h);
+      return {
+        type: 'time',
+        value: `${year}-${getMonthNumber(month)}-${day.padStart(2, '0')} ${adjustedHour.toString().padStart(2, '0')}:${min}`
+      };
+    }
+    return {
+      type: 'simple',
+      value: `${year}-${getMonthNumber(month)}-${day.padStart(2, '0')}`
+    };
+  }
+
+  // Duration with mixed formats
+  const durationMatch = text.match(/^([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?\s*-\s*([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,\s*(\d{4})$/);
+  if (durationMatch) {
+    const [_, month1, day1, month2, day2, year] = durationMatch;
+    return {
+      type: 'duration',
+      value: `${year}-${getMonthNumber(month1)}-${day1.padStart(2, '0')}/${year}-${getMonthNumber(month2)}-${day2.padStart(2, '0')}`
+    };
+  }
+
+  // ISO duration
+  const isoDurationMatch = text.match(/^(\d{4}-\d{2}-\d{2})\/(\d{4}-\d{2}-\d{2})$/);
+  if (isoDurationMatch) {
+    const [_, start, end] = isoDurationMatch;
+    return {
+      type: 'duration',
+      value: `${start}/${end}`
+    };
+  }
+
+  // Simple ISO date
+  const isoMatch = text.match(/^(\d{4}-\d{2}-\d{2})$/);
+  if (isoMatch) {
+    return {
+      type: 'simple',
+      value: isoMatch[1]
+    };
+  }
+
+  // Month and year
+  const monthYearMatch = text.match(/^(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s+)?([A-Z][a-z]+)(?:\s+)?(?:⌘\s+)?(\d{4})$/);
+  if (monthYearMatch) {
+    const [_, month, year] = monthYearMatch;
+    return {
+      type: 'simple',
+      value: `${year}-${getMonthNumber(month)}`
+    };
+  }
+
+  // Year only
+  const yearMatch = text.match(/^(?:⌘\s+)?(\d{4})$/);
+  if (yearMatch) {
+    return {
+      type: 'simple',
+      value: yearMatch[1]
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Format a parsed date into Tana format
+ */
+function formatTanaDate(date: ParsedDate): string {
+  if (date.isProcessed) return date.value;
+  
+  switch (date.type) {
+    case 'simple':
+      return `[[date:${date.value}]]`;
+    case 'time':
+      return `[[date:${date.value}]]`;
+    case 'week':
+      return `[[date:${date.value}]]`;
+    case 'duration':
+      return `[[date:${date.value}]]`;
+    default:
+      return date.value;
+  }
+}
+
+/**
+ * Convert markdown date formats to Tana date format
+ */
+function convertDates(text: string): string {
+  // First protect URLs and existing references
+  const protectedItems: string[] = [];
+  text = text.replace(/(?:\[\[.*?\]\]|https?:\/\/[^\s)]+|\[[^\]]+\]\([^)]+\))/g, (match) => {
+    protectedItems.push(match);
+    return `__PROTECTED_${protectedItems.length - 1}__`;
+  });
+
+  // Process dates
+  text = text.replace(/(?:\[\[date:)?(?:\[\[.*?\]\]|\d{4}(?:-\d{2}(?:-\d{2})?)?(?:\s+\d{2}:\d{2})?(?:\/(?:\[\[.*?\]\]|\d{4}(?:-\d{2}(?:-\d{2})?)?(?:\s+\d{2}:\d{2})?))?)(?:\]\])?|(?:Week \d{1,2},\s*\d{4})|(?:Weeks \d{1,2}-\d{1,2},\s*\d{4})|(?:[A-Z][a-z]+\s+(?:⌘\s+)?\d{4})|(?:[A-Z][a-z]+ \d{1,2}(?:st|nd|rd|th)?,\s*\d{4}(?:,\s*\d{1,2}:\d{2}\s*(?:AM|PM))?)|(?:[A-Z][a-z]+ \d{1,2}(?:st|nd|rd|th)?\s*-\s*[A-Z][a-z]+ \d{1,2}(?:st|nd|rd|th)?,\s*\d{4})/g, 
+    (match) => {
+      const parsed = parseDate(match);
+      return parsed ? formatTanaDate(parsed) : match;
+    });
+
+  // Restore protected content
+  text = text.replace(/__PROTECTED_(\d+)__/g, (_, index) => protectedItems[parseInt(index)]);
+
+  return text;
+}
+
+/**
+ * Convert month abbreviation to number (01-12)
+ */
+function getMonthNumber(month: string): string {
+  const months: { [key: string]: string } = {
+    'January': '01', 'Jan': '01',
+    'February': '02', 'Feb': '02',
+    'March': '03', 'Mar': '03',
+    'April': '04', 'Apr': '04',
+    'May': '05',
+    'June': '06', 'Jun': '06',
+    'July': '07', 'Jul': '07',
+    'August': '08', 'Aug': '08',
+    'September': '09', 'Sep': '09',
+    'October': '10', 'Oct': '10',
+    'November': '11', 'Nov': '11',
+    'December': '12', 'Dec': '12'
+  };
+  return months[month] || '01';
+}
+
+/**
+ * Convert markdown fields to Tana fields
+ */
+function convertFields(text: string): string {
+  // Skip if already contains a field marker
+  if (text.includes('::')) return text;
+  
+  // Skip if it's a table row
+  if (text.includes('|')) return text;
+  
+  return text.replace(/^(\s*[-*+]\s+)?([^:\n]+):\s+([^\n]+)$/gm, (match, prefix, key, value) => {
+    // Skip if value is already a reference
+    if (value.match(/^\[\[/)) return match;
+    return `${prefix || ''}${key}::${value}`;
+  });
+}
+
+/**
+ * Process inline formatting
+ */
+function processInlineFormatting(text: string): string {
+  // First protect URLs and existing references
+  const protectedItems: string[] = [];
+  text = text.replace(/(?:\[\[.*?\]\]|https?:\/\/[^\s)]+|\[[^\]]+\]\([^)]+\))/g, (match) => {
+    protectedItems.push(match);
+    return `__PROTECTED_${protectedItems.length - 1}__`;
+  });
+
+  // Process formatting
+  text = text
+    // Bold/italic
+    .replace(/\*\*([^*]+)\*\*/g, '**$1**')
+    .replace(/\*([^*]+)\*/g, '__$1__')
+    // Highlight
+    .replace(/==([^=]+)==/g, '^^$1^^')
+    // Images
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, title, url) => 
+      title ? `${title}::!${title} ${url}` : `!Image ${url}`)
+    // Links
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 $2')
+    // Tags
+    .replace(/\(([^)]+)\)/g, (_, tag) => {
+      if (tag.match(/^\[\[.*\]\]$/)) return `(${tag})`;
+      return tag.includes(' ') ? `#[[${tag}]]` : `#${tag}`;
+    });
+
+  // Restore protected content
+  text = text.replace(/__PROTECTED_(\d+)__/g, (_, index) => protectedItems[parseInt(index)]);
+
+  return text;
+}
+
+/**
+ * Process code blocks - just extract the content as plain text
+ */
+function processCodeBlock(lines: string[]): string {
+  // Skip the first and last lines (the ```)
+  return lines
+    .slice(1, -1)
+    .map(line => line.trim())
+    .join('\n');
+}
+
+/**
+ * Process table row
+ * @param row - Table row text
+ * @returns Processed row text
+ */
+function processTableRow(text: string): string {
+  return text
+    .split('|')
+    .map(cell => cell.trim())
+    .filter(Boolean)
+    .join(' | ');
+}
+
+/**
+ * Convert markdown to Tana format
+ */
+export function convertToTana(inputText: string | undefined | null): string {
+  if (!inputText) return "No text selected.";
+  
+  // Split into lines and parse
+  const lines = inputText.split('\n')
+    .map(line => parseLine(line));
+  
+  // Build hierarchy
+  const hierarchicalLines = buildHierarchy(lines);
+  
+  // Generate output
+  let output = "%%tana%%\n";
+  let inCodeBlock = false;
+  let codeBlockLines: string[] = [];
+  
+  for (const line of hierarchicalLines) {
+    const content = line.content.trim();
+    if (!content) continue;
+    
+    // Calculate indent based on parent chain
+    let indent = "";
+    if (line.parent !== undefined && line.parent >= 0) {
+      let depth = 1;
+      let currentParent = hierarchicalLines[line.parent];
+      while (currentParent?.parent !== undefined && currentParent.parent >= 0) {
+        depth++;
+        currentParent = hierarchicalLines[currentParent.parent];
+      }
+      indent = "  ".repeat(depth);
+    }
+    
+    // Handle code blocks
+    if (line.isCodeBlock || inCodeBlock) {
+      if (!inCodeBlock) {
+        inCodeBlock = true;
+        codeBlockLines = [line.raw];
+      } else if (line.isCodeBlock) {
+        inCodeBlock = false;
+        codeBlockLines.push(line.raw);
+        output += `${indent}- ${processCodeBlock(codeBlockLines)}\n`;
+        codeBlockLines = [];
+      } else {
+        codeBlockLines.push(line.raw);
+      }
+      continue;
+    }
+    
+    // Process line content
+    let processedContent = content;
+    
+    // Handle headers
+    if (line.isHeader) {
+      const match = content.match(/^(#{1,6})\s+(.+)$/);
+      if (match) {
+        processedContent = `!! ${match[2]}`;
+      }
+    } else {
+      // Remove list markers but preserve checkboxes
+      processedContent = processedContent.replace(/^[-*+]\s+(?!\[[ x]\])/, '');
+      
+      // Convert fields first
+      processedContent = convertFields(processedContent);
+      
+      // Then convert dates
+      processedContent = convertDates(processedContent);
+      
+      // Finally process inline formatting
+      processedContent = processInlineFormatting(processedContent);
+    }
+    
+    output += `${indent}- ${processedContent}\n`;
+  }
+  
+  return output;
 }
