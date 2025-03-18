@@ -15,7 +15,6 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
   - Numbered lists
   - Paragraphs
   - Nested content with proper indentation
-- Real-time preview in edit mode
 - Instant feedback via HUD notifications
 - TypeScript implementation with strict typing
 - Comprehensive error handling
@@ -45,7 +44,7 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
 ## Usage
 
 ### Quick Clipboard Conversion
-1. Copy your Markdown text to clipboard (⌘+C)
+1. Copy your Markdown text to clipboard (⌘+C) (examples in the examples directory for testing)
 2. Open Raycast (⌘+Space)
 3. Type "Quick Clipboard to Tana"
 4. Press Enter
