@@ -87,12 +87,17 @@ export default function Command() {
       isLoading={isLoading}
       actions={
         <ActionPanel>
-          <Action.SubmitForm title="Convert and Open in Tana" onSubmit={handleSubmit} />
-          <Action
-            title="Load Clipboard Content"
-            shortcut={{ modifiers: ["cmd"], key: "l" }}
-            onAction={loadClipboardContent}
-          />
+          <ActionPanel.Section>
+            <Action.SubmitForm 
+              title="Convert and Open in Tana" 
+              onSubmit={handleSubmit} 
+            />
+            <Action
+              title="Load Clipboard Content"
+              shortcut={{ modifiers: ["cmd"], key: "l" }}
+              onAction={loadClipboardContent}
+            />
+          </ActionPanel.Section>
         </ActionPanel>
       }
     >

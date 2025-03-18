@@ -3,7 +3,7 @@
   "title": "Tana Paste",
   "description": "Convert text and Markdown to Tana Paste format",
   "icon": "command-icon.png",
-  "author": "your-name",
+  "author": "Lisa Ross",
   "license": "MIT",
   "commands": [
     {
@@ -29,10 +29,10 @@
     "@raycast/api": "^1.55.2"
   },
   "devDependencies": {
-    "@types/node": "18.8.3",
-    "@types/react": "18.0.9",
-    "@types/react-dom": "18.0.5",
-    "typescript": "^4.9.5"
+    "@types/node": "^18.8.3",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.0.0"
   },
   "scripts": {
     "build": "ray build -e dist",
