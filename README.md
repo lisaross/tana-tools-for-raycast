@@ -67,7 +67,77 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
 5. The converted text is now in your clipboard
 6. Paste into Tana (⌘+V)
 
+## Backup Solution: Python Script
+
+The Raycast extension is the primary way to convert content to Tana format. However, there are situations where you might need an alternative:
+
+- When working with very large files (>100KB)
+- When you don't have Raycast installed
+- When you need to process multiple files in batch
+- When you need more control over the conversion process
+
+For these cases, we provide a Python script that implements the same conversion logic.
+
+### Requirements
+- Python 3.6 or later
+- No additional dependencies required
+
+### Usage
+
+1. Convert a markdown file to Tana format and split into chunks:
+   ```bash
+   python3 tana_converter.py input.md -o output.txt
+   ```
+   This will create numbered output files (e.g., `output_1.txt`, `output_2.txt`, etc.)
+
+2. Customize chunk size (default is 90KB):
+   ```bash
+   python3 tana_converter.py input.md -o output.txt --chunk-size 80000
+   ```
+
+3. Print chunks to console with separators:
+   ```bash
+   python3 tana_converter.py input.md
+   ```
+
+### Features
+- Automatically splits large content into chunks under 100KB
+- Each chunk starts with the `%%tana%%` header
+- Maintains proper node structure when splitting
+- Supports all the same markdown elements as the Raycast extension
+- UTF-8 encoding support
+- Comprehensive error handling
+
 ### Example
+
+Input file (`input.md`):
+```markdown
+# Project Overview
+
+## Team Members
+- John Smith - Project Lead
+- Jane Doe - Developer
+  - Skills: JavaScript, TypeScript
+  - Start Date: 2024-03-15
+```
+
+Running the script:
+```bash
+python3 tana_converter.py input.md -o project.txt
+```
+
+This will create `project_1.txt` (and more if needed) with content like:
+```
+%%tana%%
+- !! Project Overview
+  - !! Team Members
+    - John Smith - Project Lead
+    - Jane Doe - Developer
+      - Skills::JavaScript, TypeScript
+      - Start Date::[[date:2024-03-15]]
+```
+
+## Example
 
 Input (in clipboard):
 ```markdown
@@ -75,19 +145,17 @@ Input (in clipboard):
 ## Subheading
 - List item 1
   - Nested item
-    - Deep nested item
-This is a paragraph.
+- List item 2
 ```
 
-Output (after conversion):
+Output (in clipboard):
 ```
 %%tana%%
 - !! My Heading
   - !! Subheading
     - List item 1
       - Nested item
-        - Deep nested item
-    - This is a paragraph.
+    - List item 2
 ```
 
 ## Development
