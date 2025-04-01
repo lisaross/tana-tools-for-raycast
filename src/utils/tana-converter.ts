@@ -631,8 +631,8 @@ function processCodeBlock(lines: string[]): string {
   // Skip the first and last lines (the ```)
   return lines
     .slice(1, -1)
-    .map(line => line.trim())
-    .join('\n');
+    .map((line) => line.trim())
+    .join("\n");
 }
 
 /**

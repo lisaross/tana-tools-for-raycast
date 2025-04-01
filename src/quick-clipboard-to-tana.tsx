@@ -9,7 +9,7 @@ export default async function Command() {
   try {
     // Get clipboard content directly - no need to try selected text for quick clipboard command
     const clipboardText = await Clipboard.readText();
-    
+
     if (!clipboardText) {
       await showHUD("Clipboard is empty");
       return;
@@ -17,20 +17,22 @@ export default async function Command() {
 
     // Convert to Tana format
     const tanaOutput = convertToTana(clipboardText);
-    
+
     // Copy back to clipboard
     await Clipboard.copy(tanaOutput);
-    
+
     // Open Tana
     try {
-      await execAsync('open tana://');
+      await execAsync("open tana://");
       await showHUD("Tana format copied to clipboard. Opening Tana... ✨");
     } catch (error) {
-      console.error('Error opening Tana:', error);
-      await showHUD("Tana format copied to clipboard (but couldn't open Tana) ✨");
+      console.error("Error opening Tana:", error);
+      await showHUD(
+        "Tana format copied to clipboard (but couldn't open Tana) ✨",
+      );
     }
   } catch (error) {
-    console.error('Error processing clipboard:', error);
+    console.error("Error processing clipboard:", error);
     await showHUD("Failed to process clipboard content");
   }
-} 
+}

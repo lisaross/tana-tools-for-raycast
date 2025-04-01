@@ -1,5 +1,5 @@
+import React, { useState, useEffect } from "react";
 import { Form, ActionPanel, Action, showHUD, Clipboard } from "@raycast/api";
-import { useState, useEffect } from "react";
 import { convertToTana } from "./utils/tana-converter";
 import { exec } from "child_process";
 import { promisify } from "util";
@@ -64,17 +64,19 @@ export default function Command() {
 
       // Convert to Tana format
       const tanaOutput = convertToTana(values.text);
-      
+
       // Copy to clipboard
       await Clipboard.copy(tanaOutput);
-      
+
       // Open Tana
       try {
-        await execAsync('open tana://');
+        await execAsync("open tana://");
         await showHUD("Tana format copied to clipboard. Opening Tana... ✨");
       } catch (error) {
         console.error("Error opening Tana:", error);
-        await showHUD("Tana format copied to clipboard (but couldn't open Tana) ✨");
+        await showHUD(
+          "Tana format copied to clipboard (but couldn't open Tana) ✨",
+        );
       }
     } catch (error) {
       console.error("Error converting text:", error);
@@ -88,9 +90,9 @@ export default function Command() {
       actions={
         <ActionPanel>
           <ActionPanel.Section>
-            <Action.SubmitForm 
-              title="Convert and Open in Tana" 
-              onSubmit={handleSubmit} 
+            <Action.SubmitForm
+              title="Convert and Open in Tana"
+              onSubmit={handleSubmit}
             />
             <Action
               title="Load Clipboard Content"
@@ -111,4 +113,4 @@ export default function Command() {
       />
     </Form>
   );
-} 
+}
