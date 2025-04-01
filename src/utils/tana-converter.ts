@@ -246,9 +246,17 @@ function formatTanaDate(date: ParsedDate): string {
 }
 
 /**
- * Convert markdown date formats to Tana date format
+ * Convert dates in text to Tana date format
+ * 
+ * Modified to preserve purely numeric values that aren't dates
+ * and to properly handle ID fields that might contain numbers
  */
 function convertDates(text: string): string {
+  // Check if this is likely to be a numeric ID and not a date 
+  if (text.toLowerCase().includes('id') && text.match(/\d{4,}/) && !text.match(/\d{4}-\d{2}-\d{2}/)) {
+    return text;
+  }
+  
   // First protect URLs and existing references
   const protectedItems: string[] = [];
   text = text.replace(/(?:\[\[.*?\]\]|https?:\/\/[^\s)]+|\[[^\]]+\]\([^)]+\))/g, (match) => {
@@ -259,6 +267,10 @@ function convertDates(text: string): string {
   // Process dates
   text = text.replace(/(?:\[\[date:)?(?:\[\[.*?\]\]|\d{4}(?:-\d{2}(?:-\d{2})?)?(?:\s+\d{2}:\d{2})?(?:\/(?:\[\[.*?\]\]|\d{4}(?:-\d{2}(?:-\d{2})?)?(?:\s+\d{2}:\d{2})?))?)(?:\]\])?|(?:Week \d{1,2},\s*\d{4})|(?:Weeks \d{1,2}-\d{1,2},\s*\d{4})|(?:[A-Z][a-z]+\s+(?:⌘\s+)?\d{4})|(?:[A-Z][a-z]+ \d{1,2}(?:st|nd|rd|th)?,\s*\d{4}(?:,\s*\d{1,2}:\d{2}\s*(?:AM|PM))?)|(?:[A-Z][a-z]+ \d{1,2}(?:st|nd|rd|th)?\s*-\s*[A-Z][a-z]+ \d{1,2}(?:st|nd|rd|th)?,\s*\d{4})/g, 
     (match) => {
+      // Skip pure numeric IDs
+      if (match.match(/^\d+$/) && match.length < 5) {
+        return match;
+      }
       const parsed = parseDate(match);
       return parsed ? formatTanaDate(parsed) : match;
     });
@@ -292,6 +304,10 @@ function getMonthNumber(month: string): string {
 
 /**
  * Convert markdown fields to Tana fields
+ * 
+ * Fix for issue #2: "Regular text with colons incorrectly converted to fields"
+ * This function is now smarter about when to convert text with colons to fields.
+ * It uses heuristics to distinguish between descriptive text with colons and actual fields.
  */
 function convertFields(text: string): string {
   // Skip if already contains a field marker
@@ -300,9 +316,115 @@ function convertFields(text: string): string {
   // Skip if it's a table row
   if (text.includes('|')) return text;
   
+  // Check for patterns that indicate colons in regular text rather than fields
+  const isLikelyRegularText = (key: string, value: string, prefix: string | undefined, fullLine: string): boolean => {
+    // If this isn't a list item and doesn't look like a metadata block, it's likely regular text
+    const isStandaloneText = !prefix && !fullLine.trim().startsWith('-');
+    if (isStandaloneText) {
+      return true;
+    }
+    
+    // Check for numbered list items (1., 2., etc.) - usually not fields
+    if (fullLine.match(/^\s*\d+\.\s+/)) {
+      return true;
+    }
+    
+    // Common words/phrases that indicate instructional content, not fields
+    const instructionalPhrases = [
+      'step', 'how to', 'note', 'example', 'tip', 'warning', 'caution', 'important', 
+      'remember', 'click', 'select', 'choose', 'press', 'type', 'enter', 'copy', 'paste',
+      'invoke', 'generate', 'hook', 'connect', 'create', 'toggle', 'shortcut', 'using', 'next',
+      'first', 'second', 'third', 'fourth', 'fifth', 'last', 'final'
+    ];
+    
+    // If the key contains instructional phrases, it's likely not a field
+    if (instructionalPhrases.some(phrase => key.toLowerCase().includes(phrase))) {
+      return true;
+    }
+    
+    // UI elements often followed by instructions, not field values
+    const uiElements = [
+      'window', 'dialog', 'menu', 'button', 'link', 'option', 'panel', 'screen',
+      'tab', 'toolbar', 'sidebar', 'modal', 'keyboard', 'mouse'
+    ];
+    
+    // If the key contains UI elements, it's likely instructions
+    if (uiElements.some(element => key.toLowerCase().includes(element))) {
+      return true;
+    }
+    
+    // If the value contains instructional language, it's likely not a field
+    if (value.match(/press|click|select|use|open|go to|install|save|using/i)) {
+      return true;
+    }
+    
+    // If the value starts with an article or preposition, it's likely a sentence
+    if (value.match(/^(The|A|An|This|That|These|Those|To|In|On|At|By|With|From|For|About)\s/i)) {
+      return true;
+    }
+    
+    // If the value contains parentheses indicating field status
+    if (value.includes('(field)') || value.includes('(not a field)')) {
+      return value.includes('(not a field)');
+    }
+    
+    // If the value contains punctuation common in natural language
+    const hasPunctuation = value.match(/[;,()]/) || value.includes(' - ');
+    const isFieldTest = value.match(/\([^)]*field[^)]*\)/i);
+    if (hasPunctuation && !isFieldTest) {
+      return true;
+    }
+    
+    // Likely patterns for real fields - used to identify actual fields
+    const likelyFieldPatterns = [
+      // Project metadata
+      'name', 'title', 'status', 'priority', 'assignee', 'tag', 'category', 'owner',
+      'due date', 'start date', 'created', 'updated', 'version', 'id', 'type', 'format',
+      
+      // Content metadata
+      'author', 'publisher', 'published', 'isbn', 'url', 'link',
+      
+      // Common fields
+      'email', 'phone', 'address', 'location', 'property', 'completion'
+    ];
+    
+    // If key matches common field patterns, it's likely a real field
+    if (likelyFieldPatterns.some(pattern => 
+      key.toLowerCase() === pattern || 
+      key.toLowerCase().startsWith(pattern + ' ') || 
+      key.toLowerCase().endsWith(' ' + pattern)
+    )) {
+      return false; // Not regular text, it's a field
+    }
+    
+    // In the context of a markdown list with a dash (-)
+    // If we have a simple "Key: Value" format with a short value, it's more likely to be a field
+    if (prefix && key.split(' ').length <= 3) {
+      // Simple values are likely fields
+      if (value.split(' ').length <= 3 && !value.match(/[;,():"']/)) {
+        return false; // Not regular text, it's a field
+      }
+      
+      // Check for uppercase first letter in key - often indicates a field
+      if (key[0] === key[0].toUpperCase() && value.split(' ').length <= 5) {
+        return false; // Not regular text, it's a field
+      }
+    }
+    
+    // When in doubt with longer content, assume it's regular text
+    return true;
+  };
+  
   return text.replace(/^(\s*[-*+]\s+)?([^:\n]+):\s+([^\n]+)$/gm, (match, prefix, key, value) => {
     // Skip if value is already a reference
     if (value.match(/^\[\[/)) return match;
+    
+    // Skip if this looks like regular text rather than a field
+    if (isLikelyRegularText(key, value, prefix, match)) {
+      return match;
+    }
+    
+    // Likely to be an actual field - proceed with conversion
     return `${prefix || ''}${key}::${value}`;
   });
 }
