@@ -4,6 +4,7 @@
   "description": "Convert text and Markdown to Tana Paste format",
   "icon": "command-icon.png",
   "author": "lisaross",
+  "type": "module",
   "license": "MIT",
   "commands": [
     {
@@ -29,12 +30,17 @@
     "@raycast/api": "^1.55.2"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.23.0",
     "@types/node": "^18.8.3",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "eslint": "^9.23.0",
+    "eslint-plugin-react": "^7.37.4",
+    "globals": "^16.0.0",
     "prettier": "^3.5.3",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.29.0"
   },
   "scripts": {
     "build": "ray build -e dist",
