@@ -41,12 +41,18 @@ function parseLine(line: string): Line {
 
 /**
  * Build the hierarchy by linking lines to their parents
+ * 
+ * Enhanced to properly nest headings based on their level (H1, H2, etc.)
  */
 function buildHierarchy(lines: Line[]): Line[] {
   if (lines.length === 0) return lines;
   
   const result = [...lines];
-  let lastHeader: number | undefined = undefined;
+  
+  // Track the most recent header at each level
+  // headersAtLevel[0] = H1, headersAtLevel[1] = H2, etc.
+  const headersAtLevel: number[] = [];
+  
   let lastParentAtLevel: number[] = [-1];
   let inCodeBlock = false;
   let codeBlockParent: number | undefined = undefined;
@@ -75,12 +81,28 @@ function buildHierarchy(lines: Line[]): Line[] {
     // Handle headers
     if (line.isHeader) {
       const level = content.match(/^#+/)?.[0].length ?? 1;
-      // Headers at same level as content
-      line.parent = -1;
-      lastHeader = i;
-      // Reset parent tracking at this level
-      lastParentAtLevel = lastParentAtLevel.slice(0, level);
-      lastParentAtLevel[level - 1] = i;
+      
+      // Find the parent for this header based on heading levels
+      if (level === 1) {
+        // Top-level (H1) headings are at the root
+        line.parent = -1;
+      } else {
+        // Subheadings (H2+) are children of the most recent header one level up
+        // For example, H2s are children of the most recent H1
+        line.parent = headersAtLevel[level - 2] ?? -1;
+      }
+      
+      // Update the header tracking for this level
+      headersAtLevel[level - 1] = i;
+      
+      // Clear header tracking for all deeper levels
+      // (when we see an H2, we clear tracked H3s, H4s, etc.)
+      headersAtLevel.length = level;
+      
+      // Reset parent tracking at this level for content under this header
+      lastParentAtLevel = lastParentAtLevel.slice(0, level + 1);
+      lastParentAtLevel[level] = i;
+      
       continue;
     }
     
@@ -92,16 +114,11 @@ function buildHierarchy(lines: Line[]): Line[] {
       lastParentAtLevel.pop();
     }
     
-    // If we're at the first level under a header, link to the header
-    if (effectiveIndent === 0 && lastHeader !== undefined) {
-      line.parent = lastHeader;
-    } else {
-      // Otherwise link to the last item at the previous level
-      line.parent = lastParentAtLevel[effectiveIndent - 1] ?? -1;
-    }
+    // Content is parented to the most recent element at the previous indentation level
+    line.parent = lastParentAtLevel[effectiveIndent] ?? -1;
     
     // Update parent tracking at this level
-    lastParentAtLevel[effectiveIndent] = i;
+    lastParentAtLevel[effectiveIndent + 1] = i;
   }
   
   return result;
@@ -512,6 +529,8 @@ function processTableRow(text: string): string {
 
 /**
  * Convert markdown to Tana format
+ * 
+ * Enhanced to properly indent content under headings without using Tana's heading format
  */
 export function convertToTana(inputText: string | undefined | null): string {
   if (!inputText) return "No text selected.";
@@ -528,21 +547,44 @@ export function convertToTana(inputText: string | undefined | null): string {
   let inCodeBlock = false;
   let codeBlockLines: string[] = [];
   
-  for (const line of hierarchicalLines) {
+  // Map to store each line's indentation level in the output
+  const indentationLevels: Map<number, number> = new Map();
+  
+  // Start with root level at 0
+  indentationLevels.set(-1, 0);
+  
+  // First pass to determine indentation levels
+  for (let i = 0; i < hierarchicalLines.length; i++) {
+    const line = hierarchicalLines[i];
+    
+    if (!line.content.trim()) continue;
+    
+    const parentIndex = line.parent !== undefined ? line.parent : -1;
+    const parentLevel = indentationLevels.get(parentIndex) ?? 0;
+    
+    // Determine indentation level
+    if (line.isHeader) {
+      const level = line.content.match(/^#+/)?.[0].length ?? 1;
+      
+      // The indentation for a header is based on its header level
+      // H1 = level 0, H2 = level 1, etc.
+      indentationLevels.set(i, level - 1);
+    } else {
+      // Content indentation is one more than its parent
+      indentationLevels.set(i, parentLevel + 1);
+    }
+  }
+  
+  // Second pass to generate the output
+  for (let i = 0; i < hierarchicalLines.length; i++) {
+    const line = hierarchicalLines[i];
     const content = line.content.trim();
+    
     if (!content) continue;
     
-    // Calculate indent based on parent chain
-    let indent = "";
-    if (line.parent !== undefined && line.parent >= 0) {
-      let depth = 1;
-      let currentParent = hierarchicalLines[line.parent];
-      while (currentParent?.parent !== undefined && currentParent.parent >= 0) {
-        depth++;
-        currentParent = hierarchicalLines[currentParent.parent];
-      }
-      indent = "  ".repeat(depth);
-    }
+    // Use the indentation level we determined in the first pass
+    const level = indentationLevels.get(i) ?? 0;
+    const indent = "  ".repeat(level);
     
     // Handle code blocks
     if (line.isCodeBlock || inCodeBlock) {
@@ -563,11 +605,12 @@ export function convertToTana(inputText: string | undefined | null): string {
     // Process line content
     let processedContent = content;
     
-    // Handle headers
+    // Handle headers - convert to regular text without using Tana's heading format
     if (line.isHeader) {
       const match = content.match(/^(#{1,6})\s+(.+)$/);
       if (match) {
-        processedContent = `!! ${match[2]}`;
+        // Just use the header text without the !! prefix
+        processedContent = match[2];
       }
     } else {
       // Remove list markers but preserve checkboxes
