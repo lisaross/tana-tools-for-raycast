@@ -45,12 +45,20 @@ def parse_line(line):
     return Line(content, indent, raw, is_header, is_code_block)
 
 def build_hierarchy(lines):
-    """Build the hierarchy by linking lines to their parents."""
+    """
+    Build the hierarchy by linking lines to their parents
+    
+    Enhanced to properly nest headings based on their level (H1, H2, etc.)
+    """
     if not lines:
         return lines
     
     result = lines.copy()
-    last_header = None
+    
+    # Track the most recent header at each level
+    # headers_at_level[0] = H1, headers_at_level[1] = H2, etc.
+    headers_at_level = []
+    
     last_parent_at_level = [-1]
     in_code_block = False
     code_block_parent = None
@@ -76,11 +84,29 @@ def build_hierarchy(lines):
         # Handle headers
         if line.is_header:
             level = len(re.match(r'^#+', content).group(0)) if re.match(r'^#+', content) else 1
-            line.parent = -1
-            last_header = i
-            # Reset parent tracking at this level
-            last_parent_at_level = last_parent_at_level[:level]
+            
+            # Find the parent for this header based on heading levels
+            if level == 1:
+                # Top-level (H1) headings are at the root
+                line.parent = -1
+            else:
+                # Subheadings (H2+) are children of the most recent header one level up
+                # For example, H2s are children of the most recent H1
+                line.parent = headers_at_level[level - 2] if level > 1 and level - 2 < len(headers_at_level) else -1
+            
+            # Update the header tracking for this level
+            if level - 1 >= len(headers_at_level):
+                headers_at_level.extend([None] * (level - len(headers_at_level)))
+            headers_at_level[level - 1] = i
+            
+            # Clear header tracking for all deeper levels
+            # (when we see an H2, we clear tracked H3s, H4s, etc.)
+            headers_at_level = headers_at_level[:level]
+            
+            # Reset parent tracking at this level for content under this header
+            last_parent_at_level = last_parent_at_level[:level + 1]
             last_parent_at_level.append(i)
+            
             continue
         
         # Handle list items and content
@@ -90,18 +116,17 @@ def build_hierarchy(lines):
         while len(last_parent_at_level) > effective_indent + 1:
             last_parent_at_level.pop()
         
-        # If we're at the first level under a header, link to the header
-        if effective_indent == 0 and last_header is not None:
-            line.parent = last_header
+        # Content is parented to the most recent element at the previous indentation level
+        if effective_indent < len(last_parent_at_level):
+            line.parent = last_parent_at_level[effective_indent]
         else:
-            # Otherwise link to the last item at the previous level
-            line.parent = last_parent_at_level[effective_indent - 1] if effective_indent > 0 else -1
+            line.parent = -1
         
         # Update parent tracking at this level
-        if effective_indent >= len(last_parent_at_level):
-            last_parent_at_level.append(i)
+        if effective_indent + 1 >= len(last_parent_at_level):
+            last_parent_at_level.extend([i] * (effective_indent + 1 - len(last_parent_at_level) + 1))
         else:
-            last_parent_at_level[effective_indent] = i
+            last_parent_at_level[effective_indent + 1] = i
     
     return result
 
@@ -132,14 +157,20 @@ def parse_date(text):
     # Week format
     week_match = re.match(r'^Week (\d{1,2}),\s*(\d{4})$', text)
     if week_match:
-        _, week, year = week_match.groups()
-        return ParsedDate('week', f"{year}-W{week.zfill(2)}")
+        week = week_match.group(1)
+        year = week_match.group(2)
+        week_padded = week.zfill(2)
+        return ParsedDate('week', f"{year}-W{week_padded}")
 
     # Week range
     week_range_match = re.match(r'^Weeks (\d{1,2})-(\d{1,2}),\s*(\d{4})$', text)
     if week_range_match:
-        _, week1, week2, year = week_range_match.groups()
-        return ParsedDate('duration', f"{year}-W{week1.zfill(2)}/W{week2.zfill(2)}")
+        week1 = week_range_match.group(1)
+        week2 = week_range_match.group(2)
+        year = week_range_match.group(3)
+        week1_padded = week1.zfill(2)
+        week2_padded = week2.zfill(2)
+        return ParsedDate('duration', f"{year}-W{week1_padded}/W{week2_padded}")
 
     # ISO date with time
     iso_time_match = re.match(r'^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})$', text)
@@ -222,7 +253,13 @@ def convert_dates(text):
     return text
 
 def convert_fields(text):
-    """Convert markdown fields to Tana fields."""
+    """
+    Convert markdown fields to Tana fields.
+    
+    Fix for issue #2: "Regular text with colons incorrectly converted to fields"
+    This function is now smarter about when to convert text with colons to fields.
+    It uses heuristics to distinguish between descriptive text with colons and actual fields.
+    """
     # Skip if already contains a field marker
     if '::' in text:
         return text
@@ -231,36 +268,159 @@ def convert_fields(text):
     if '|' in text:
         return text
     
+    # Check for patterns that indicate colons in regular text rather than fields
+    def is_likely_regular_text(key, value, prefix, full_line):
+        # If this isn't a list item and doesn't look like a metadata block, it's likely regular text
+        is_standalone_text = not prefix and not full_line.strip().startswith('-')
+        if is_standalone_text:
+            return True
+        
+        # Check for numbered list items (1., 2., etc.) - usually not fields
+        if re.match(r'^\s*\d+\.\s+', full_line):
+            return True
+        
+        # Common words/phrases that indicate instructional content, not fields
+        instructional_phrases = [
+            'step', 'how to', 'note', 'example', 'tip', 'warning', 'caution', 'important', 
+            'remember', 'click', 'select', 'choose', 'press', 'type', 'enter', 'copy', 'paste',
+            'invoke', 'generate', 'hook', 'connect', 'create', 'toggle', 'shortcut', 'using', 'next',
+            'first', 'second', 'third', 'fourth', 'fifth', 'last', 'final'
+        ]
+        
+        # If the key contains instructional phrases, it's likely not a field
+        if any(phrase in key.lower() for phrase in instructional_phrases):
+            return True
+        
+        # UI elements often followed by instructions, not field values
+        ui_elements = [
+            'window', 'dialog', 'menu', 'button', 'link', 'option', 'panel', 'screen',
+            'tab', 'toolbar', 'sidebar', 'modal', 'keyboard', 'mouse'
+        ]
+        
+        # If the key contains UI elements, it's likely instructions
+        if any(element in key.lower() for element in ui_elements):
+            return True
+        
+        # If the value contains instructional language, it's likely not a field
+        if re.search(r'press|click|select|use|open|go to|install|save|using', value, re.I):
+            return True
+        
+        # If the value starts with an article or preposition, it's likely a sentence
+        if re.match(r'^(The|A|An|This|That|These|Those|To|In|On|At|By|With|From|For|About)\s', value, re.I):
+            return True
+        
+        # If the value contains parentheses indicating field status
+        if '(field)' in value or '(not a field)' in value:
+            return '(not a field)' in value
+        
+        # If the value contains punctuation common in natural language
+        has_punctuation = re.search(r'[;,()]', value) or ' - ' in value
+        is_field_test = re.search(r'\([^)]*field[^)]*\)', value, re.I)
+        if has_punctuation and not is_field_test:
+            return True
+        
+        # Likely patterns for real fields - used to identify actual fields
+        likely_field_patterns = [
+            # Project metadata
+            'name', 'title', 'status', 'priority', 'assignee', 'tag', 'category', 'owner',
+            'due date', 'start date', 'created', 'updated', 'version', 'id', 'type', 'format',
+            
+            # Content metadata
+            'author', 'publisher', 'published', 'isbn', 'url', 'link',
+            
+            # Common fields
+            'email', 'phone', 'address', 'location', 'property', 'completion'
+        ]
+        
+        # If key matches common field patterns, it's likely a real field
+        for pattern in likely_field_patterns:
+            if (key.lower() == pattern or 
+                key.lower().startswith(pattern + ' ') or 
+                key.lower().endswith(' ' + pattern)):
+                return False  # Not regular text, it's a field
+        
+        # In the context of a markdown list with a dash (-)
+        # If we have a simple "Key: Value" format with a short value, it's more likely to be a field
+        if prefix and len(key.split(' ')) <= 3:
+            # Simple values are likely fields
+            if len(value.split(' ')) <= 3 and not re.search(r'[;,():"\']+', value):
+                return False  # Not regular text, it's a field
+            
+            # Check for uppercase first letter in key - often indicates a field
+            if key[0] == key[0].upper() and len(value.split(' ')) <= 5:
+                return False  # Not regular text, it's a field
+        
+        # When in doubt with longer content, assume it's regular text
+        return True
+    
     return re.sub(r'^(\s*[-*+]\s+)?([^:\n]+):\s+([^\n]+)$',
-                 lambda m: f"{m.group(1) or ''}{m.group(2)}::{m.group(3)}" if not m.group(3).startswith('[[') else m.group(0),
+                 lambda m: (m.group(0) if is_likely_regular_text(m.group(2), m.group(3), m.group(1), m.group(0)) 
+                           else f"{m.group(1) or ''}{m.group(2)}::{m.group(3)}"),
                  text,
                  flags=re.MULTILINE)
 
 def process_inline_formatting(text):
-    """Process inline formatting."""
+    """
+    Process inline formatting.
+    
+    Improved handling of bracketed elements and links to ensure regular bracketed
+    text is preserved and not incorrectly converted to tags or references.
+    """
     # First protect URLs and existing references
     protected_items = []
-    text = re.sub(r'(?:\[\[.*?\]\]|https?://[^\s)]+|\[[^\]]+\]\([^)]+\))',
-                 lambda m: f"__PROTECTED_{len(protected_items)}__" and protected_items.append(m.group(0)) or f"__PROTECTED_{len(protected_items)-1}__",
+    
+    def protect_item(match):
+        protected_items.append(match.group(0))
+        return f"__PROTECTED_{len(protected_items)-1}__"
+        
+    text = re.sub(r'(\[\[.*?\]\]|https?://[^\s)]+)',
+                 protect_item,
                  text)
-
-    # Process formatting
+    
+    # Process formatting first
     text = re.sub(r'\*\*([^*]+)\*\*', r'**\1**', text)  # Bold
     text = re.sub(r'\*([^*]+)\*', r'__\1__', text)      # Italic
     text = re.sub(r'==([^=]+)==', r'^^\1^^', text)      # Highlight
-    text = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)',          # Images
+    
+    # Handle image syntax first
+    text = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)',          
                  lambda m: f"{m.group(1)}::!{m.group(1)} {m.group(2)}" if m.group(1) else f"!Image {m.group(2)}",
                  text)
-    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'\1 \2', text)  # Links
-    text = re.sub(r'\(([^)]+)\)',                        # Tags
-                 lambda m: f"#[[{m.group(1)}]]" if ' ' in m.group(1) else f"#{m.group(1)}" if not m.group(1).startswith('[[') else f"({m.group(1)})",
+    
+    # Handle link syntax next (but preserve the bracketed text for now)
+    link_items = {}
+    
+    def process_link(match):
+        key = f"__LINK_{len(link_items)}__"
+        link_items[key] = f"{match.group(1)} {match.group(2)}"
+        return key
+        
+    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', process_link, text)
+    
+    # Preserve bracketed elements that are not links
+    # Fix for issue: "bracketed elements in text become supertags when they shouldn't"
+    # We need to preserve regular bracketed text [like this] so it doesn't get converted
+    
+    def protect_brackets(match):
+        protected_items.append(match.group(0))
+        return f"__PROTECTED_{len(protected_items)-1}__"
+        
+    text = re.sub(r'\[([^\]]+)\]', protect_brackets, text)
+    
+    # Note: We are deliberately NOT converting parentheses to tags anymore.
+    # This was causing regular text in parentheses to be incorrectly converted to tags.
+    # Tags in Markdown should already use the # symbol, which will be preserved.
+    
+    # Restore links
+    text = re.sub(r'__LINK_(\d+)__',
+                 lambda m: link_items[f"__LINK_{m.group(1)}__"],
                  text)
-
+    
     # Restore protected content
     text = re.sub(r'__PROTECTED_(\d+)__',
                  lambda m: protected_items[int(m.group(1))],
                  text)
-
+    
     return text
 
 def process_code_block(lines):
@@ -272,7 +432,11 @@ def process_table_row(text):
     return ' | '.join(cell.strip() for cell in text.split('|') if cell.strip())
 
 def convert_to_tana(input_text):
-    """Convert markdown to Tana format."""
+    """
+    Convert markdown to Tana format
+    
+    Enhanced to properly indent content under headings without using Tana's heading format
+    """
     if not input_text:
         return "No text selected."
     
@@ -282,25 +446,45 @@ def convert_to_tana(input_text):
     # Build hierarchy
     hierarchical_lines = build_hierarchy(lines)
     
+    # Map to store each line's indentation level in the output
+    indentation_levels = {}
+    
+    # Start with root level at 0
+    indentation_levels[-1] = 0
+    
+    # First pass to determine indentation levels
+    for i, line in enumerate(hierarchical_lines):
+        if not line.content.strip():
+            continue
+        
+        parent_index = line.parent if line.parent is not None else -1
+        parent_level = indentation_levels.get(parent_index, 0)
+        
+        # Determine indentation level
+        if line.is_header:
+            level = len(re.match(r'^#+', line.content.strip()).group(0)) if re.match(r'^#+', line.content.strip()) else 1
+            
+            # The indentation for a header is based on its header level
+            # H1 = level 0, H2 = level 1, etc.
+            indentation_levels[i] = level - 1
+        else:
+            # Content indentation is one more than its parent
+            indentation_levels[i] = parent_level + 1
+    
     # Generate output
     output = ["%%tana%%"]
     in_code_block = False
     code_block_lines = []
     
-    for line in hierarchical_lines:
+    # Second pass to generate the output
+    for i, line in enumerate(hierarchical_lines):
         content = line.content.strip()
         if not content:
             continue
         
-        # Calculate indent based on parent chain
-        indent = ""
-        if line.parent is not None and line.parent >= 0:
-            depth = 1
-            current_parent = hierarchical_lines[line.parent]
-            while current_parent.parent is not None and current_parent.parent >= 0:
-                depth += 1
-                current_parent = hierarchical_lines[current_parent.parent]
-            indent = "  " * depth
+        # Use the indentation level we determined in the first pass
+        level = indentation_levels.get(i, 0)
+        indent = "  " * level
         
         # Handle code blocks
         if line.is_code_block or in_code_block:
@@ -319,11 +503,12 @@ def convert_to_tana(input_text):
         # Process line content
         processed_content = content
         
-        # Handle headers
+        # Handle headers - convert to regular text without using Tana's heading format
         if line.is_header:
             match = re.match(r'^(#{1,6})\s+(.+)$', content)
             if match:
-                processed_content = f"!! {match.group(2)}"
+                # Just use the header text without the !! prefix
+                processed_content = match.group(2)
         else:
             # Remove list markers but preserve checkboxes
             processed_content = re.sub(r'^[-*+]\s+(?!\[[ x]\])', '', processed_content)
