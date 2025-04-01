@@ -104,6 +104,10 @@ For these cases, we provide a Python script that implements the same conversion 
 - Automatically splits large content into chunks under 100KB
 - Each chunk starts with the `%%tana%%` header
 - Maintains proper node structure when splitting
+- Intelligently detects fields vs. regular text with colons
+- Preserves bracketed elements in text that shouldn't be converted
+- Handles URL and link syntax correctly
+- Improved heading indentation logic
 - Supports all the same markdown elements as the Raycast extension
 - UTF-8 encoding support
 - Comprehensive error handling
