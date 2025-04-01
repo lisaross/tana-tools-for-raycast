@@ -313,32 +313,54 @@ function convertFields(text: string): string {
 function processInlineFormatting(text: string): string {
   // First protect URLs and existing references
   const protectedItems: string[] = [];
-  text = text.replace(/(?:\[\[.*?\]\]|https?:\/\/[^\s)]+|\[[^\]]+\]\([^)]+\))/g, (match) => {
+  text = text.replace(/(\[\[.*?\]\]|https?:\/\/[^\s)]+)/g, (match) => {
     protectedItems.push(match);
     return `__PROTECTED_${protectedItems.length - 1}__`;
   });
-
-  // Process formatting
+  
+  // Process formatting first
   text = text
     // Bold/italic
     .replace(/\*\*([^*]+)\*\*/g, '**$1**')
     .replace(/\*([^*]+)\*/g, '__$1__')
     // Highlight
-    .replace(/==([^=]+)==/g, '^^$1^^')
-    // Images
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, title, url) => 
-      title ? `${title}::!${title} ${url}` : `!Image ${url}`)
-    // Links
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 $2')
-    // Tags
-    .replace(/\(([^)]+)\)/g, (_, tag) => {
-      if (tag.match(/^\[\[.*\]\]$/)) return `(${tag})`;
-      return tag.includes(' ') ? `#[[${tag}]]` : `#${tag}`;
-    });
-
+    .replace(/==([^=]+)==/g, '^^$1^^');
+  
+  // Handle image syntax first
+  text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, title, url) => 
+    title ? `${title}::!${title} ${url}` : `!Image ${url}`);
+  
+  // Handle link syntax next (but preserve the bracketed text for now)
+  let linkItems: {[key: string]: string} = {};
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkText, url) => {
+    const key = `__LINK_${Object.keys(linkItems).length}__`;
+    linkItems[key] = `${linkText} ${url}`;
+    return key;
+  });
+  
+  // Preserve bracketed elements that are not links
+  // Fix for issue #1: "bracketed elements in text become supertags when they shouldn't"
+  // We need to preserve regular bracketed text [like this] so it doesn't get converted
+  text = text.replace(/\[([^\]]+)\]/g, (match) => {
+    protectedItems.push(match);
+    return `__PROTECTED_${protectedItems.length - 1}__`;
+  });
+  
+  // Note: We are deliberately NOT converting parentheses to tags anymore.
+  // Previous behavior:
+  // text = text.replace(/\(([^)]+)\)/g, (_, tag) => {
+  //   if (tag.match(/^\[\[.*\]\]$/)) return `(${tag})`;
+  //   return tag.includes(' ') ? `#[[${tag}]]` : `#${tag}`;
+  // });
+  // This was causing regular text in parentheses to be incorrectly converted to tags.
+  // Tags in Markdown should already use the # symbol, which will be preserved.
+  
+  // Restore links
+  text = text.replace(/__LINK_(\d+)__/g, (_, index) => linkItems[`__LINK_${index}__`]);
+  
   // Restore protected content
   text = text.replace(/__PROTECTED_(\d+)__/g, (_, index) => protectedItems[parseInt(index)]);
-
+  
   return text;
 }
 
