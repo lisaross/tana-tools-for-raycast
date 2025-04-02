@@ -27,7 +27,7 @@ function parseLine(line: string): Line {
   const match = line.match(/^(\s*)/);
   const spaces = match ? match[1].length : 0;
   // Consider tabs as 2 spaces for indentation purposes
-  const tabAdjustedSpaces = line.slice(0, spaces).replace(/\t/g, '  ').length;
+  const tabAdjustedSpaces = line.slice(0, spaces).replace(/\t/g, "  ").length;
   const indent = Math.floor(tabAdjustedSpaces / 2);
 
   // Get content without indentation
@@ -40,9 +40,20 @@ function parseLine(line: string): Line {
   const isCodeBlock = content.startsWith("```");
 
   // Detect if it's a list item (bullet point or numbered/lettered)
-  const isListItem = /^[-*+•]\s+/.test(content) || /^[a-z]\.\s+/i.test(content) || /^\d+\.\s+/.test(content);
+  const isListItem =
+    /^[-*+•]\s+/.test(content) ||
+    /^[a-z]\.\s+/i.test(content) ||
+    /^\d+\.\s+/.test(content);
 
-  return { content, indent, raw, isHeader, isCodeBlock, isListItem, parent: undefined };
+  return {
+    content,
+    indent,
+    raw,
+    isHeader,
+    isCodeBlock,
+    isListItem,
+    parent: undefined,
+  };
 }
 
 /**
@@ -114,13 +125,14 @@ function buildHierarchy(lines: Line[]): Line[] {
 
     // Handle list items and content
     const effectiveIndent = line.indent;
-    
+
     // Check if previous line ends with a colon - this often indicates a sublist follows
-    const prevLineEndsWithColon = i > 0 && result[i-1]?.content.trim().endsWith(':');
-    
+    const prevLineEndsWithColon =
+      i > 0 && result[i - 1]?.content.trim().endsWith(":");
+
     // Check for lettered list items (a., b., etc.)
     const isLetteredListItem = /^[a-z]\.\s+/i.test(line.content.trim());
-    
+
     // Find the previous lettered list item to maintain consistent indentation
     let prevLetteredItemIndex = -1;
     if (isLetteredListItem) {
@@ -131,29 +143,39 @@ function buildHierarchy(lines: Line[]): Line[] {
         }
       }
     }
-    
+
     // Adjust indentation based on context
     let adjustedIndent = effectiveIndent;
-    
+
     // If this is the first lettered item after a colon, increase indentation
-    if (isLetteredListItem && prevLetteredItemIndex === -1 && prevLineEndsWithColon) {
+    if (
+      isLetteredListItem &&
+      prevLetteredItemIndex === -1 &&
+      prevLineEndsWithColon
+    ) {
       adjustedIndent = effectiveIndent + 1;
-    } 
+    }
     // If this is a subsequent lettered item, use the same indentation as the first one
     else if (isLetteredListItem && prevLetteredItemIndex !== -1) {
       adjustedIndent = result[prevLetteredItemIndex].indent;
-      // If parent was adjusted, use that adjustment 
+      // If parent was adjusted, use that adjustment
       if (result[prevLetteredItemIndex].parent !== undefined) {
         line.parent = result[prevLetteredItemIndex].parent;
       }
-    } 
+    }
     // For regular list items after a colon
     else if (line.isListItem && prevLineEndsWithColon) {
       adjustedIndent = effectiveIndent + 1;
     }
 
     // Skip parent assignment if we've explicitly set it for lettered items
-    if (!(isLetteredListItem && prevLetteredItemIndex !== -1 && line.parent !== undefined)) {
+    if (
+      !(
+        isLetteredListItem &&
+        prevLetteredItemIndex !== -1 &&
+        line.parent !== undefined
+      )
+    ) {
       // Find the appropriate parent
       while (lastParentAtLevel.length > adjustedIndent + 1) {
         lastParentAtLevel.pop();
