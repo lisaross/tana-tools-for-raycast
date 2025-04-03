@@ -470,6 +470,35 @@ def process_table_row(text):
     """Process table row."""
     return ' | '.join(cell.strip() for cell in text.split('|') if cell.strip())
 
+def process_limitless_pendant_transcription(text):
+    """Process a line in Limitless Pendant transcription format."""
+    # Check if it matches the Limitless Pendant format
+    match = re.match(r'^>\s*\[(.*?)\]\(#startMs=\d+&endMs=\d+\):\s*(.*?)$', text)
+    if not match:
+        return text
+    
+    speaker = match.group(1)
+    content = match.group(2)
+    
+    # Format as simple "{Speaker}: {Content}" (no fields)
+    return f"{speaker}: {content}"
+
+def is_limitless_pendant_transcription(text):
+    """Detect if text is a Limitless Pendant transcription."""
+    # Check for multiple lines in the Limitless Pendant format
+    lines = text.split('\n')
+    pendant_format_count = 0
+    
+    for line in lines:
+        if re.match(r'^>\s*\[(.*?)\]\(#startMs=\d+&endMs=\d+\):', line):
+            pendant_format_count += 1
+        
+        # If we found multiple matching lines, it's likely a Limitless Pendant transcription
+        if pendant_format_count >= 3:
+            return True
+    
+    return False
+
 def convert_to_tana(input_text):
     """
     Convert markdown to Tana format
@@ -479,6 +508,9 @@ def convert_to_tana(input_text):
     """
     if not input_text:
         return "No text selected."
+    
+    # Check if this is a Limitless Pendant transcription
+    is_pendant_transcription = is_limitless_pendant_transcription(input_text)
     
     # Split into lines and parse
     lines = [parse_line(line) for line in input_text.split('\n')]
@@ -531,8 +563,26 @@ def convert_to_tana(input_text):
                 # Content under a section header should be indented one level deeper
                 indentation_levels[i] = indentation_levels[parent_index] + 1
             else:
-                # Content indentation is one more than its parent
-                indentation_levels[i] = parent_level + 1
+                # Special case for Limitless Pendant transcription lines - indent them deeper
+                if is_pendant_transcription and line.content.strip().startswith('>'):
+                    # Find the current section this line belongs to
+                    current_section_idx = parent_index
+                    while current_section_idx >= 0 and not hierarchical_lines[current_section_idx].is_header:
+                        current_section_idx = hierarchical_lines[current_section_idx].parent if hierarchical_lines[current_section_idx].parent is not None else -1
+                    
+                    if current_section_idx >= 0:
+                        # Get the header level
+                        header_content = hierarchical_lines[current_section_idx].content.strip()
+                        header_level = len(re.match(r'^#+', header_content).group(0)) if re.match(r'^#+', header_content) else 1
+                        
+                        # Indent as if it's one level deeper than the section header
+                        indentation_levels[i] = header_level
+                    else:
+                        # Default to parent level + 2 if we can't find a header
+                        indentation_levels[i] = parent_level + 2
+                else:
+                    # Normal content indentation is one more than its parent
+                    indentation_levels[i] = parent_level + 1
     
     # Generate output
     output = ["%%tana%%"]
@@ -573,17 +623,21 @@ def convert_to_tana(input_text):
                 # Just use the header text without the !! prefix
                 processed_content = match.group(2)
         else:
-            # Remove list markers but preserve checkboxes
-            processed_content = re.sub(r'^[-*+]\s+(?!\[[ x]\])', '', processed_content)
-            
-            # Convert fields first
-            processed_content = convert_fields(processed_content)
-            
-            # Then convert dates
-            processed_content = convert_dates(processed_content)
-            
-            # Finally process inline formatting
-            processed_content = process_inline_formatting(processed_content)
+            # Check if this is a Limitless Pendant transcription line
+            if is_pendant_transcription and processed_content.startswith('>'):
+                processed_content = process_limitless_pendant_transcription(processed_content)
+            else:
+                # Remove list markers but preserve checkboxes
+                processed_content = re.sub(r'^[-*+]\s+(?!\[[ x]\])', '', processed_content)
+                
+                # Convert fields first
+                processed_content = convert_fields(processed_content)
+                
+                # Then convert dates
+                processed_content = convert_dates(processed_content)
+                
+                # Finally process inline formatting
+                processed_content = process_inline_formatting(processed_content)
         
         output.append(f"{indent}- {processed_content}")
     

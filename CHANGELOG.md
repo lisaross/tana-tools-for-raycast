@@ -5,6 +5,7 @@
 ### Added
 
 - Support for YouTube transcript timestamps as separate nodes in Tana (#4)
+- Support for Limitless Pendant transcription format (#8)
 
 ### Fixed
 
