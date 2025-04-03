@@ -6,6 +6,11 @@
 
 - Support for YouTube transcript timestamps as separate nodes in Tana (#4)
 
+### Fixed
+
+- Properly preserve bold text formatting in standard markdown (no longer converts to italic-underscore format) (#5)
+- Correct indentation hierarchy for numbered headings and their content (#5)
+
 ## [1.1.0] - 2023-04-02
 
 ### Changed
