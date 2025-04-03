@@ -833,6 +833,44 @@ function processYouTubeTranscriptTimestamps(text: string): string[] {
 }
 
 /**
+ * Process a Limitless Pendant transcription section
+ * Format: > [Speaker](#startMs=timestamp&endMs=timestamp): Text
+ */
+function processLimitlessPendantTranscription(text: string): string {
+  // Check if it matches the Limitless Pendant format
+  const match = text.match(/^>\s*\[(.*?)\]\(#startMs=\d+&endMs=\d+\):\s*(.*?)$/);
+  if (!match) return text;
+
+  const speaker = match[1];
+  const content = match[2];
+
+  // Format as simple "{Speaker}: {Content}" (no fields)
+  return `${speaker}: ${content}`;
+}
+
+/**
+ * Detect if text is a Limitless Pendant transcription
+ */
+function isLimitlessPendantTranscription(text: string): boolean {
+  // Check for multiple lines in the Limitless Pendant format
+  const lines = text.split('\n');
+  let pendantFormatCount = 0;
+  
+  for (const line of lines) {
+    if (line.match(/^>\s*\[(.*?)\]\(#startMs=\d+&endMs=\d+\):/)) {
+      pendantFormatCount++;
+    }
+    
+    // If we found multiple matching lines, it's likely a Limitless Pendant transcription
+    if (pendantFormatCount >= 3) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+/**
  * Convert markdown to Tana format
  *
  * Enhanced to properly indent content under headings without using Tana's heading format
@@ -840,6 +878,9 @@ function processYouTubeTranscriptTimestamps(text: string): string[] {
  */
 export function convertToTana(inputText: string | undefined | null): string {
   if (!inputText) return "No text selected.";
+
+  // Check if this is a Limitless Pendant transcription
+  const isPendantTranscription = isLimitlessPendantTranscription(inputText);
 
   // Process the input for YouTube transcript timestamps
   const processedLines: string[] = [];
@@ -887,34 +928,58 @@ export function convertToTana(inputText: string | undefined | null): string {
   // First pass to determine indentation levels
   for (let i = 0; i < hierarchicalLines.length; i++) {
     const line = hierarchicalLines[i];
-    if (!line.content.trim()) continue;
+    const content = line.content.trim();
+    if (!content) continue;
 
-    const parentIndex = line.parent !== undefined ? line.parent : -1;
+    const parentIdx = line.parent !== undefined ? line.parent : -1;
 
     // Add to section content if parented to a section header
-    if (sectionHeaders.has(parentIndex)) {
-      const content = sectionContent.get(parentIndex) || [];
-      content.push(i);
-      sectionContent.set(parentIndex, content);
+    if (sectionHeaders.has(parentIdx)) {
+      const currentContent = sectionContent.get(parentIdx) || [];
+      currentContent.push(i);
+      sectionContent.set(parentIdx, currentContent);
     }
 
-    const parentLevel = indentationLevels.get(parentIndex) ?? 0;
+    const parentLevel = indentationLevels.get(parentIdx) ?? 0;
 
     // Determine indentation level
     if (line.isHeader) {
-      const level = line.content.match(/^#+/)?.[0].length ?? 1;
+      const headerMatch = content.match(/^(#+)/);
+      const level = headerMatch ? headerMatch[0].length : 1;
 
       // The indentation for a header is based on its header level
       // H1 = level 0, H2 = level 1, etc.
       indentationLevels.set(i, level - 1);
     } else {
       // Special case for content directly under a section header
-      if (sectionHeaders.has(parentIndex)) {
+      if (sectionHeaders.has(parentIdx)) {
         // Content under a section header should be indented one level deeper
-        indentationLevels.set(i, (indentationLevels.get(parentIndex) ?? 0) + 1);
+        indentationLevels.set(i, (indentationLevels.get(parentIdx) ?? 0) + 1);
       } else {
-        // Content indentation is one more than its parent
-        indentationLevels.set(i, parentLevel + 1);
+        // Special case for Limitless Pendant transcription lines - indent them deeper
+        if (isPendantTranscription && content.startsWith('>')) {
+          // Find the current section this line belongs to
+          let currentSectionIdx = parentIdx;
+          while (currentSectionIdx >= 0 && !hierarchicalLines[currentSectionIdx]?.isHeader) {
+            currentSectionIdx = hierarchicalLines[currentSectionIdx]?.parent ?? -1;
+          }
+          
+          if (currentSectionIdx >= 0) {
+            // Get the header level
+            const headerContent = hierarchicalLines[currentSectionIdx].content.trim();
+            const headerMatch = headerContent.match(/^(#+)/);
+            const headerLevel = headerMatch ? headerMatch[0].length : 1;
+            
+            // Indent as if it's one level deeper than the section header
+            indentationLevels.set(i, headerLevel);
+          } else {
+            // Default to parent level + 2 if we can't find a header
+            indentationLevels.set(i, parentLevel + 2);
+          }
+        } else {
+          // Normal content indentation is one more than its parent
+          indentationLevels.set(i, parentLevel + 1);
+        }
       }
     }
   }
@@ -957,11 +1022,16 @@ export function convertToTana(inputText: string | undefined | null): string {
         processedContent = match[2];
       }
     } else {
-      // Remove list markers of all types but preserve checkboxes
-      // This handles standard markdown list markers (-, *, +) as well as bullet points (•) and lettered/numbered lists (a., b., 1., etc.)
-      processedContent = processedContent.replace(/^[-*+•]\s+(?!\[[ x]\])/, "");
-      processedContent = processedContent.replace(/^[a-z]\.\s+/i, "");
-      processedContent = processedContent.replace(/^\d+\.\s+/, "");
+      // Check if this is a Limitless Pendant transcription line
+      if (isPendantTranscription && processedContent.startsWith('>')) {
+        processedContent = processLimitlessPendantTranscription(processedContent);
+      } else {
+        // Remove list markers of all types but preserve checkboxes
+        // This handles standard markdown list markers (-, *, +) as well as bullet points (•) and lettered/numbered lists (a., b., 1., etc.)
+        processedContent = processedContent.replace(/^[-*+•]\s+(?!\[[ x]\])/, "");
+        processedContent = processedContent.replace(/^[a-z]\.\s+/i, "");
+        processedContent = processedContent.replace(/^\d+\.\s+/, "");
+      }
 
       // Convert fields first
       processedContent = convertFields(processedContent);
