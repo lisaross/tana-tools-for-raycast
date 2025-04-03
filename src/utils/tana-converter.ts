@@ -70,15 +70,15 @@ function buildHierarchy(lines: Line[]): Line[] {
   // Track the most recent header at each level
   // headersAtLevel[0] = H1, headersAtLevel[1] = H2, etc.
   const headersAtLevel: number[] = [];
-  
+
   // Track section headers (headings with numbers like "1. Title")
   const sectionHeaders: Set<number> = new Set();
-  
+
   let lastParentAtLevel: number[] = [-1];
   let inCodeBlock = false;
   let codeBlockParent: number | undefined = undefined;
   let currentSection = -1;
-  
+
   // First pass - identify numbered section headers
   for (let i = 0; i < result.length; i++) {
     const line = result[i];
@@ -114,7 +114,7 @@ function buildHierarchy(lines: Line[]): Line[] {
     // Handle headers
     if (line.isHeader) {
       const level = content.match(/^#+/)?.[0].length ?? 1;
-      
+
       // Check if this is a numbered header (e.g., "### 1. Context Awareness")
       const isNumberedHeader = /^#+\s+\d+\./.test(content);
 
@@ -131,7 +131,7 @@ function buildHierarchy(lines: Line[]): Line[] {
           parentIdx = headersAtLevel[level - 2] ?? -1;
         }
         line.parent = parentIdx;
-        
+
         // If this is a numbered header, set it as the current section
         if (isNumberedHeader) {
           currentSection = i;
@@ -151,7 +151,7 @@ function buildHierarchy(lines: Line[]): Line[] {
 
       continue;
     }
-    
+
     // Special case for lines that look like section content
     // These are lines like "**Definition:**" which should be children of the section
     if (currentSection >= 0 && /^\*\*[^*:]+:\*\*/.test(content)) {
@@ -680,27 +680,27 @@ function convertFields(text: string): string {
 function processInlineFormatting(text: string): string {
   // First protect URLs and existing references
   const protectedItems: string[] = [];
-  
+
   const protectItem = (match: string) => {
     protectedItems.push(match);
     return `__PROTECTED_${protectedItems.length - 1}__`;
   };
-  
+
   // Protect URLs and existing references
   text = text.replace(/(\[\[.*?\]\]|https?:\/\/[^\s)]+)/g, protectItem);
-  
+
   // Handle bold text formatting first - key to fix Claude's markdown
   const boldElements: string[] = [];
-  
+
   const saveBold = (match: string, content: string) => {
     const key = `__BOLD_${boldElements.length}__`;
     boldElements.push(`**${content}**`);
     return key;
   };
-  
+
   // Extract and protect bold text
   text = text.replace(/\*\*([^*]+)\*\*/g, saveBold);
-  
+
   // Process other formatting
   text = text.replace(/\*([^*]+)\*/g, "__$1__"); // Italic
   text = text.replace(/==([^=]+)==/g, "^^$1^^"); // Highlight
@@ -725,7 +725,7 @@ function processInlineFormatting(text: string): string {
   for (const [key, value] of Object.entries(linkItems)) {
     text = text.replace(key, value);
   }
-  
+
   // Restore bold elements
   for (let i = 0; i < boldElements.length; i++) {
     text = text.replace(`__BOLD_${i}__`, boldElements[i]);
@@ -865,16 +865,16 @@ export function convertToTana(inputText: string | undefined | null): string {
 
   // Map to store each line's indentation level in the output
   const indentationLevels: Map<number, number> = new Map();
-  
+
   // Identify section headers (numbered headings)
   const sectionHeaders: Set<number> = new Set();
   const sectionContent: Map<number, number[]> = new Map();
-  
+
   for (let i = 0; i < hierarchicalLines.length; i++) {
     const line = hierarchicalLines[i];
     const content = line.content.trim();
     if (!content) continue;
-    
+
     if (line.isHeader && /^#+\s+\d+\./.test(content)) {
       sectionHeaders.add(i);
       sectionContent.set(i, []);
@@ -890,14 +890,14 @@ export function convertToTana(inputText: string | undefined | null): string {
     if (!line.content.trim()) continue;
 
     const parentIndex = line.parent !== undefined ? line.parent : -1;
-    
+
     // Add to section content if parented to a section header
     if (sectionHeaders.has(parentIndex)) {
       const content = sectionContent.get(parentIndex) || [];
       content.push(i);
       sectionContent.set(parentIndex, content);
     }
-    
+
     const parentLevel = indentationLevels.get(parentIndex) ?? 0;
 
     // Determine indentation level

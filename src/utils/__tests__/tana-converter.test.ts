@@ -95,34 +95,40 @@ describe("Tana Converter", () => {
 **Key Components:**
 - **Knowledge Mapping:** Systematically documenting what your organization knows
 - **Context Gaps:** Identifying critical missing contextual elements`;
-    
+
     const result = convertToTana(input);
-    
+
     // Check that output starts with %%tana%%
     expect(result.startsWith("%%tana%%")).toBe(true);
-    
+
     // Check that bold text is preserved correctly
     expect(result.includes("**Definition:**")).toBe(true);
     expect(result.includes("*__Definition:__*")).toBe(false);
     expect(result.includes("**Key Components:**")).toBe(true);
     expect(result.includes("**Knowledge Mapping:**")).toBe(true);
     expect(result.includes("**Context Gaps:**")).toBe(true);
-    
+
     // Check indentation hierarchy
-    const lines = result.split('\n');
-    const frameworkLine = lines.findIndex(line => line.includes('The Context Intelligence Framework'));
-    const awarenessLine = lines.findIndex(line => line.includes('1. Context Awareness'));
-    const definitionLine = lines.findIndex(line => line.includes('**Definition:**'));
-    
+    const lines = result.split("\n");
+    const frameworkLine = lines.findIndex((line) =>
+      line.includes("The Context Intelligence Framework"),
+    );
+    const awarenessLine = lines.findIndex((line) =>
+      line.includes("1. Context Awareness"),
+    );
+    const definitionLine = lines.findIndex((line) =>
+      line.includes("**Definition:**"),
+    );
+
     // Verify correct line order
     expect(frameworkLine).toBeLessThan(awarenessLine);
     expect(awarenessLine).toBeLessThan(definitionLine);
-    
+
     // Verify correct indentation
-    const frameworkIndent = lines[frameworkLine].indexOf('-');
-    const awarenessIndent = lines[awarenessLine].indexOf('-');
-    const definitionIndent = lines[definitionLine].indexOf('-');
-    
+    const frameworkIndent = lines[frameworkLine].indexOf("-");
+    const awarenessIndent = lines[awarenessLine].indexOf("-");
+    const definitionIndent = lines[definitionLine].indexOf("-");
+
     expect(frameworkIndent).toBeLessThan(awarenessIndent);
     expect(awarenessIndent).toBeLessThan(definitionIndent);
   });
