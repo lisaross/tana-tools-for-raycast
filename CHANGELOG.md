@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.3.0] - 2025-04-03
+
 ### Added
 
 - Support for YouTube transcript timestamps as separate nodes in Tana (#4)
