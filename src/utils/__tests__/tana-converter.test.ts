@@ -95,38 +95,44 @@ describe("Tana Converter", () => {
 > [You](#startMs=1743688652931&endMs=1743688653931): Good morning.
 
 > [Speaker 2](#startMs=1743688653931&endMs=1743688654931): Let's get started.`;
-    
+
     const result = convertToTana(input);
-    
+
     // Check for Tana header
     expect(result.startsWith("%%tana%%")).toBe(true);
-    
+
     // Split into lines to check indentation
-    const lines = result.split('\n');
-    
+    const lines = result.split("\n");
+
     // Find the line indices for key elements
-    const titleLineIndex = lines.findIndex(line => line.includes("- Meeting Title"));
-    const sectionLineIndex = lines.findIndex(line => line.includes("- Section One"));
-    const speaker1LineIndex = lines.findIndex(line => line.includes("Speaker 1: Hello everyone"));
-    
+    const titleLineIndex = lines.findIndex((line) =>
+      line.includes("- Meeting Title"),
+    );
+    const sectionLineIndex = lines.findIndex((line) =>
+      line.includes("- Section One"),
+    );
+    const speaker1LineIndex = lines.findIndex((line) =>
+      line.includes("Speaker 1: Hello everyone"),
+    );
+
     // Verify correct order (hierarchy)
     expect(titleLineIndex).toBeLessThan(sectionLineIndex);
     expect(sectionLineIndex).toBeLessThan(speaker1LineIndex);
-    
+
     // Check indentation levels
     const titleIndent = lines[titleLineIndex].indexOf("-");
     const sectionIndent = lines[sectionLineIndex].indexOf("-");
     const speaker1Indent = lines[speaker1LineIndex].indexOf("-");
-    
+
     // Title should be at root level
     expect(titleIndent).toBe(0);
-    
+
     // Section should be indented under title
     expect(sectionIndent).toBeGreaterThan(titleIndent);
-    
+
     // Speaker lines should be indented one level deeper than the section
     expect(speaker1Indent).toBeGreaterThan(sectionIndent);
-    
+
     // Check that content is properly formatted
     expect(result.includes("Speaker 1: Hello everyone")).toBe(true);
     expect(result.includes("You: Good morning")).toBe(true);

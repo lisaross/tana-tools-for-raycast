@@ -838,7 +838,9 @@ function processYouTubeTranscriptTimestamps(text: string): string[] {
  */
 function processLimitlessPendantTranscription(text: string): string {
   // Check if it matches the Limitless Pendant format
-  const match = text.match(/^>\s*\[(.*?)\]\(#startMs=\d+&endMs=\d+\):\s*(.*?)$/);
+  const match = text.match(
+    /^>\s*\[(.*?)\]\(#startMs=\d+&endMs=\d+\):\s*(.*?)$/,
+  );
   if (!match) return text;
 
   const speaker = match[1];
@@ -853,20 +855,20 @@ function processLimitlessPendantTranscription(text: string): string {
  */
 function isLimitlessPendantTranscription(text: string): boolean {
   // Check for multiple lines in the Limitless Pendant format
-  const lines = text.split('\n');
+  const lines = text.split("\n");
   let pendantFormatCount = 0;
-  
+
   for (const line of lines) {
     if (line.match(/^>\s*\[(.*?)\]\(#startMs=\d+&endMs=\d+\):/)) {
       pendantFormatCount++;
     }
-    
+
     // If we found multiple matching lines, it's likely a Limitless Pendant transcription
     if (pendantFormatCount >= 3) {
       return true;
     }
   }
-  
+
   return false;
 }
 
@@ -957,19 +959,24 @@ export function convertToTana(inputText: string | undefined | null): string {
         indentationLevels.set(i, (indentationLevels.get(parentIdx) ?? 0) + 1);
       } else {
         // Special case for Limitless Pendant transcription lines - indent them deeper
-        if (isPendantTranscription && content.startsWith('>')) {
+        if (isPendantTranscription && content.startsWith(">")) {
           // Find the current section this line belongs to
           let currentSectionIdx = parentIdx;
-          while (currentSectionIdx >= 0 && !hierarchicalLines[currentSectionIdx]?.isHeader) {
-            currentSectionIdx = hierarchicalLines[currentSectionIdx]?.parent ?? -1;
+          while (
+            currentSectionIdx >= 0 &&
+            !hierarchicalLines[currentSectionIdx]?.isHeader
+          ) {
+            currentSectionIdx =
+              hierarchicalLines[currentSectionIdx]?.parent ?? -1;
           }
-          
+
           if (currentSectionIdx >= 0) {
             // Get the header level
-            const headerContent = hierarchicalLines[currentSectionIdx].content.trim();
+            const headerContent =
+              hierarchicalLines[currentSectionIdx].content.trim();
             const headerMatch = headerContent.match(/^(#+)/);
             const headerLevel = headerMatch ? headerMatch[0].length : 1;
-            
+
             // Indent as if it's one level deeper than the section header
             indentationLevels.set(i, headerLevel);
           } else {
@@ -1023,12 +1030,16 @@ export function convertToTana(inputText: string | undefined | null): string {
       }
     } else {
       // Check if this is a Limitless Pendant transcription line
-      if (isPendantTranscription && processedContent.startsWith('>')) {
-        processedContent = processLimitlessPendantTranscription(processedContent);
+      if (isPendantTranscription && processedContent.startsWith(">")) {
+        processedContent =
+          processLimitlessPendantTranscription(processedContent);
       } else {
         // Remove list markers of all types but preserve checkboxes
         // This handles standard markdown list markers (-, *, +) as well as bullet points (•) and lettered/numbered lists (a., b., 1., etc.)
-        processedContent = processedContent.replace(/^[-*+•]\s+(?!\[[ x]\])/, "");
+        processedContent = processedContent.replace(
+          /^[-*+•]\s+(?!\[[ x]\])/,
+          "",
+        );
         processedContent = processedContent.replace(/^[a-z]\.\s+/i, "");
         processedContent = processedContent.replace(/^\d+\.\s+/, "");
       }
