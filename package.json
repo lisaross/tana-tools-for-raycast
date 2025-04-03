@@ -49,13 +49,14 @@
     "typescript-eslint": "^8.29.0"
   },
   "scripts": {
-    "build": "npm run test && ray build -e dist",
-    "dev": "npm run test && ray develop",
+    "build": "npx jest && ray build -e dist",
+    "dev": "npx jest && ray develop",
     "lint": "ray lint",
     "publish": "ray publish",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
+    "test": "npx jest",
+    "test:watch": "npx jest --watch",
+    "test:coverage": "npx jest --coverage",
+    "test:format": "npx tsx test/run-all-tests.ts",
     "validate": "npm run lint && npm run test",
     "prepare": "npm run validate"
   }
