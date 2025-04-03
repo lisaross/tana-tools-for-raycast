@@ -56,7 +56,6 @@
     "test": "npx jest",
     "test:watch": "npx jest --watch",
     "test:coverage": "npx jest --coverage",
-    "test:format": "npx tsx test/run-all-tests.ts",
     "validate": "npm run lint && npm run test",
     "prepare": "npm run validate"
   }
