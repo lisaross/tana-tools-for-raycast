@@ -1,30 +1,16 @@
 # Tana Paste Changelog
 
-## [Unreleased]
-
 ## [1.3.0] - 2025-04-03
 
 ### Added
 
 - Support for YouTube transcript timestamps as separate nodes in Tana (#4)
-- Support for Limitless Pendant transcription format (#8)
+- Comprehensive Jest testing infrastructure
 
 ### Fixed
 
 - Properly preserve bold text formatting in standard markdown (no longer converts to italic-underscore format) (#5)
 - Correct indentation hierarchy for numbered headings and their content (#5)
-
-## [1.2.0] - 2025-04-03
-
-### Added
-
-- Support for YouTube transcript timestamps as separate nodes in Tana
-- Comprehensive Jest testing infrastructure
-
-### Fixed
-
-- Properly preserve bold text formatting in standard markdown (no longer converts to italic-underscore format)
-- Correct indentation hierarchy for numbered headings and their content
 - Improved error handling and stability
 
 ## [1.1.0] - 2023-04-02
