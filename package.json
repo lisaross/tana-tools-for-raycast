@@ -50,7 +50,7 @@
   },
   "scripts": {
     "build": "npm run test && ray build -e dist",
-    "dev": "ray develop",
+    "dev": "npm run test && ray develop",
     "lint": "ray lint",
     "publish": "ray publish",
     "test": "jest",
