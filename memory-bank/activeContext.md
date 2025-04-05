@@ -7,6 +7,7 @@
 - Implementation of Limitless Pendant transcription support
 - Version 1.3.0 release
 - Memory bank maintenance and documentation
+- Fixing indentation hierarchy for bullet points under headings (PR #11)
 
 ## Recent Changes
 - Version 1.2.0 (2025-04-03):
@@ -17,6 +18,10 @@
 - Version 1.3.0 (2025-04-03):
   - Added support for Limitless Pendant transcription format (#8)
   - Improved hierarchical indentation for transcriptions
+- Bug fix (2025-04-03):
+  - Fixed indentation hierarchy for bullet points under H3+ headings (PR #11)
+  - Improved handling of Limitless Pendant transcription indentation
+  - Made tests more flexible and less brittle by checking content instead of exact spacing
 
 ## Active Decisions
 - Memory bank structure established to document project context

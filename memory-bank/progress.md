@@ -18,6 +18,7 @@
 - Specialized format support:
   - YouTube transcript timestamps
   - Limitless Pendant transcriptions
+- Proper indentation hierarchy for nested content under headings
 
 ## Recent Additions
 - Limitless Pendant transcription support
@@ -26,6 +27,7 @@
 - Corrected indentation hierarchy
 - Enhanced error handling
 - Improved hierarchical indentation for transcriptions
+- Fixed indentation for bullet points under deeper headings (H3+)
 
 ## What's Left to Build
 - Features in development:
