@@ -122,13 +122,13 @@ describe("Tana Converter", () => {
     // This is more robust than checking exact spacing characters
     const titleLine = lines[titleLineIndex];
     const sectionLine = lines[sectionLineIndex];
-    
+
     // Title should appear near the start (root level)
     expect(titleLineIndex).toBeLessThan(5);
-    
+
     // Section should be indented under title
     expect(sectionLine.indexOf("-")).toBeGreaterThan(titleLine.indexOf("-"));
-    
+
     // Speaker line should be indented more than section
     // Just check that it appears after section, not exact indentation
     expect(speaker1LineIndex).toBeGreaterThan(sectionLineIndex);
@@ -160,14 +160,10 @@ describe("Tana Converter", () => {
     // Check indentation hierarchy
     const lines = result.split("\n");
     const frameworkLine = lines.findIndex((line) =>
-      line.includes("The Context Intelligence Framework"),
+      line.includes("The Context Intelligence Framework")
     );
-    const awarenessLine = lines.findIndex((line) =>
-      line.includes("1. Context Awareness"),
-    );
-    const definitionLine = lines.findIndex((line) =>
-      line.includes("**Definition:**"),
-    );
+    const awarenessLine = lines.findIndex((line) => line.includes("1. Context Awareness"));
+    const definitionLine = lines.findIndex((line) => line.includes("**Definition:**"));
 
     // Verify correct line order
     expect(frameworkLine).toBeLessThan(awarenessLine);
@@ -207,7 +203,7 @@ describe("Tana Converter", () => {
 - Second bullet under deeper heading
 ## Another subheading
 - Bullet under another subheading`;
-    
+
     const result = convertToTana(input);
     expect(result).toContain("- Main Heading");
     expect(result).toContain("- Subheading");
@@ -231,14 +227,14 @@ describe("Tana Converter", () => {
 - **Small business owners/professionals** managing multiple information streams
 - **Current Tana users** who feel overwhelmed by the platform's complexity
 - **AI tool users** looking to integrate contextual knowledge with AI assistants`;
-    
+
     const result = convertToTana(input);
-    
+
     // Check overall structure
     expect(result).toContain("- Tana Simplified:");
     expect(result).toContain("- Ideal Customer Profile");
     expect(result).toContain("- Core Demographics");
-    
+
     // Check bullet points are present
     expect(result).toContain("- **Non-technical knowledge workers**");
     expect(result).toContain("- **Students and academics**");
@@ -246,14 +242,14 @@ describe("Tana Converter", () => {
     expect(result).toContain("- **Small business owners/professionals**");
     expect(result).toContain("- **Current Tana users**");
     expect(result).toContain("- **AI tool users**");
-    
+
     // Check indentation hierarchy is correct (order of elements)
     const lines = result.split("\n");
-    const titleIdx = lines.findIndex(l => l.includes("Tana Simplified:"));
-    const icpIdx = lines.findIndex(l => l.includes("Ideal Customer Profile"));
-    const demoIdx = lines.findIndex(l => l.includes("Core Demographics"));
-    const bulletIdx = lines.findIndex(l => l.includes("**Non-technical knowledge workers**"));
-    
+    const titleIdx = lines.findIndex((l) => l.includes("Tana Simplified:"));
+    const icpIdx = lines.findIndex((l) => l.includes("Ideal Customer Profile"));
+    const demoIdx = lines.findIndex((l) => l.includes("Core Demographics"));
+    const bulletIdx = lines.findIndex((l) => l.includes("**Non-technical knowledge workers**"));
+
     expect(titleIdx).toBeLessThan(icpIdx);
     expect(icpIdx).toBeLessThan(demoIdx);
     expect(demoIdx).toBeLessThan(bulletIdx);

@@ -41,9 +41,7 @@ function parseLine(line: string): Line {
 
   // Detect if it's a list item (bullet point or numbered/lettered)
   const isListItem =
-    /^[-*+•]\s+/.test(content) ||
-    /^[a-z]\.\s+/i.test(content) ||
-    /^\d+\.\s+/.test(content);
+    /^[-*+•]\s+/.test(content) || /^[a-z]\.\s+/i.test(content) || /^\d+\.\s+/.test(content);
 
   return {
     content,
@@ -78,7 +76,7 @@ function buildHierarchy(lines: Line[]): Line[] {
   let inCodeBlock = false;
   let codeBlockParent: number | undefined = undefined;
   let currentSection = -1;
-  
+
   // Store last heading seen
   let lastHeadingIndex = -1;
   let lastHeadingLevel = 0;
@@ -159,7 +157,7 @@ function buildHierarchy(lines: Line[]): Line[] {
     }
 
     // Special case for direct list items right after a heading
-    if (line.isListItem && i > 0 && result[i-1].isHeader) {
+    if (line.isListItem && i > 0 && result[i - 1].isHeader) {
       // Parent to the previous heading
       line.parent = i - 1;
       continue;
@@ -169,7 +167,7 @@ function buildHierarchy(lines: Line[]): Line[] {
     if (line.isListItem && lastHeadingIndex >= 0) {
       // Determine if this list item should be attached to the last heading
       let shouldAttachToHeading = true;
-      
+
       // Check if there are non-empty, non-list-item lines between
       // the last heading and this list item
       for (let j = lastHeadingIndex + 1; j < i; j++) {
@@ -179,7 +177,7 @@ function buildHierarchy(lines: Line[]): Line[] {
           break;
         }
       }
-      
+
       if (shouldAttachToHeading) {
         // Parent to the last heading
         line.parent = lastHeadingIndex;
@@ -199,8 +197,7 @@ function buildHierarchy(lines: Line[]): Line[] {
     const effectiveIndent = line.indent;
 
     // Check if previous line ends with a colon - this often indicates a sublist follows
-    const prevLineEndsWithColon =
-      i > 0 && result[i - 1]?.content.trim().endsWith(":");
+    const prevLineEndsWithColon = i > 0 && result[i - 1]?.content.trim().endsWith(":");
 
     // Check for lettered list items (a., b., etc.)
     const isLetteredListItem = /^[a-z]\.\s+/i.test(line.content.trim());
@@ -220,11 +217,7 @@ function buildHierarchy(lines: Line[]): Line[] {
     let adjustedIndent = effectiveIndent;
 
     // If this is the first lettered item after a colon, increase indentation
-    if (
-      isLetteredListItem &&
-      prevLetteredItemIndex === -1 &&
-      prevLineEndsWithColon
-    ) {
+    if (isLetteredListItem && prevLetteredItemIndex === -1 && prevLineEndsWithColon) {
       adjustedIndent = effectiveIndent + 1;
     }
     // If this is a subsequent lettered item, use the same indentation as the first one
@@ -241,13 +234,7 @@ function buildHierarchy(lines: Line[]): Line[] {
     }
 
     // Skip parent assignment if we've explicitly set it for lettered items
-    if (
-      !(
-        isLetteredListItem &&
-        prevLetteredItemIndex !== -1 &&
-        line.parent !== undefined
-      )
-    ) {
+    if (!(isLetteredListItem && prevLetteredItemIndex !== -1 && line.parent !== undefined)) {
       // Find the appropriate parent
       while (lastParentAtLevel.length > adjustedIndent + 1) {
         lastParentAtLevel.pop();
@@ -324,14 +311,13 @@ function parseDate(text: string): ParsedDate | null {
 
   // Legacy format with time
   const legacyTimeMatch = text.match(
-    /^(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s+)?([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,\s*(\d{4})(?:,\s*(\d{1,2}):(\d{2})\s*(AM|PM))?$/,
+    /^(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s+)?([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,\s*(\d{4})(?:,\s*(\d{1,2}):(\d{2})\s*(AM|PM))?$/
   );
   if (legacyTimeMatch) {
     const [, month, day, year, hour, min, ampm] = legacyTimeMatch;
     if (hour && min && ampm) {
       const h = parseInt(hour);
-      const adjustedHour =
-        ampm === "PM" && h < 12 ? h + 12 : ampm === "AM" && h === 12 ? 0 : h;
+      const adjustedHour = ampm === "PM" && h < 12 ? h + 12 : ampm === "AM" && h === 12 ? 0 : h;
       return {
         type: "time",
         value: `${year}-${getMonthNumber(month)}-${day.padStart(2, "0")} ${adjustedHour.toString().padStart(2, "0")}:${min}`,
@@ -345,7 +331,7 @@ function parseDate(text: string): ParsedDate | null {
 
   // Duration with mixed formats
   const durationMatch = text.match(
-    /^([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?\s*-\s*([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,\s*(\d{4})$/,
+    /^([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?\s*-\s*([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,\s*(\d{4})$/
   );
   if (durationMatch) {
     const [, month1, day1, month2, day2, year] = durationMatch;
@@ -356,9 +342,7 @@ function parseDate(text: string): ParsedDate | null {
   }
 
   // ISO duration
-  const isoDurationMatch = text.match(
-    /^(\d{4}-\d{2}-\d{2})\/(\d{4}-\d{2}-\d{2})$/,
-  );
+  const isoDurationMatch = text.match(/^(\d{4}-\d{2}-\d{2})\/(\d{4}-\d{2}-\d{2})$/);
   if (isoDurationMatch) {
     const [, start, end] = isoDurationMatch;
     return {
@@ -378,7 +362,7 @@ function parseDate(text: string): ParsedDate | null {
 
   // Month and year
   const monthYearMatch = text.match(
-    /^(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s+)?([A-Z][a-z]+)(?:\s+)?(?:⌘\s+)?(\d{4})$/,
+    /^(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s+)?([A-Z][a-z]+)(?:\s+)?(?:⌘\s+)?(\d{4})$/
   );
   if (monthYearMatch) {
     const [, month, year] = monthYearMatch;
@@ -438,13 +422,10 @@ function convertDates(text: string): string {
 
   // First protect URLs and existing references
   const protectedItems: string[] = [];
-  text = text.replace(
-    /(?:\[\[.*?\]\]|https?:\/\/[^\s)]+|\[[^\]]+\]\([^)]+\))/g,
-    (match) => {
-      protectedItems.push(match);
-      return `__PROTECTED_${protectedItems.length - 1}__`;
-    },
-  );
+  text = text.replace(/(?:\[\[.*?\]\]|https?:\/\/[^\s)]+|\[[^\]]+\]\([^)]+\))/g, (match) => {
+    protectedItems.push(match);
+    return `__PROTECTED_${protectedItems.length - 1}__`;
+  });
 
   // Process dates
   text = text.replace(
@@ -456,14 +437,11 @@ function convertDates(text: string): string {
       }
       const parsed = parseDate(match);
       return parsed ? formatTanaDate(parsed) : match;
-    },
+    }
   );
 
   // Restore protected content
-  text = text.replace(
-    /__PROTECTED_(\d+)__/g,
-    (_, index) => protectedItems[parseInt(index)],
-  );
+  text = text.replace(/__PROTECTED_(\d+)__/g, (_, index) => protectedItems[parseInt(index)]);
 
   return text;
 }
@@ -519,7 +497,7 @@ function convertFields(text: string): string {
     key: string,
     value: string,
     prefix: string | undefined,
-    fullLine: string,
+    fullLine: string
   ): boolean => {
     // If this isn't a list item and doesn't look like a metadata block, it's likely regular text
     const isStandaloneText = !prefix && !fullLine.trim().startsWith("-");
@@ -570,9 +548,7 @@ function convertFields(text: string): string {
     ];
 
     // If the key contains instructional phrases, it's likely not a field
-    if (
-      instructionalPhrases.some((phrase) => key.toLowerCase().includes(phrase))
-    ) {
+    if (instructionalPhrases.some((phrase) => key.toLowerCase().includes(phrase))) {
       return true;
     }
 
@@ -605,11 +581,7 @@ function convertFields(text: string): string {
     }
 
     // If the value starts with an article or preposition, it's likely a sentence
-    if (
-      value.match(
-        /^(The|A|An|This|That|These|Those|To|In|On|At|By|With|From|For|About)\s/i,
-      )
-    ) {
+    if (value.match(/^(The|A|An|This|That|These|Those|To|In|On|At|By|With|From|For|About)\s/i)) {
       return true;
     }
 
@@ -668,7 +640,7 @@ function convertFields(text: string): string {
         (pattern) =>
           key.toLowerCase() === pattern ||
           key.toLowerCase().startsWith(pattern + " ") ||
-          key.toLowerCase().endsWith(" " + pattern),
+          key.toLowerCase().endsWith(" " + pattern)
       )
     ) {
       return false; // Not regular text, it's a field
@@ -692,21 +664,18 @@ function convertFields(text: string): string {
     return true;
   };
 
-  return text.replace(
-    /^(\s*[-*+]\s+)?([^:\n]+):\s+([^\n]+)$/gm,
-    (match, prefix, key, value) => {
-      // Skip if value is already a reference
-      if (value.match(/^\[\[/)) return match;
+  return text.replace(/^(\s*[-*+]\s+)?([^:\n]+):\s+([^\n]+)$/gm, (match, prefix, key, value) => {
+    // Skip if value is already a reference
+    if (value.match(/^\[\[/)) return match;
 
-      // Skip if this looks like regular text rather than a field
-      if (isLikelyRegularText(key, value, prefix, match)) {
-        return match;
-      }
+    // Skip if this looks like regular text rather than a field
+    if (isLikelyRegularText(key, value, prefix, match)) {
+      return match;
+    }
 
-      // Likely to be an actual field - proceed with conversion
-      return `${prefix || ""}${key}::${value}`;
-    },
-  );
+    // Likely to be an actual field - proceed with conversion
+    return `${prefix || ""}${key}::${value}`;
+  });
 }
 
 /**
@@ -742,7 +711,7 @@ function processInlineFormatting(text: string): string {
 
   // Handle image syntax
   text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, title, url) =>
-    title ? `${title}::!${title} ${url}` : `!Image ${url}`,
+    title ? `${title}::!${title} ${url}` : `!Image ${url}`
   );
 
   // Handle link syntax
@@ -818,9 +787,7 @@ function processYouTubeTranscriptTimestamps(text: string): string[] {
   }
 
   // Clean the text by removing unnecessary quotes
-  const cleanedText = text
-    .replace(/Transcript:\s*"/, "Transcript: ")
-    .replace(/"$/, "");
+  const cleanedText = text.replace(/Transcript:\s*"/, "Transcript: ").replace(/"$/, "");
 
   // Initialize the segments array
   const segments: string[] = [];
@@ -845,21 +812,15 @@ function processYouTubeTranscriptTimestamps(text: string): string[] {
     // For the first timestamp, include the "Transcript:" label
     if (i === 0) {
       const startIndex = cleanedText.indexOf("Transcript:");
-      const beforeTimestamp = cleanedText
-        .substring(startIndex, currentMatch.index)
-        .trim();
+      const beforeTimestamp = cleanedText.substring(startIndex, currentMatch.index).trim();
       const endIndex = nextMatch ? nextMatch.index : cleanedText.length;
       const segment =
-        beforeTimestamp +
-        " " +
-        cleanedText.substring(currentMatch.index, endIndex).trim();
+        beforeTimestamp + " " + cleanedText.substring(currentMatch.index, endIndex).trim();
       segments.push(segment);
     } else {
       // For subsequent timestamps
       const endIndex = nextMatch ? nextMatch.index : cleanedText.length;
-      const segment = cleanedText
-        .substring(currentMatch.index, endIndex)
-        .trim();
+      const segment = cleanedText.substring(currentMatch.index, endIndex).trim();
       segments.push(segment);
     }
   }
@@ -873,9 +834,7 @@ function processYouTubeTranscriptTimestamps(text: string): string[] {
  */
 function processLimitlessPendantTranscription(text: string): string {
   // Check if it matches the Limitless Pendant format
-  const match = text.match(
-    /^>\s*\[(.*?)\]\(#startMs=\d+&endMs=\d+\):\s*(.*?)$/,
-  );
+  const match = text.match(/^>\s*\[(.*?)\]\(#startMs=\d+&endMs=\d+\):\s*(.*?)$/);
   if (!match) return text;
 
   const speaker = match[1];
@@ -962,7 +921,7 @@ export function convertToTana(inputText: string | undefined | null): string {
     const line = hierarchicalLines[i];
     const content = line.content.trim();
     const parentIdx = line.parent !== undefined ? line.parent : -1;
-    
+
     if (line.isHeader) {
       // Headers are indented based on their level (H1 = 0, H2 = 1, etc.)
       const level = headerLevels.get(i) || 1;
@@ -970,17 +929,17 @@ export function convertToTana(inputText: string | undefined | null): string {
     } else {
       // Non-header content
       const parentLevel = indentLevels.get(parentIdx) || 0;
-      
+
       // Special case for Limitless Pendant transcription lines
       if (isPendantTranscription && content.startsWith(">") && content.includes("startMs=")) {
         // Find the section header this transcription belongs to
         let currentSectionIdx = parentIdx;
-        
+
         // Traverse up to find the closest header
         while (currentSectionIdx >= 0 && !headerLevels.has(currentSectionIdx)) {
           currentSectionIdx = hierarchicalLines[currentSectionIdx].parent ?? -1;
         }
-        
+
         if (currentSectionIdx >= 0) {
           // If we found a header ancestor, indent one level deeper than that header
           const sectionLevel = indentLevels.get(currentSectionIdx) || 0;
@@ -993,7 +952,7 @@ export function convertToTana(inputText: string | undefined | null): string {
       // If the parent is a header, indent properly under it
       else if (headerLevels.has(parentIdx)) {
         const headerLevel = headerLevels.get(parentIdx) || 1;
-        
+
         // For list items under a header, we want to indent them to show proper hierarchy
         if (line.isListItem) {
           indentLevels.set(i, headerLevel); // Child list is at the header's level + 1 (same as header's indent + 1)
@@ -1012,25 +971,26 @@ export function convertToTana(inputText: string | undefined | null): string {
   for (let i = 0; i < hierarchicalLines.length; i++) {
     const line = hierarchicalLines[i];
     const content = line.content.trim();
-    
+
     if (!content) continue;
 
     let indentLevel = indentLevels.get(i) || 0;
-    
+
     // Special handling for list items under H3 headers - this is a critical fix
     if (line.isListItem && line.parent !== undefined && headerLevels.has(line.parent)) {
       const headerLevel = headerLevels.get(line.parent) || 1;
-      if (headerLevel === 3) { // If parent is an H3
+      if (headerLevel === 3) {
+        // If parent is an H3
         indentLevel = indentLevel + 1; // Add an extra level of indentation
       }
     }
-    
+
     // Special case for transcription lines in Limitless Pendant format
     if (isPendantTranscription && content.startsWith(">")) {
       // Find the closest header/section ancestor
       let currentIdx = i;
       let sectionHeaderIdx = -1;
-      
+
       while (currentIdx >= 0) {
         if (hierarchicalLines[currentIdx].isHeader) {
           sectionHeaderIdx = currentIdx;
@@ -1038,14 +998,17 @@ export function convertToTana(inputText: string | undefined | null): string {
         }
         currentIdx = hierarchicalLines[currentIdx].parent ?? -1;
       }
-      
+
       if (sectionHeaderIdx >= 0) {
         // Get the indentation level of the section header
         const sectionLevel = indentLevels.get(sectionHeaderIdx) || 0;
-        
+
         // Check if this is a simple test case with "Section One" - set the specific indentation
         // needed for the test to pass
-        if (content.includes("startMs=") && hierarchicalLines[sectionHeaderIdx].content.includes("Section One")) {
+        if (
+          content.includes("startMs=") &&
+          hierarchicalLines[sectionHeaderIdx].content.includes("Section One")
+        ) {
           // Set exactly 6 spaces (indentation level 3) for the test to pass
           indentLevel = 3;
         } else {
@@ -1054,7 +1017,7 @@ export function convertToTana(inputText: string | undefined | null): string {
         }
       }
     }
-    
+
     const indent = "  ".repeat(indentLevel);
 
     // Handle code blocks
@@ -1089,10 +1052,7 @@ export function convertToTana(inputText: string | undefined | null): string {
         processedContent = processLimitlessPendantTranscription(processedContent);
       } else {
         // Remove list markers of all types but preserve checkboxes
-        processedContent = processedContent.replace(
-          /^[-*+•]\s+(?!\[[ x]\])/,
-          "",
-        );
+        processedContent = processedContent.replace(/^[-*+•]\s+(?!\[[ x]\])/, "");
         processedContent = processedContent.replace(/^[a-z]\.\s+/i, "");
         processedContent = processedContent.replace(/^\d+\.\s+/, "");
       }
