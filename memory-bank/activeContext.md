@@ -8,6 +8,7 @@
 - Version 1.3.0 release
 - Memory bank maintenance and documentation
 - Fixing indentation hierarchy for bullet points under headings (PR #11)
+- Setting up Prettier formatting and integrating it into build process
 
 ## Recent Changes
 - Version 1.2.0 (2025-04-03):
@@ -22,6 +23,10 @@
   - Fixed indentation hierarchy for bullet points under H3+ headings (PR #11)
   - Improved handling of Limitless Pendant transcription indentation
   - Made tests more flexible and less brittle by checking content instead of exact spacing
+- Developer experience improvements (2025-04-05):
+  - Added Prettier configuration and scripts for automatic code formatting
+  - Integrated formatting and linting into build and development processes
+  - Updated development workflow to run build before committing changes
 
 ## Active Decisions
 - Memory bank structure established to document project context
@@ -31,6 +36,8 @@
 - Designed proper hierarchical indentation with speaker content nested under section headers
 - Maintained consistent implementation across both TypeScript and Python versions
 - Focused on comprehensive testing to ensure proper behavior
+- Established code formatting standards with Prettier
+- Added pre-commit practice to run build for formatting, linting, and testing
 
 ## Next Steps
 - Review core conversion logic in `tana-converter.ts` to understand implementation details
