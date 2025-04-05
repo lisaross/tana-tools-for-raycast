@@ -1,5 +1,13 @@
 # Tana Paste Changelog
 
+## [Fix indentation hierarchy for bullet points] - {PR_MERGE_DATE}
+
+### Fixed
+
+- Corrected indentation hierarchy for bullet points under deeper heading levels (H3+) (#11)
+- Improved handling of Limitless Pendant transcription indentation
+- Made tests more robust by checking content and hierarchy instead of exact spacing
+
 ## [1.3.0] - 2025-04-03
 
 ### Added
