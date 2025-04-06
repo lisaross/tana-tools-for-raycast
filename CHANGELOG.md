@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Renamed extension to "tana-paste-for-raycast" to avoid naming conflicts
 - Refactored complex date pattern regex into named components for improved readability and maintainability
 - Extracted magic indentation numbers to named constants
 - Added comprehensive test for date conversion functionality
