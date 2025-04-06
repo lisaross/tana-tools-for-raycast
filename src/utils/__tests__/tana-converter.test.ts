@@ -270,7 +270,7 @@ describe('Tana Converter', () => {
 
     // Check overall structure
     expect(result).toContain('- Meeting Notes')
-    
+
     // Check date conversions
     expect(result).toContain('- Created on: [[date:2023-05-15]]')
     expect(result).toContain('- Next meeting: [[date:2023-05-21]]')

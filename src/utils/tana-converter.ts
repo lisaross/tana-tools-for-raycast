@@ -439,41 +439,43 @@ function convertDates(text: string): string {
   // Breaking down the complex regex into named patterns for better readability
   const datePatterns = {
     // [[date:YYYY-MM-DD]] format or YYYY-MM-DD format, optionally with time
-    isoDate: /(?:\[\[date:)?(?:\[\[.*?\]\]|\d{4}(?:-\d{2}(?:-\d{2})?)?(?:\s+\d{2}:\d{2})?(?:\/(?:\[\[.*?\]\]|\d{4}(?:-\d{2}(?:-\d{2})?)?(?:\s+\d{2}:\d{2})?))?)(?:\]\])?/,
-    
+    isoDate:
+      /(?:\[\[date:)?(?:\[\[.*?\]\]|\d{4}(?:-\d{2}(?:-\d{2})?)?(?:\s+\d{2}:\d{2})?(?:\/(?:\[\[.*?\]\]|\d{4}(?:-\d{2}(?:-\d{2})?)?(?:\s+\d{2}:\d{2})?))?)(?:\]\])?/,
+
     // Week X, YYYY format
     weekFormat: /(?:Week \d{1,2},\s*\d{4})/,
-    
+
     // Weeks X-Y, YYYY format
     weekRangeFormat: /(?:Weeks \d{1,2}-\d{1,2},\s*\d{4})/,
-    
+
     // Month YYYY or Month ⌘ YYYY
     monthYearFormat: /(?:[A-Z][a-z]+\s+(?:⌘\s+)?\d{4})/,
-    
+
     // Month Day, YYYY or Month Day, YYYY, HH:MM AM/PM
-    monthDayYearFormat: /(?:[A-Z][a-z]+ \d{1,2}(?:st|nd|rd|th)?,\s*\d{4}(?:,\s*\d{1,2}:\d{2}\s*(?:AM|PM))?)/,
-    
+    monthDayYearFormat:
+      /(?:[A-Z][a-z]+ \d{1,2}(?:st|nd|rd|th)?,\s*\d{4}(?:,\s*\d{1,2}:\d{2}\s*(?:AM|PM))?)/,
+
     // Month Day - Month Day, YYYY (date ranges)
-    dateRangeFormat: /(?:[A-Z][a-z]+ \d{1,2}(?:st|nd|rd|th)?\s*-\s*[A-Z][a-z]+ \d{1,2}(?:st|nd|rd|th)?,\s*\d{4})/
-  };
+    dateRangeFormat:
+      /(?:[A-Z][a-z]+ \d{1,2}(?:st|nd|rd|th)?\s*-\s*[A-Z][a-z]+ \d{1,2}(?:st|nd|rd|th)?,\s*\d{4})/,
+  }
 
   // Combine all patterns with the OR operator
   const dateRegex = new RegExp(
-    Object.values(datePatterns).map(pattern => pattern.source).join('|'),
+    Object.values(datePatterns)
+      .map((pattern) => pattern.source)
+      .join('|'),
     'g'
-  );
+  )
 
-  text = text.replace(
-    dateRegex,
-    (match) => {
-      // Skip pure numeric IDs
-      if (match.match(/^\d+$/) && match.length < 5) {
-        return match;
-      }
-      const parsed = parseDate(match);
-      return parsed ? formatTanaDate(parsed) : match;
+  text = text.replace(dateRegex, (match) => {
+    // Skip pure numeric IDs
+    if (match.match(/^\d+$/) && match.length < 5) {
+      return match
     }
-  );
+    const parsed = parseDate(match)
+    return parsed ? formatTanaDate(parsed) : match
+  })
 
   // Restore protected content
   text = text.replace(/__PROTECTED_(\d+)__/g, (_, index) => protectedItems[parseInt(index)])
