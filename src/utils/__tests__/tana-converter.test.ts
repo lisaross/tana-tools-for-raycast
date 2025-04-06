@@ -254,4 +254,31 @@ describe('Tana Converter', () => {
     expect(icpIdx).toBeLessThan(demoIdx)
     expect(demoIdx).toBeLessThan(bulletIdx)
   })
+
+  test('converts various date formats correctly', () => {
+    const input = `# Meeting Notes
+- Created on: 2023-05-15
+- Next meeting: May 21st, 2023
+- Planning period: June 5th - July 10th, 2023
+- Q2 Review: Week 26, 2023
+- Sprint planning: Weeks 27-28, 2023
+- Annual review: December 2023
+- Meeting time: 2023-05-15 14:30
+- Follow-up: May 21st, 2023, 10:30 AM`
+
+    const result = convertToTana(input)
+
+    // Check overall structure
+    expect(result).toContain('- Meeting Notes')
+    
+    // Check date conversions
+    expect(result).toContain('- Created on: [[date:2023-05-15]]')
+    expect(result).toContain('- Next meeting: [[date:2023-05-21]]')
+    expect(result).toContain('- Planning period: [[date:2023-06-05/2023-07-10]]')
+    expect(result).toContain('- Q2 Review: [[date:2023-W26]]')
+    expect(result).toContain('- Sprint planning: [[date:2023-W27/W28]]')
+    expect(result).toContain('- Annual review: [[date:2023-12]]')
+    expect(result).toContain('- Meeting time: [[date:2023-05-15 14:30]]')
+    expect(result).toContain('- Follow-up: [[date:2023-05-21 10:30]]')
+  })
 })
