@@ -45,6 +45,9 @@
 - Maintained consistent implementation across both TypeScript and Python versions
 - Focused on comprehensive testing to ensure proper behavior
 - Established code formatting standards with Prettier
+  - Single quotes instead of double quotes
+  - No semicolons at line ends
+  - Trailing newlines for all files (including Markdown)
 - Added pre-commit practice to run build for formatting, linting, and testing
 - GitHub CLI issue creation must avoid newlines in command parameters (use spaces or commas instead)
 

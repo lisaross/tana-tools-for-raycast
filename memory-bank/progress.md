@@ -36,6 +36,10 @@
   - Added testing documentation to README.md
   - Organized example files into more structured directories
   - Removed obsolete files (claude-issue.md and duplicate examples)
+  - Enhanced Prettier configuration to format Markdown files (Issue #13)
+  - Implemented consistent code style with single quotes and no semicolons
+  - Added trailing newlines to all files for POSIX compliance
+  - Fixed formatting issues flagged by Raycast's Greptile bot
 
 ## What's Left to Build
 - Features in development:

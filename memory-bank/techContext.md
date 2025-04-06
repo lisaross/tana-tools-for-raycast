@@ -33,6 +33,34 @@ npm run build
 npm test
 ```
 
+### Code Formatting
+The project uses Prettier for consistent code formatting with the following configuration:
+```json
+{
+  "singleQuote": true,
+  "trailingComma": "es5",
+  "printWidth": 100,
+  "tabWidth": 2,
+  "semi": false,
+  "bracketSpacing": true,
+  "bracketSameLine": false,
+  "arrowParens": "always",
+  "endOfLine": "lf",
+  "proseWrap": "preserve",
+  "insertPragma": false,
+  "requirePragma": false
+}
+```
+
+Key formatting choices:
+- Single quotes for strings
+- No semicolons
+- 2 spaces for indentation
+- Trailing newlines for all files (including Markdown)
+- Maximum line length of 100 characters
+
+Run `npm run format` to automatically format all source and Markdown files.
+
 ## Technical Constraints
 - **Raycast Extension Limitations**:
   - Maximum clipboard size handling
