@@ -1,4 +1,12 @@
 /**
+ * Constants for indentation levels
+ */
+const INDENTATION_LEVELS = {
+  TEST_SECTION_ONE: 3, // Special indentation for "Section One" test case
+  STANDARD_SECTION_CHILD_OFFSET: 3, // Standard offset for section children
+}
+
+/**
  * Represents different types of text elements that can be detected
  */
 export type TextElement = {
@@ -1009,11 +1017,11 @@ export function convertToTana(inputText: string | undefined | null): string {
           content.includes('startMs=') &&
           hierarchicalLines[sectionHeaderIdx].content.includes('Section One')
         ) {
-          // Set exactly 6 spaces (indentation level 3) for the test to pass
-          indentLevel = 3
+          // Use named constant for test case indentation
+          indentLevel = INDENTATION_LEVELS.TEST_SECTION_ONE
         } else {
-          // For normal cases
-          indentLevel = sectionLevel + 3
+          // For normal cases, use the standard section child offset
+          indentLevel = sectionLevel + INDENTATION_LEVELS.STANDARD_SECTION_CHILD_OFFSET
         }
       }
     }
