@@ -1,5 +1,14 @@
 # Tana Paste Changelog
 
+## [1.4.2] - 2025-04-08
+
+### Changed
+
+- Refactored complex date pattern regex into named components for improved readability and maintainability
+- Extracted magic indentation numbers to named constants
+- Added comprehensive test for date conversion functionality
+- Enhanced code quality through better naming and organization
+
 ## [1.4.1] - 2025-04-06
 
 ### Changed
