@@ -1,6 +1,16 @@
 # Tana Paste Changelog
 
-## [Fix indentation hierarchy for bullet points] - {PR_MERGE_DATE}
+## [1.4.1] - 2025-04-06
+
+### Changed
+
+- Cleaned up test directory structure
+- Consolidated testing approach using Jest
+- Removed duplicate example files
+- Organized examples into dedicated subdirectories
+- Updated documentation for testing approach
+
+## [1.4.0] - 2025-04-05
 
 ### Fixed
 

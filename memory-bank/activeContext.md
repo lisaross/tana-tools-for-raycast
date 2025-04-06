@@ -20,10 +20,17 @@
 - Version 1.3.0 (2025-04-03):
   - Added support for Limitless Pendant transcription format (#8)
   - Improved hierarchical indentation for transcriptions
-- Bug fix (2025-04-03):
+- Version 1.4.0 (2025-04-05):
   - Fixed indentation hierarchy for bullet points under H3+ headings (PR #11)
   - Improved handling of Limitless Pendant transcription indentation
-  - Made tests more flexible and less brittle by checking content instead of exact spacing
+  - Made tests more robust by checking content instead of exact spacing
+- Version 1.4.1 (2025-04-06):
+  - Cleaned up test directory structure (Issue #12)
+  - Consolidated testing approach using Jest
+  - Removed duplicate example files
+  - Organized examples into dedicated subdirectories
+  - Updated documentation for testing approach
+  - Fixed Jest configuration to properly find tests
 - Developer experience improvements (2025-04-05):
   - Added Prettier configuration and scripts for automatic code formatting
   - Integrated formatting and linting into build and development processes

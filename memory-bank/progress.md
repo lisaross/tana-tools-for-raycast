@@ -21,14 +21,15 @@
 - Proper indentation hierarchy for nested content under headings
 
 ## Recent Additions
-- Limitless Pendant transcription support
-- YouTube transcript timestamp support
-- Improved formatting preservation
-- Corrected indentation hierarchy
-- Enhanced error handling
-- Improved hierarchical indentation for transcriptions
-- Fixed indentation for bullet points under deeper headings (H3+)
-- Cleaned up test directory structure (Issue #12)
+- Version 1.3.0 (2025-04-03):
+  - Added support for Limitless Pendant transcription format (#8)
+  - Improved hierarchical indentation for transcriptions
+- Version 1.4.0 (2025-04-05):
+  - Fixed indentation hierarchy for bullet points under H3+ headings (PR #11)
+  - Improved handling of Limitless Pendant transcription indentation
+  - Made tests more robust by checking content instead of exact spacing
+- Version 1.4.1 (2025-04-06):
+  - Cleaned up test directory structure (Issue #12)
   - Removed duplicate test files
   - Consolidated testing approach to use Jest
   - Updated jest.config.mjs to explicitly target tests in src directory
