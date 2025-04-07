@@ -81,3 +81,13 @@
 - Pull request and code review
 - Version bump and release
 - Raycast store submission 
+
+## Important Notes
+- When using GitHub CLI (gh) commands, do not use actual newlines or escaped newlines (\n) in comments, issue descriptions, or release notes.
+- Instead, create temporary markdown files for complex content and use them with the --body-file flag.
+- Example: 
+  1. `echo "# Title\n\n- Point 1\n- Point 2" > temp.md` 
+  2. `gh issue create --title "Issue Title" --body-file temp.md`
+  3. `rm temp.md`
+- For simple content, use single-line text with comma separators rather than line breaks
+- This applies to all gh commands including issue creation, closing, releases, and PR descriptions

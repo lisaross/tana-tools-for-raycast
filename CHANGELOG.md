@@ -1,5 +1,12 @@
 # Tana Paste Changelog
 
+## [1.4.3] - 2025-04-08
+
+### Changed
+
+- Updated memory bank with correct GitHub CLI usage instructions
+- Fixed documentation about handling newlines in GitHub commands
+
 ## [1.4.2] - 2025-04-08
 
 ### Changed
