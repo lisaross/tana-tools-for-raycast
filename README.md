@@ -28,7 +28,7 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
 2. Install Node.js and npm if you haven't already
 3. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/tana-paste-for-raycast.git
+   git clone https://github.com/lisaross/tana-paste-for-raycast.git
    cd tana-paste-for-raycast
    ```
 4. Install dependencies:
