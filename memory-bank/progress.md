@@ -91,3 +91,34 @@
   3. `rm temp.md`
 - For simple content, use single-line text with comma separators rather than line breaks
 - This applies to all gh commands including issue creation, closing, releases, and PR descriptions
+
+## Versioning Guidelines
+- **Documentation-only changes**:
+  - No version bump required
+  - Just commit and push to main branch
+  - Include these changes in the next feature/bugfix release changelog
+  
+- **When to create a new version release**:
+  - For actual code changes (features, bug fixes, refactoring)
+  - When accumulated documentation improvements become substantial
+  - Before submitting to external package registries (Raycast store)
+  - After addressing significant issues or pull requests
+  
+- **Version bump conventions** (Semantic Versioning):
+  - Patch version (1.4.2 → 1.4.3): Bug fixes, minor improvements, non-functional changes
+  - Minor version (1.4.2 → 1.5.0): New features that maintain backward compatibility
+  - Major version (1.4.2 → 2.0.0): Breaking changes, significant architecture changes
+
+- **Version bump process**:
+  1. Update version in package.json
+  2. Update CHANGELOG.md with new version section
+  3. Commit changes with message format: "chore: bump version to x.y.z"
+  4. Create and push git tag
+  5. Create GitHub release with change notes
+  
+- **Commit without version bump when**:
+  - Fixing typos in documentation
+  - Updating URLs or references
+  - Making minor formatting changes
+  - Improving comments or documentation examples
+  - Changing non-user-facing content
