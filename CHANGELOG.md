@@ -1,21 +1,17 @@
-# Tana Paste Changelog
+# Tana Paste For Raycast Changelog
 
-## [Unreleased]
 
 ## [1.5.2] - 2025-04-13
 
 ### Changed
 
-- Updated extension icon for better visibility in the Raycast store
+- Updated extension icon
 
 ## [1.5.1] - 2025-04-13
 
 ### Added
 
-- Transcript extraction for YouTube videos in the YouTube to Tana command
-- Added tab selection UI when multiple YouTube videos are open
-- Special support for Arc browser's Spaces and Little Windows
-- Timestamps for each transcript segment
+- Transcript extraction for YouTube videos in the YouTube to Tana command (into Transcript field)
 - Graceful fallback when transcript is unavailable
 
 ## [1.5.0] - 2025-04-13
@@ -24,7 +20,6 @@
 
 - YouTube to Tana command to extract video metadata and convert to Tana format (#15)
 - Support for extracting video title, URL, channel, author and description from YouTube pages
-- Integration with our existing Tana conversion logic for consistent formatting
 
 ## [1.4.3] - 2025-04-08
 

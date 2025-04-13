@@ -17,7 +17,7 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
   - Paragraphs
   - Nested content with proper indentation
 - Specialized format support:
-  - YouTube transcript timestamps
+  - YouTube transcript
   - Limitless Pendant transcriptions
 - Instant feedback via HUD notifications
 - TypeScript implementation with strict typing
@@ -72,19 +72,16 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
 6. Paste into Tana (⌘+V)
 
 ### YouTube to Tana
-1. Open one or more YouTube videos in your browser
+1. Open a YouTube video in your browser
 2. Open Raycast (⌘+Space)
 3. Type "YouTube to Tana"
 4. Press Enter
-5. If multiple YouTube videos are open, select the one you want to extract from the list
-6. Video metadata and transcript (if available) are extracted, formatted, and copied to your clipboard
-7. Paste into Tana (⌘+V)
+5. Video metadata and transcript (if available) are extracted, formatted, and copied to your clipboard
+6. Paste into Tana (⌘+V)
 
 **Features:**
 - Extracts video title, URL, channel information, and description
-- Automatically retrieves video transcript with timestamps (when available)
-- Supports multiple browser windows/tabs with YouTube videos open
-- Special support for Arc browser's Spaces and Little Windows
+- Automatically retrieves video transcript (when available)
 - Formats everything in Tana's node structure
 - Works with videos in any language that has captions
 
