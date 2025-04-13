@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.5.2] - 2025-04-13
+
+### Changed
+
+- Updated extension icon for better visibility in the Raycast store
+
 ## [1.5.1] - 2025-04-13
 
 ### Added
