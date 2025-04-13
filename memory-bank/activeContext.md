@@ -10,6 +10,7 @@
 - Fixing indentation hierarchy for bullet points under headings (PR #11)
 - Setting up Prettier formatting and integrating it into build process
 - Cleaning up test directory structure and removing duplicate test files (Issue #12)
+- Adding YouTube to Tana command to extract video metadata (Issue #15)
 
 ## Recent Changes
 - Version 1.2.0 (2025-04-03):
@@ -35,6 +36,12 @@
   - Added Prettier configuration and scripts for automatic code formatting
   - Integrated formatting and linting into build and development processes
   - Updated development workflow to run build before committing changes
+- Adding YouTube to Tana feature (2025-04-13):
+  - Created new youtube-to-tana.tsx command
+  - Implemented YouTube metadata extraction
+  - Used existing Tana converter for formatting
+  - Added tests and documentation
+  - Updated README and CHANGELOG
 
 ## Active Decisions
 - Memory bank structure established to document project context
@@ -50,6 +57,7 @@
   - Trailing newlines for all files (including Markdown)
 - Added pre-commit practice to run build for formatting, linting, and testing
 - GitHub CLI issue creation must avoid newlines in command parameters (use spaces or commas instead)
+- Implemented YouTube to Tana integration using intermediate Markdown format for processing
 
 ## Next Steps
 - Review core conversion logic in `tana-converter.ts` to understand implementation details
@@ -61,6 +69,8 @@
 - Consider additional special format support for common transcription tools
 - Update documentation with more examples for the new features
 - Consider improved formatting options for transcriptions
+- Release version 1.5.0 with YouTube to Tana support
+- Submit updated extension to Raycast store
 
 ## Current Challenges
 - Understanding the specific requirements of Tana's format

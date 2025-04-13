@@ -25,6 +25,12 @@
       "title": "Convert Selected Text to Tana",
       "description": "Convert currently selected text to Tana Paste format",
       "mode": "no-view"
+    },
+    {
+      "name": "youtube-to-tana",
+      "title": "Youtube to Tana",
+      "description": "Extract YouTube video information and convert to Tana Paste format",
+      "mode": "no-view"
     }
   ],
   "dependencies": {

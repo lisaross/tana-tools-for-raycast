@@ -19,6 +19,8 @@ declare namespace Preferences {
   export type PasteAndEdit = ExtensionPreferences & {}
   /** Preferences accessible in the `selected-to-tana` command */
   export type SelectedToTana = ExtensionPreferences & {}
+  /** Preferences accessible in the `youtube-to-tana` command */
+  export type YoutubeToTana = ExtensionPreferences & {}
 }
 
 declare namespace Arguments {
@@ -28,5 +30,7 @@ declare namespace Arguments {
   export type PasteAndEdit = {}
   /** Arguments passed to the `selected-to-tana` command */
   export type SelectedToTana = {}
+  /** Arguments passed to the `youtube-to-tana` command */
+  export type YoutubeToTana = {}
 }
 
