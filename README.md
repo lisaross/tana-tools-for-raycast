@@ -8,6 +8,7 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
   - Quick clipboard conversion (no UI)
   - Paste and edit interface for reviewing before conversion
   - Convert selected text directly
+  - Extract YouTube video metadata directly from browser
 - Automatically converts clipboard content to Tana Paste format
 - Supports Markdown elements:
   - Headings (H1-H6)
@@ -69,6 +70,21 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
 4. Press Enter
 5. The converted text is now in your clipboard
 6. Paste into Tana (⌘+V)
+
+### YouTube to Tana
+1. Open a YouTube video in your browser (must be a watch page with URL containing youtube.com/watch)
+2. Make sure the video page is active in your browser
+3. Click "Show more" in the description if you want the full content
+4. Open Raycast (⌘+Space)
+5. Type "YouTube to Tana"
+6. Press Enter
+7. Video metadata is extracted, formatted, and copied to your clipboard
+8. Paste into Tana (⌘+V)
+
+**Troubleshooting**:
+- Make sure you have a YouTube watch page open (not a channel, home, or shorts page)
+- Ensure the YouTube page is the active tab in your browser
+- If you get "Can't find video description" errors, try clicking "Show more" on the description
 
 ## Backup Solution: Python Script
 

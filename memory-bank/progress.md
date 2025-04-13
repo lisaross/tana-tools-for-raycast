@@ -6,6 +6,7 @@
   - Quick clipboard conversion (no UI)
   - Paste and edit interface
   - Convert selected text
+  - YouTube to Tana metadata extraction
 - All basic Markdown elements:
   - Headings (H1-H6)
   - Bullet lists (`-`, `*`, `+`)
@@ -18,6 +19,7 @@
 - Specialized format support:
   - YouTube transcript timestamps
   - Limitless Pendant transcriptions
+  - YouTube video metadata extraction
 - Proper indentation hierarchy for nested content under headings
 
 ## Recent Additions
@@ -40,6 +42,12 @@
   - Implemented consistent code style with single quotes and no semicolons
   - Added trailing newlines to all files for POSIX compliance
   - Fixed formatting issues flagged by Raycast's Greptile bot
+- Unreleased (2025-04-13):
+  - Added YouTube to Tana command for extracting video metadata (Issue #15)
+  - Implemented browser extension integration for accessing YouTube page content
+  - Created formatting pipeline to use existing Tana converter
+  - Added tests for YouTube extraction functionality
+  - Updated documentation and CHANGELOG
 
 ## What's Left to Build
 - Features in development:

@@ -1,5 +1,13 @@
 # Tana Paste Changelog
 
+## [Unreleased]
+
+### Added
+
+- YouTube to Tana command to extract video metadata and convert to Tana format (#15)
+- Support for extracting video title, URL, channel, author and description from YouTube pages
+- Integration with our existing Tana conversion logic for consistent formatting
+
 ## [1.4.3] - 2025-04-08
 
 ### Changed
