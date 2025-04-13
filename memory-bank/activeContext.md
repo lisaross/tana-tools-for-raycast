@@ -10,7 +10,7 @@
 - Fixing indentation hierarchy for bullet points under headings (PR #11)
 - Setting up Prettier formatting and integrating it into build process
 - Cleaning up test directory structure and removing duplicate test files (Issue #12)
-- Adding YouTube to Tana command to extract video metadata (Issue #15)
+- ✅ Adding YouTube to Tana command to extract video metadata (Issue #15)
 
 ## Recent Changes
 - Version 1.2.0 (2025-04-03):
@@ -36,12 +36,15 @@
   - Added Prettier configuration and scripts for automatic code formatting
   - Integrated formatting and linting into build and development processes
   - Updated development workflow to run build before committing changes
-- Adding YouTube to Tana feature (2025-04-13):
-  - Created new youtube-to-tana.tsx command
-  - Implemented YouTube metadata extraction
-  - Used existing Tana converter for formatting
-  - Added tests and documentation
-  - Updated README and CHANGELOG
+- Version 1.5.0 (2025-04-13):
+  - Added YouTube to Tana feature (Issue #15):
+    - Created new youtube-to-tana.tsx command
+    - Implemented YouTube metadata and transcript extraction
+    - Added HTML entity decoding for proper text handling
+    - Created paragraph detection for better transcript structure
+    - Used existing Tana converter for formatting
+    - Added comprehensive tests for all components
+    - Updated README and CHANGELOG
 
 ## Active Decisions
 - Memory bank structure established to document project context
@@ -58,6 +61,8 @@
 - Added pre-commit practice to run build for formatting, linting, and testing
 - GitHub CLI issue creation must avoid newlines in command parameters (use spaces or commas instead)
 - Implemented YouTube to Tana integration using intermediate Markdown format for processing
+- Created paragraph detection system for transcripts based on time gaps
+- Implemented HTML entity decoding for handling special characters in YouTube content
 
 ## Next Steps
 - Review core conversion logic in `tana-converter.ts` to understand implementation details
@@ -71,6 +76,10 @@
 - Consider improved formatting options for transcriptions
 - Release version 1.5.0 with YouTube to Tana support
 - Submit updated extension to Raycast store
+- Consider enhancements to the YouTube extraction feature:
+  - Support for additional metadata fields
+  - Customizable timestamp options
+  - Additional transcript format detection
 
 ## Current Challenges
 - Understanding the specific requirements of Tana's format
@@ -80,6 +89,7 @@
 - Balancing proper indentation with ease of use in Tana
 - Ensuring consistent behavior across different transcription formats
 - Managing formatting variations in different input sources
+- Detecting different transcript structures and paragraph breaks
 
 ## Open Questions
 - What are the most common error cases in the conversion process?
@@ -90,3 +100,4 @@
 - How can we improve the detection of different transcription formats?
 - Are there additional formatting options users might need for transcriptions?
 - How can we make the extension more discoverable for users of transcription tools? 
+- What additional YouTube metadata might be useful to extract? 
