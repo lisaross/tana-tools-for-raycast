@@ -20,6 +20,8 @@
   - YouTube transcript timestamps
   - Limitless Pendant transcriptions
   - YouTube video metadata extraction
+  - HTML entity decoding for special characters
+- Browser extension integration for web content extraction
 - Proper indentation hierarchy for nested content under headings
 
 ## Recent Additions
@@ -42,11 +44,13 @@
   - Implemented consistent code style with single quotes and no semicolons
   - Added trailing newlines to all files for POSIX compliance
   - Fixed formatting issues flagged by Raycast's Greptile bot
-- Unreleased (2025-04-13):
+- Version 1.5.0 (2025-04-13):
   - Added YouTube to Tana command for extracting video metadata (Issue #15)
   - Implemented browser extension integration for accessing YouTube page content
+  - Added HTML entity decoding for proper text handling
+  - Created paragraph detection for transcripts based on time gaps
   - Created formatting pipeline to use existing Tana converter
-  - Added tests for YouTube extraction functionality
+  - Added comprehensive tests for YouTube extraction functionality
   - Updated documentation and CHANGELOG
 
 ## What's Left to Build
@@ -59,19 +63,23 @@
   - Enhanced code block handling
   - Additional special format conversions
   - Support for more transcription formats
+  - Additional YouTube metadata field extraction
+  - Customizable timestamp options for transcripts
 
 ## Current Status
-- Version 1.3.0 released (stable)
+- Version 1.5.0 released (stable)
 - Pull request submitted to Raycast store (PR #18361)
 - Core functionality complete and tested
 - Python script implementation stable
 - Documentation complete
+- YouTube to Tana feature implemented and tested
 
 ## Known Issues
 - Potential edge cases with complex nested structures
 - Special formatting that may not convert correctly
 - Performance considerations with very large documents
 - Need for continued refinement of conversion rules
+- YouTube extraction may vary based on page structure changes
 
 ## Test Coverage
 - Unit tests in place for core conversion logic
@@ -79,6 +87,8 @@
 - Jest testing framework implemented
 - Additional test cases being developed for edge cases
 - Comprehensive tests for transcription format detection and conversion
+- Tests for HTML entity decoding and paragraph detection
+- Tests for YouTube metadata extraction and formatting
 
 ## Implementation Process
 - GitHub issue creation with clear requirements (#8)
