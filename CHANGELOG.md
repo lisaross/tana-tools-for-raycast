@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+## [1.5.0] - 2025-04-13
+
 ### Added
 
 - YouTube to Tana command to extract video metadata and convert to Tana format (#15)
