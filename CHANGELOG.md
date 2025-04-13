@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.5.1] - 2025-04-13
+
 ### Added
 
 - Transcript extraction for YouTube videos in the YouTube to Tana command
