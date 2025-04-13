@@ -34,7 +34,8 @@
     }
   ],
   "dependencies": {
-    "@raycast/api": "^1.94.3"
+    "@raycast/api": "^1.94.3",
+    "youtube-transcript": "^1.2.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",

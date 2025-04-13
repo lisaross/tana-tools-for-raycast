@@ -1,20 +1,23 @@
 import { Clipboard, showHUD, BrowserExtension, Toast, showToast } from '@raycast/api'
 import { convertToTana } from './utils/tana-converter'
+import { YoutubeTranscript } from 'youtube-transcript'
 
 interface VideoInfo {
   title: string
   channelName: string
   channelUrl: string
   url: string
+  videoId: string
   description: string
+  transcript?: string // Make transcript optional
 }
 
 /**
- * Extracts video information from the current YouTube page
+ * Extracts video information from the active YouTube tab
  */
 async function extractVideoInfo(): Promise<VideoInfo> {
   try {
-    // Get the current tab
+    // Get the active tab
     const tabs = await BrowserExtension.getTabs()
 
     if (!tabs || tabs.length === 0) {
@@ -23,30 +26,28 @@ async function extractVideoInfo(): Promise<VideoInfo> {
       )
     }
 
-    // Find active tabs
-    const activeTabs = tabs.filter((tab) => tab.active)
+    // Find the active YouTube tab
+    const activeTab = tabs.find((tab) => tab.active && tab.url?.includes('youtube.com/watch'))
 
-    if (activeTabs.length === 0) {
+    if (!activeTab) {
       throw new Error(
-        'No active browser tab found. Please make sure you have a browser window open and active.'
+        'No active YouTube video tab found. Please open a YouTube video and try again.'
       )
     }
 
-    // Look for a YouTube tab
-    const youtubeTab = activeTabs.find((tab) => tab.url?.includes('youtube.com/watch'))
+    // Extract the video ID from URL
+    const urlObj = new URL(activeTab.url)
+    const videoId = urlObj.searchParams.get('v')
 
-    if (!youtubeTab) {
-      throw new Error(
-        'No YouTube video page found. Please make sure you have a YouTube video page open and active in your browser.'
-      )
+    if (!videoId) {
+      throw new Error('Could not extract video ID from the URL.')
     }
 
-    const url = youtubeTab.url
-
-    // Extract title
+    // Extract title directly from the tab
     const title = await BrowserExtension.getContent({
       cssSelector: 'h1.ytd-video-primary-info-renderer',
       format: 'text',
+      tabId: activeTab.id,
     })
 
     if (!title) {
@@ -59,6 +60,7 @@ async function extractVideoInfo(): Promise<VideoInfo> {
     const channelElement = await BrowserExtension.getContent({
       cssSelector: '#channel-name yt-formatted-string a',
       format: 'html',
+      tabId: activeTab.id,
     })
 
     if (!channelElement) {
@@ -97,6 +99,7 @@ async function extractVideoInfo(): Promise<VideoInfo> {
       description = await BrowserExtension.getContent({
         cssSelector: selector,
         format: 'text',
+        tabId: activeTab.id,
       })
       if (description) {
         break
@@ -125,7 +128,8 @@ async function extractVideoInfo(): Promise<VideoInfo> {
       title: title.trim(),
       channelName: channelName,
       channelUrl: fullChannelUrl,
-      url: url,
+      url: `https://www.youtube.com/watch?v=${videoId}`,
+      videoId: videoId,
       description: cleanedDescription,
     }
   } catch (error) {
@@ -137,6 +141,45 @@ async function extractVideoInfo(): Promise<VideoInfo> {
     })
     throw error
   }
+}
+
+/**
+ * Extracts the transcript from a YouTube video
+ */
+async function extractTranscript(videoId: string): Promise<string> {
+  try {
+    // Fetch transcript using the youtube-transcript library
+    const transcriptData = await YoutubeTranscript.fetchTranscript(videoId)
+
+    if (!transcriptData || transcriptData.length === 0) {
+      throw new Error('No transcript available for this video')
+    }
+
+    // Format the transcript segments
+    let formattedTranscript = ''
+    for (const segment of transcriptData) {
+      // Add timestamp if available
+      const timestamp = formatTimestamp(segment.offset)
+      formattedTranscript += `[${timestamp}] ${segment.text}\n`
+    }
+
+    return formattedTranscript
+  } catch (error) {
+    console.error('Transcript extraction error:', error)
+    throw new Error(
+      `Could not extract transcript: ${error instanceof Error ? error.message : 'Unknown error'}`
+    )
+  }
+}
+
+/**
+ * Formats milliseconds into MM:SS format
+ */
+function formatTimestamp(offsetMs: number): string {
+  const totalSeconds = Math.floor(offsetMs / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
 
 /**
@@ -159,28 +202,61 @@ function formatForTanaMarkdown(videoInfo: VideoInfo): string {
     }
   }
 
+  // Add transcript if available
+  if (videoInfo.transcript) {
+    markdown += `\n\n## Transcript\n`
+    // Split transcript by lines and format as bullet points
+    const transcriptLines = videoInfo.transcript.split('\n')
+    for (const line of transcriptLines) {
+      if (line.trim()) {
+        markdown += `\n- ${line.trim()}`
+      }
+    }
+  }
+
   return markdown
 }
 
+// Main command entry point
 export default async function Command() {
   try {
-    // Extract YouTube video information
+    // Show HUD to indicate processing has started
+    await showToast({
+      style: Toast.Style.Animated,
+      title: 'Processing YouTube Video',
+    })
+
+    // Extract video information from the active tab
     const videoInfo = await extractVideoInfo()
 
-    // Format the information for Tana using Markdown as an intermediate format
+    try {
+      // Try to extract transcript
+      const transcript = await extractTranscript(videoInfo.videoId)
+      videoInfo.transcript = transcript
+    } catch (transcriptError) {
+      // Show a toast but continue
+      await showToast({
+        style: Toast.Style.Failure,
+        title: 'Transcript Extraction Failed',
+        message: transcriptError instanceof Error ? transcriptError.message : 'Unknown error',
+      })
+    }
+
+    // Format and copy to clipboard
     const markdownFormat = formatForTanaMarkdown(videoInfo)
-
-    // Use our existing Tana converter to process the Markdown
     const tanaFormat = convertToTana(markdownFormat)
-
-    // Copy to clipboard
     await Clipboard.copy(tanaFormat)
 
-    await showHUD('YouTube video info copied to clipboard in Tana format')
+    const successMessage = videoInfo.transcript
+      ? 'YouTube video info and transcript copied to clipboard in Tana format'
+      : 'YouTube video info copied to clipboard in Tana format (no transcript available)'
+
+    await showHUD(successMessage)
   } catch (error) {
-    console.error(error)
-    await showHUD(
-      `Error: ${error instanceof Error ? error.message : 'Failed to process YouTube video'}`
-    )
+    await showToast({
+      style: Toast.Style.Failure,
+      title: 'Processing Failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    })
   }
 }

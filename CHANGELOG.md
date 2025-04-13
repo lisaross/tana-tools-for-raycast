@@ -2,7 +2,13 @@
 
 ## [Unreleased]
 
-### Changed
+### Added
+
+- Transcript extraction for YouTube videos in the YouTube to Tana command
+- Added tab selection UI when multiple YouTube videos are open
+- Special support for Arc browser's Spaces and Little Windows
+- Timestamps for each transcript segment
+- Graceful fallback when transcript is unavailable
 
 ## [1.5.0] - 2025-04-13
 

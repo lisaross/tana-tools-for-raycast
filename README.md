@@ -72,19 +72,27 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
 6. Paste into Tana (⌘+V)
 
 ### YouTube to Tana
-1. Open a YouTube video in your browser (must be a watch page with URL containing youtube.com/watch)
-2. Make sure the video page is active in your browser
-3. Click "Show more" in the description if you want the full content
-4. Open Raycast (⌘+Space)
-5. Type "YouTube to Tana"
-6. Press Enter
-7. Video metadata is extracted, formatted, and copied to your clipboard
-8. Paste into Tana (⌘+V)
+1. Open one or more YouTube videos in your browser
+2. Open Raycast (⌘+Space)
+3. Type "YouTube to Tana"
+4. Press Enter
+5. If multiple YouTube videos are open, select the one you want to extract from the list
+6. Video metadata and transcript (if available) are extracted, formatted, and copied to your clipboard
+7. Paste into Tana (⌘+V)
 
-**Troubleshooting**:
-- Make sure you have a YouTube watch page open (not a channel, home, or shorts page)
-- Ensure the YouTube page is the active tab in your browser
+**Features:**
+- Extracts video title, URL, channel information, and description
+- Automatically retrieves video transcript with timestamps (when available)
+- Supports multiple browser windows/tabs with YouTube videos open
+- Special support for Arc browser's Spaces and Little Windows
+- Formats everything in Tana's node structure
+- Works with videos in any language that has captions
+
+**Troubleshooting:**
+- Make sure you have at least one YouTube watch page open (not a channel, home, or shorts page)
 - If you get "Can't find video description" errors, try clicking "Show more" on the description
+- Not all videos have transcripts available - in this case, only the metadata will be extracted
+- For videos with multiple language options, the default language is extracted
 
 ## Backup Solution: Python Script
 
