@@ -13,6 +13,31 @@ interface VideoInfo {
 }
 
 /**
+ * Decodes HTML entities in a string
+ */
+function decodeHTMLEntities(text: string): string {
+  const entities = {
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&nbsp;': ' ',
+  }
+
+  // Replace all encoded entities
+  let decoded = text
+  for (const [entity, char] of Object.entries(entities)) {
+    decoded = decoded.replace(new RegExp(entity, 'g'), char)
+  }
+
+  // Additionally handle numeric entities like &#39;
+  decoded = decoded.replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+
+  return decoded
+}
+
+/**
  * Extracts video information from the active YouTube tab
  */
 async function extractVideoInfo(): Promise<VideoInfo> {
@@ -78,7 +103,7 @@ async function extractVideoInfo(): Promise<VideoInfo> {
     }
 
     const channelUrl = hrefMatch[1]
-    const channelName = textMatch[1].trim()
+    const channelName = decodeHTMLEntities(textMatch[1].trim())
 
     // Format the channel URL
     const fullChannelUrl = channelUrl.startsWith('http')
@@ -113,19 +138,21 @@ async function extractVideoInfo(): Promise<VideoInfo> {
     }
 
     // Clean up the description
-    const cleanedDescription = description
-      .replace(/Show more$/, '') // Remove "Show more" text if present
-      .replace(/Show less$/, '') // Remove "Show less" text if present
-      .replace(/^\s*\.{3}\s*/, '') // Remove leading ellipsis
-      .replace(/\s*\.{3}$/, '') // Remove trailing ellipsis
-      .replace(/^\s*Show more\s*\n?/, '') // Remove "Show more" at start
-      .replace(/\n?\s*Show less\s*$/, '') // Remove "Show less" at end
-      .replace(/^\s+|\s+$/g, '') // Trim whitespace from start and end
-      .trim()
+    const cleanedDescription = decodeHTMLEntities(
+      description
+        .replace(/Show more$/, '') // Remove "Show more" text if present
+        .replace(/Show less$/, '') // Remove "Show less" text if present
+        .replace(/^\s*\.{3}\s*/, '') // Remove leading ellipsis
+        .replace(/\s*\.{3}$/, '') // Remove trailing ellipsis
+        .replace(/^\s*Show more\s*\n?/, '') // Remove "Show more" at start
+        .replace(/\n?\s*Show less\s*$/, '') // Remove "Show less" at end
+        .replace(/^\s+|\s+$/g, '') // Trim whitespace from start and end
+        .trim()
+    )
 
     // Return complete VideoInfo
     return {
-      title: title.trim(),
+      title: decodeHTMLEntities(title.trim()),
       channelName: channelName,
       channelUrl: fullChannelUrl,
       url: `https://www.youtube.com/watch?v=${videoId}`,
@@ -155,31 +182,33 @@ async function extractTranscript(videoId: string): Promise<string> {
       throw new Error('No transcript available for this video')
     }
 
-    // Format the transcript segments
+    // Format the transcript segments - without timestamps
     let formattedTranscript = ''
+    let lastTime = -1
+    const paragraphBreakThreshold = 6 // seconds between segments to create a paragraph break
+
     for (const segment of transcriptData) {
-      // Add timestamp if available
-      const timestamp = formatTimestamp(segment.offset)
-      formattedTranscript += `[${timestamp}] ${segment.text}\n`
+      // Check if we need a paragraph break (if there's a significant time gap)
+      const currentTime = Math.floor(segment.offset / 1000)
+
+      if (lastTime !== -1 && currentTime - lastTime > paragraphBreakThreshold) {
+        formattedTranscript += '\n\n'
+      } else if (formattedTranscript) {
+        formattedTranscript += ' '
+      }
+
+      // Add the text
+      formattedTranscript += decodeHTMLEntities(segment.text)
+      lastTime = currentTime
     }
 
-    return formattedTranscript
+    return formattedTranscript.trim()
   } catch (error) {
     console.error('Transcript extraction error:', error)
     throw new Error(
       `Could not extract transcript: ${error instanceof Error ? error.message : 'Unknown error'}`
     )
   }
-}
-
-/**
- * Formats milliseconds into MM:SS format
- */
-function formatTimestamp(offsetMs: number): string {
-  const totalSeconds = Math.floor(offsetMs / 1000)
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
 
 /**
@@ -192,25 +221,27 @@ function formatForTanaMarkdown(videoInfo: VideoInfo): string {
   markdown += `URL::${videoInfo.url}\n`
   markdown += `Channel URL::${videoInfo.channelUrl}\n`
   markdown += `Author::${videoInfo.channelName}\n`
-  markdown += `Description::${videoInfo.description.split('\n\n')[0] || 'No description available'}\n`
+
+  // Add transcript as a field if available, only using first paragraph
+  if (videoInfo.transcript) {
+    const transcriptParagraphs = videoInfo.transcript.split('\n\n')
+    markdown += `Transcript::${transcriptParagraphs[0]}\n`
+
+    // Add additional transcript paragraphs as separate nodes
+    for (let i = 1; i < transcriptParagraphs.length; i++) {
+      if (transcriptParagraphs[i].trim()) {
+        markdown += `\n${transcriptParagraphs[i].trim()}`
+      }
+    }
+  }
+
+  markdown += `\nDescription::${videoInfo.description.split('\n\n')[0] || 'No description available'}\n`
 
   // Add additional description paragraphs as separate nodes
   const descriptionParagraphs = videoInfo.description.split('\n\n').slice(1)
   for (const paragraph of descriptionParagraphs) {
     if (paragraph.trim()) {
       markdown += `\n${paragraph.trim()}`
-    }
-  }
-
-  // Add transcript if available
-  if (videoInfo.transcript) {
-    markdown += `\n\n## Transcript\n`
-    // Split transcript by lines and format as bullet points
-    const transcriptLines = videoInfo.transcript.split('\n')
-    for (const line of transcriptLines) {
-      if (line.trim()) {
-        markdown += `\n- ${line.trim()}`
-      }
     }
   }
 
