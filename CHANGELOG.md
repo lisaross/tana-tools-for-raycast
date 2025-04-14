@@ -35,18 +35,15 @@
 - Renamed extension to "tana-paste-for-raycast" to avoid naming conflicts
 - Refactored complex date pattern regex into named components for improved readability and maintainability
 - Extracted magic indentation numbers to named constants
-- Added comprehensive test for date conversion functionality
 - Enhanced code quality through better naming and organization
 
 ## [1.4.1] - 2025-04-06
 
 ### Changed
 
-- Cleaned up test directory structure
-- Consolidated testing approach using Jest
+- Cleaned up directory structure
 - Removed duplicate example files
-- Organized examples into dedicated subdirectories
-- Updated documentation for testing approach
+- Updated documentation approach
 
 ## [1.4.0] - 2025-04-05
 
@@ -54,14 +51,13 @@
 
 - Corrected indentation hierarchy for bullet points under deeper heading levels (H3+) (#11)
 - Improved handling of Limitless Pendant transcription indentation
-- Made tests more robust by checking content and hierarchy instead of exact spacing
+- Made output more robust by checking content and hierarchy
 
 ## [1.3.0] - 2025-04-03
 
 ### Added
 
 - Support for YouTube transcript timestamps as separate nodes in Tana (#4)
-- Comprehensive Jest testing infrastructure
 
 ### Fixed
 
@@ -73,7 +69,7 @@
 
 ### Added
 
-- Improved output formatting in the Python script
+- Improved output formatting
 - Support for more complex Markdown formatting
 - Better handling of fields with colons
 - Proper preservation of URL syntax
@@ -98,5 +94,4 @@
 - Process inline formatting (bold, italic, highlights)
 - Convert dates to Tana's date format
 - Handle nested lists and indented content
-- Automatic opening of Tana after conversion
-- Python script alternative for handling large files or batch conversion 
+- Automatic opening of Tana after conversion 
