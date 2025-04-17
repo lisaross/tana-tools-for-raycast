@@ -948,7 +948,7 @@ function isLimitlessPendantTranscription(text: string): boolean {
  * Detect if text is in the new transcription format
  * Format:
  * Speaker Name
- * 
+ *
  * Timestamp
  * Content
  */
@@ -966,7 +966,11 @@ function isNewTranscriptionFormat(text: string): boolean {
       speakerCount++
     }
     // Check for timestamp pattern (line with date/time)
-    if (line.match(/(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/)) {
+    if (
+      line.match(
+        /(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/
+      )
+    ) {
       timestampCount++
     }
   }
@@ -994,7 +998,11 @@ function processNewTranscriptionFormat(text: string): string {
     }
 
     // Skip timestamp lines
-    if (line.match(/(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/)) {
+    if (
+      line.match(
+        /(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/
+      )
+    ) {
       continue
     }
 
@@ -1018,7 +1026,7 @@ export function convertToTana(inputText: string | undefined | null): string {
 
   // Check if this is a Limitless Pendant transcription
   const isPendantTranscription = isLimitlessPendantTranscription(inputText)
-  
+
   // Check if this is the new transcription format
   const isNewTranscription = isNewTranscriptionFormat(inputText)
 

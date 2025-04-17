@@ -112,7 +112,9 @@ describe('Tana Converter', () => {
     const lines = result.split('\n')
     const titleLineIndex = lines.findIndex((line) => line.includes('- Meeting Title'))
     const sectionLineIndex = lines.findIndex((line) => line.includes('- Section One'))
-    const speaker1LineIndex = lines.findIndex((line) => line.includes('Speaker 1 (00:29:03): Hello everyone'))
+    const speaker1LineIndex = lines.findIndex((line) =>
+      line.includes('Speaker 1 (00:29:03): Hello everyone')
+    )
 
     // Verify correct order (hierarchy)
     expect(titleLineIndex).toBeLessThan(sectionLineIndex)
@@ -308,7 +310,9 @@ Speaker 3`
     expect(result).toContain('- Speaker 1 (Yesterday, 11:00 AM): Lisa, hi.')
     expect(result).toContain('- Speaker 1 (Yesterday, 11:00 AM): Hello. Hello.')
     expect(result).toContain("- Speaker 2 (Yesterday, 11:00 AM): You're on mute. It going?")
-    expect(result).toContain('- Speaker 1 (Yesterday, 11:00 AM): Yeah. Pretty good. Pretty good. How are you? Very good.')
+    expect(result).toContain(
+      '- Speaker 1 (Yesterday, 11:00 AM): Yeah. Pretty good. Pretty good. How are you? Very good.'
+    )
     expect(result).toContain('- Speaker 1 (Yesterday, 11:00 AM): Hey.')
     expect(result).toContain('- Speaker 3')
   })
