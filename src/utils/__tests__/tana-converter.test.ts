@@ -316,4 +316,64 @@ Speaker 3`
     expect(result).toContain('- Speaker 1 (Yesterday, 11:00 AM): Hey.')
     expect(result).toContain('- Speaker 3')
   })
+
+  test('handles numbered lists with bullet points correctly', () => {
+    const input = `### Detailed Overview of Prompt Structure for Generative AI
+
+1. **Role and Objective**:
+   - Begin by defining the role of the AI and the primary objective of the task. This sets the context for the AI and aligns its responses with the desired outcome.
+   - Example: "You are a creative assistant tasked with generating engaging content for a social media campaign."
+
+2. **Context Analysis**:
+   - Evaluate available information
+   - Identify key requirements`
+
+    const result = convertToTana(input)
+
+    // Check overall structure
+    const lines = result.split('\n')
+
+    // Find key line indices
+    const headerIdx = lines.findIndex((l) => l.includes('Detailed Overview'))
+    const roleIdx = lines.findIndex((l) => l.includes('**Role and Objective**'))
+    const bulletIdx = lines.findIndex((l) => l.includes('Begin by defining'))
+    const contextIdx = lines.findIndex((l) => l.includes('**Context Analysis**'))
+
+    // Verify correct order
+    expect(headerIdx).toBeLessThan(roleIdx)
+    expect(roleIdx).toBeLessThan(bulletIdx)
+    expect(bulletIdx).toBeLessThan(contextIdx)
+
+    // Verify indentation
+    const headerIndent = lines[headerIdx].indexOf('-')
+    const roleIndent = lines[roleIdx].indexOf('-')
+    const bulletIndent = lines[bulletIdx].indexOf('-')
+
+    // Header should be at root level
+    expect(headerIndent).toBe(2)
+    // Role should be indented one level
+    expect(roleIndent).toBe(4)
+    // Bullets should be indented two levels under the numbered item
+    expect(bulletIndent).toBe(6)
+  })
+
+  test('maintains correct indentation for complex markdown structure', () => {
+    const input = `# Detailed Overview of Prompt Structure for Generative AI
+## Role and Objective
+- Begin by defining the role of the AI and the primary objective of the task. This sets the context for the AI and aligns its responses with the desired outcome.
+- Example: "You are a creative assistant tasked with generating engaging content for a social media campaign."
+## Instructions
+- Provide clear and concise instructions on what the AI should do. Be explicit to avoid ambiguity.
+- Example: "Create a series of three social media posts that highlight the benefits of our new product. Each post should be catchy and include a call to action."`
+    const expected = `%%tana%%
+- !! Detailed Overview of Prompt Structure for Generative AI
+  - !! Role and Objective
+    - Begin by defining the role of the AI and the primary objective of the task. This sets the context for the AI and aligns its responses with the desired outcome.
+    - Example: "You are a creative assistant tasked with generating engaging content for a social media campaign."
+  - !! Instructions
+    - Provide clear and concise instructions on what the AI should do. Be explicit to avoid ambiguity.
+    - Example: "Create a series of three social media posts that highlight the benefits of our new product. Each post should be catchy and include a call to action."
+`
+    expect(convertToTana(input)).toBe(expected)
+  })
 })

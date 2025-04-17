@@ -1,5 +1,9 @@
 # Tana Paste For Raycast Changelog
 
+## [Unreleased]
+
+### Fixed
+- Fixed incorrect indentation in Tana converter that was causing all content to be placed under a single node (#27)
 
 ## [1.5.2] - 2025-04-13
 
