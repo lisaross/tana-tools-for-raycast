@@ -205,8 +205,40 @@ Output:
 %%tana%%
 - Meeting Title
   - Discussion Topic
-    - Speaker 1: Hello everyone.
-    - You: Good morning.
+    - Speaker 1 (00:29:03): Hello everyone.
+    - You (00:29:03): Good morning.
+```
+
+### New Transcription Format Example
+
+Input:
+```
+Speaker 1
+
+Yesterday, 11:00 AM
+Lisa, hi.
+Hello. Hello.
+Speaker 2
+
+Yesterday, 11:00 AM
+You're on mute. It going?
+Speaker 1
+
+Yesterday, 11:00 AM
+Yeah. Pretty good. Pretty good. How are you? Very good.
+Hey.
+Speaker 3
+```
+
+Output:
+```
+%%tana%%
+- Speaker 1: Lisa, hi.
+- Speaker 1: Hello. Hello.
+- Speaker 2: You're on mute. It going?
+- Speaker 1: Yeah. Pretty good. Pretty good. How are you? Very good.
+- Speaker 1: Hey.
+- Speaker 3
 ```
 
 More examples can be found in the `examples/` directory, including:
@@ -261,4 +293,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.

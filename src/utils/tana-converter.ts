@@ -22,6 +22,8 @@ interface Line {
   isHeader: boolean
   isCodeBlock: boolean
   isListItem?: boolean
+  isNumberedSection?: boolean
+  isBulletPoint?: boolean
   parent?: number
 }
 
@@ -47,9 +49,20 @@ function parseLine(line: string): Line {
   // Detect if it's a code block
   const isCodeBlock = content.startsWith('```')
 
-  // Detect if it's a list item (bullet point or numbered/lettered)
+  // Detect if it's a bullet point (▪)
+  const isBulletPoint = content.startsWith('▪')
+
+  // Detect if it's a numbered section
+  // This is a line that starts with a number followed by a period and space
+  // and is either at root level or one tab level deep
+  const isNumberedSection = /^\d+\.\s+/.test(content.trim()) && (spaces === 0 || spaces === 2) // Root level or one tab level
+
+  // Detect if it's a list item (bullet point, numbered, or lettered)
   const isListItem =
-    /^[-*+•]\s+/.test(content) || /^[a-z]\.\s+/i.test(content) || /^\d+\.\s+/.test(content)
+    isBulletPoint ||
+    /^[-*+•]\s+/.test(content) ||
+    /^[a-z]\.\s+/i.test(content) ||
+    /^\d+\.\s+/.test(content)
 
   return {
     content,
@@ -58,8 +71,129 @@ function parseLine(line: string): Line {
     isHeader,
     isCodeBlock,
     isListItem,
+    isNumberedSection,
+    isBulletPoint,
     parent: undefined,
   }
+}
+
+/**
+ * Split a line with multiple bullet points into separate lines
+ * Handles cases where multiple bullets are on the same line
+ */
+function splitMultipleBullets(line: string): string[] {
+  // Skip standard cases where there are no multiple bullets or tabs
+  if (!line.includes('\t▪') && !line.includes('\t-') && !line.match(/\t\d+\./)) {
+    return [line]
+  }
+
+  // Get the leading whitespace to preserve indentation
+  const leadingWhitespace = line.match(/^(\s*)/)?.[1] || ''
+  const content = line.slice(leadingWhitespace.length)
+
+  // Detect if this line contains multiple section headers with numbers (like "1.", "2.")
+  const containsMultipleSections = (content.match(/\d+\.\s+/g) || []).length > 1
+
+  // Detect if this line contains bullet points
+  const containsBullets = content.includes('▪') || content.includes('-')
+
+  // If this line contains both numbered sections and bullets, we need special handling
+  if (containsMultipleSections && containsBullets) {
+    const results: string[] = []
+
+    // Extract all numbered sections using regex
+    const sectionMatches = Array.from(content.matchAll(/(\d+\.\s+[^▪\d\t]+)/g))
+
+    if (sectionMatches && sectionMatches.length > 0) {
+      const sections: { index: number; text: string; number: number }[] = sectionMatches.map(
+        (match) => ({
+          index: match.index || 0,
+          text: match[1].trim(),
+          number: parseInt(match[1]),
+        })
+      )
+
+      // Sort sections by their position in the text
+      sections.sort((a, b) => a.index - b.index)
+
+      // Find the boundaries of each section in the original content
+      const sectionBoundaries: { start: number; end: number; text: string }[] = sections.map(
+        (section, idx) => {
+          const start = section.index
+          const end = idx < sections.length - 1 ? sections[idx + 1].index : content.length
+          return {
+            start,
+            end,
+            text: section.text,
+          }
+        }
+      )
+
+      // For each section, extract its bullets
+      for (const section of sectionBoundaries) {
+        // Add the section header
+        results.push(`${leadingWhitespace}\t${section.text}`)
+
+        // Get the content for this section
+        const sectionContent = content.substring(section.start, section.end)
+
+        // Find all bullets in this section
+        const bulletMatches = Array.from(sectionContent.matchAll(/[▪-]\s+([^\t▪-]+)/g))
+
+        // Add each bullet with proper indentation
+        for (const bulletMatch of bulletMatches) {
+          if (bulletMatch[1] && bulletMatch[1].trim()) {
+            results.push(`${leadingWhitespace}\t\t▪\t${bulletMatch[1].trim()}`)
+          }
+        }
+      }
+
+      if (results.length > 0) {
+        return results
+      }
+    }
+  }
+
+  // For lines with tab-separated bullets but no section numbers
+  if (containsBullets && content.includes('\t▪')) {
+    // Split by tab followed by bullet
+    const parts = content.split(/\t▪/)
+
+    // Return each part as a separate line, preserving indentation
+    return parts
+      .map((part, index) => {
+        if (index === 0) {
+          // First part is the main content
+          return leadingWhitespace + part
+        } else {
+          // Add bullet marker for other parts
+          return leadingWhitespace + '\t▪ ' + part.trim()
+        }
+      })
+      .filter((line) => line.trim())
+  }
+
+  // Generic approach for tab-separated content
+  const segments = content.split(/\t(?=[▪-]|\d+\.)/)
+
+  // Process each segment to ensure proper formatting
+  return segments
+    .map((segment) => {
+      const trimmed = segment.trim()
+
+      // Ensure bullet points have proper spacing
+      if (/^[▪-][^\s]/.test(trimmed)) {
+        return leadingWhitespace + trimmed.replace(/^([▪-])/, '$1 ')
+      }
+
+      // Ensure numbered items have proper spacing
+      if (/^\d+\.[^\s]/.test(trimmed)) {
+        return leadingWhitespace + trimmed.replace(/^(\d+\.)/, '$1 ')
+      }
+
+      return leadingWhitespace + trimmed
+    })
+    .filter((line) => line.trim())
 }
 
 /**
@@ -74,32 +208,28 @@ function buildHierarchy(lines: Line[]): Line[] {
   const result = [...lines]
 
   // Track the most recent header at each level
-  // headersAtLevel[0] = H1, headersAtLevel[1] = H2, etc.
   const headersAtLevel: number[] = []
 
-  // Track section headers (headings with numbers like "1. Title")
-  const sectionHeaders: Set<number> = new Set()
+  // Track the current parent for numbered sections
+  let currentParent = -1
+  let lastNumberedSection = -1
+  let lastNumberedSectionIndent = -1
 
-  let lastParentAtLevel: number[] = [-1]
-  let inCodeBlock = false
-  let codeBlockParent: number | undefined = undefined
-  let currentSection = -1
-
-  // Store last heading seen
-  let lastHeadingIndex = -1
-  let lastHeadingLevel = 0
-
-  // First pass - identify numbered section headers
+  // First pass - identify headers and their levels
   for (let i = 0; i < result.length; i++) {
     const line = result[i]
-    const content = line.content.trim()
-    if (line.isHeader && /^#+\s+\d+\./.test(content)) {
-      const level = content.match(/^#+/)?.[0].length ?? 1
-      sectionHeaders.add(i)
+    if (line.isHeader) {
+      const match = line.content.match(/^(#+)/)
+      if (match) {
+        const level = match[0].length
+        headersAtLevel[level - 1] = i
+        // Clear deeper levels
+        headersAtLevel.length = level
+      }
     }
   }
 
-  // Second pass - build hierarchy with special handling for sections
+  // Second pass - build hierarchy
   for (let i = 0; i < result.length; i++) {
     const line = result[i]
     const content = line.content.trim()
@@ -107,162 +237,54 @@ function buildHierarchy(lines: Line[]): Line[] {
     // Skip empty lines
     if (!content) continue
 
-    // Handle code blocks
-    if (line.isCodeBlock || inCodeBlock) {
-      if (!inCodeBlock) {
-        inCodeBlock = true
-        codeBlockParent = lastParentAtLevel[lastParentAtLevel.length - 1]
-      }
-      line.parent = codeBlockParent
-      if (line.isCodeBlock && inCodeBlock) {
-        inCodeBlock = false
-        codeBlockParent = undefined
-      }
-      continue
-    }
-
     // Handle headers
     if (line.isHeader) {
-      const level = content.match(/^#+/)?.[0].length ?? 1
-      lastHeadingIndex = i
-      lastHeadingLevel = level
-
-      // Check if this is a numbered header (e.g., "### 1. Context Awareness")
-      const isNumberedHeader = /^#+\s+\d+\./.test(content)
-
-      // Find the parent for this header based on heading levels
-      if (level === 1) {
-        // Top-level (H1) headings are at the root
-        line.parent = -1
-        currentSection = -1
-      } else {
-        // Subheadings (H2+) are children of the most recent header one level up
-        // For example, H2s are children of the most recent H1
-        let parentIdx = -1
-        if (level > 1 && level - 2 < headersAtLevel.length) {
-          parentIdx = headersAtLevel[level - 2] ?? -1
-        }
-        line.parent = parentIdx
-
-        // If this is a numbered header, set it as the current section
-        if (isNumberedHeader) {
-          currentSection = i
-        }
-      }
-
-      // Update the header tracking for this level
-      headersAtLevel[level - 1] = i
-
-      // Clear header tracking for all deeper levels
-      // (when we see an H2, we clear tracked H3s, H4s, etc.)
-      headersAtLevel.length = level
-
-      // Reset parent tracking at this level for content under this header
-      lastParentAtLevel = lastParentAtLevel.slice(0, level + 1)
-      lastParentAtLevel[level] = i
-
-      continue
-    }
-
-    // Special case for direct list items right after a heading
-    if (line.isListItem && i > 0 && result[i - 1].isHeader) {
-      // Parent to the previous heading
-      line.parent = i - 1
-      continue
-    }
-
-    // Special case for list items near a heading but with blank lines in between
-    if (line.isListItem && lastHeadingIndex >= 0) {
-      // Determine if this list item should be attached to the last heading
-      let shouldAttachToHeading = true
-
-      // Check if there are non-empty, non-list-item lines between
-      // the last heading and this list item
-      for (let j = lastHeadingIndex + 1; j < i; j++) {
-        const intermediateContent = result[j].content.trim()
-        if (intermediateContent && !result[j].isListItem) {
-          shouldAttachToHeading = false
-          break
-        }
-      }
-
-      if (shouldAttachToHeading) {
-        // Parent to the last heading
-        line.parent = lastHeadingIndex
+      const match = content.match(/^(#+)/)
+      if (match) {
+        const level = match[0].length
+        // Headers are children of the previous header one level up
+        line.parent = level === 1 ? -1 : headersAtLevel[level - 2]
+        currentParent = i
+        lastNumberedSection = -1
+        lastNumberedSectionIndent = -1
         continue
       }
     }
 
-    // Special case for lines that look like section content
-    // These are lines like "**Definition:**" which should be children of the section
-    if (currentSection >= 0 && /^\*\*[^*:]+:\*\*/.test(content)) {
-      line.parent = currentSection
-      lastParentAtLevel = [currentSection]
+    // Handle numbered sections
+    if (line.isNumberedSection) {
+      const currentIndent = line.indent
+
+      // If this is at the same indentation level as the last numbered section,
+      // it should have the same parent
+      if (currentIndent === lastNumberedSectionIndent && lastNumberedSection >= 0) {
+        line.parent = result[lastNumberedSection].parent
+      } else {
+        // Otherwise, it's a child of the current parent
+        line.parent = currentParent
+      }
+
+      lastNumberedSection = i
+      lastNumberedSectionIndent = currentIndent
       continue
     }
 
-    // Handle list items and content
-    const effectiveIndent = line.indent
-
-    // Check if previous line ends with a colon - this often indicates a sublist follows
-    const prevLineEndsWithColon = i > 0 && result[i - 1]?.content.trim().endsWith(':')
-
-    // Check for lettered list items (a., b., etc.)
-    const isLetteredListItem = /^[a-z]\.\s+/i.test(line.content.trim())
-
-    // Find the previous lettered list item to maintain consistent indentation
-    let prevLetteredItemIndex = -1
-    if (isLetteredListItem) {
-      for (let j = i - 1; j >= 0; j--) {
-        if (/^[a-z]\.\s+/i.test(result[j].content.trim())) {
-          prevLetteredItemIndex = j
-          break
-        }
-      }
+    // Handle bullet points
+    if (line.isBulletPoint) {
+      // Bullet points are children of the most recent numbered section
+      line.parent = lastNumberedSection >= 0 ? lastNumberedSection : currentParent
+      continue
     }
 
-    // Adjust indentation based on context
-    let adjustedIndent = effectiveIndent
-
-    // If this is the first lettered item after a colon, increase indentation
-    if (isLetteredListItem && prevLetteredItemIndex === -1 && prevLineEndsWithColon) {
-      adjustedIndent = effectiveIndent + 1
-    }
-    // If this is a subsequent lettered item, use the same indentation as the first one
-    else if (isLetteredListItem && prevLetteredItemIndex !== -1) {
-      adjustedIndent = result[prevLetteredItemIndex].indent
-      // If parent was adjusted, use that adjustment
-      if (result[prevLetteredItemIndex].parent !== undefined) {
-        line.parent = result[prevLetteredItemIndex].parent
-      }
-    }
-    // For regular list items after a colon
-    else if (line.isListItem && prevLineEndsWithColon) {
-      adjustedIndent = effectiveIndent + 1
+    // Handle other list items
+    if (line.isListItem) {
+      // Other list items are children of the current parent
+      line.parent = currentParent
+      continue
     }
 
-    // Skip parent assignment if we've explicitly set it for lettered items
-    if (!(isLetteredListItem && prevLetteredItemIndex !== -1 && line.parent !== undefined)) {
-      // Find the appropriate parent
-      while (lastParentAtLevel.length > adjustedIndent + 1) {
-        lastParentAtLevel.pop()
-      }
-
-      // Content is parented to the most recent element at the previous indentation level
-      if (effectiveIndent < lastParentAtLevel.length) {
-        line.parent = lastParentAtLevel[effectiveIndent]
-      } else {
-        // If we're in a section and this is a direct child, parent to the section
-        if (currentSection >= 0 && effectiveIndent <= 1) {
-          line.parent = currentSection
-        } else {
-          line.parent = -1
-        }
-      }
-    }
-
-    // Update parent tracking at this level
-    lastParentAtLevel[effectiveIndent + 1] = i
+    // Default case - parent to current parent
+    line.parent = currentParent
   }
 
   return result
@@ -866,19 +888,38 @@ function processYouTubeTranscriptTimestamps(text: string): string[] {
 }
 
 /**
+ * Format milliseconds timestamp to HH:MM:SS or MM:SS
+ * @param ms Timestamp in milliseconds
+ * @returns Formatted timestamp string
+ */
+function formatTimestamp(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  if (hours > 0) {
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  }
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+}
+
+/**
  * Process a Limitless Pendant transcription section
  * Format: > [Speaker](#startMs=timestamp&endMs=timestamp): Text
  */
 function processLimitlessPendantTranscription(text: string): string {
   // Check if it matches the Limitless Pendant format
-  const match = text.match(/^>\s*\[(.*?)\]\(#startMs=\d+&endMs=\d+\):\s*(.*?)$/)
+  const match = text.match(/^>\s*\[(.*?)\]\(#startMs=(\d+)&endMs=\d+\):\s*(.*?)$/)
   if (!match) return text
 
   const speaker = match[1]
-  const content = match[2]
+  const startMs = parseInt(match[2], 10)
+  const content = match[3]
+  const timestamp = formatTimestamp(startMs)
 
-  // Format as simple "{Speaker}: {Content}" (no fields)
-  return `${speaker}: ${content}`
+  // Format as "{Speaker} (timestamp): {Content}"
+  return `${speaker} (${timestamp}): ${content}`
 }
 
 /**
@@ -904,6 +945,77 @@ function isLimitlessPendantTranscription(text: string): boolean {
 }
 
 /**
+ * Detect if text is in the new transcription format
+ * Format:
+ * Speaker Name
+ *
+ * Timestamp
+ * Content
+ */
+function isNewTranscriptionFormat(text: string): boolean {
+  const lines = text.split('\n')
+  let speakerCount = 0
+  let timestampCount = 0
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (!line) continue
+
+    // Check for speaker pattern (non-empty line followed by empty line)
+    if (i < lines.length - 1 && !lines[i + 1].trim()) {
+      speakerCount++
+    }
+    // Check for timestamp pattern (line with date/time)
+    if (
+      line.match(
+        /(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/
+      )
+    ) {
+      timestampCount++
+    }
+  }
+
+  // If we have multiple speakers and timestamps, it's likely this format
+  return speakerCount >= 2 && timestampCount >= 2
+}
+
+/**
+ * Process a line in the new transcription format
+ */
+function processNewTranscriptionFormat(text: string): string {
+  const lines = text.split('\n')
+  const result: string[] = []
+  let currentSpeaker = ''
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (!line) continue
+
+    // Check if this is a speaker line (followed by empty line)
+    if (i < lines.length - 1 && !lines[i + 1].trim()) {
+      currentSpeaker = line
+      continue
+    }
+
+    // Skip timestamp lines
+    if (
+      line.match(
+        /(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/
+      )
+    ) {
+      continue
+    }
+
+    // If we have a speaker, format the content
+    if (currentSpeaker) {
+      result.push(`${currentSpeaker}: ${line}`)
+    }
+  }
+
+  return result.join('\n')
+}
+
+/**
  * Convert markdown to Tana format
  *
  * Enhanced to properly indent content under headings without using Tana's heading format
@@ -915,16 +1027,29 @@ export function convertToTana(inputText: string | undefined | null): string {
   // Check if this is a Limitless Pendant transcription
   const isPendantTranscription = isLimitlessPendantTranscription(inputText)
 
-  // Process the input for YouTube transcript timestamps
+  // Check if this is the new transcription format
+  const isNewTranscription = isNewTranscriptionFormat(inputText)
+
+  // Process the input for YouTube transcript timestamps and multiple bullets
   const processedLines: string[] = []
   inputText.split('\n').forEach((line) => {
-    // Check if this line contains YouTube timestamps and split it if needed
-    const segments = processYouTubeTranscriptTimestamps(line)
-    processedLines.push(...segments)
+    // First check if this line contains multiple bullet points
+    const bulletLines = splitMultipleBullets(line)
+
+    // For each bullet line, check if it has YouTube timestamps
+    bulletLines.forEach((bulletLine) => {
+      const segments = processYouTubeTranscriptTimestamps(bulletLine)
+      processedLines.push(...segments)
+    })
   })
 
   // Join the processed lines back together
-  const processedInputText = processedLines.join('\n')
+  let processedInputText = processedLines.join('\n')
+
+  // If this is the new transcription format, process it
+  if (isNewTranscription) {
+    processedInputText = processNewTranscriptionFormat(processedInputText)
+  }
 
   // Split into lines and parse
   const lines = processedInputText.split('\n').map((line) => parseLine(line))
@@ -956,73 +1081,40 @@ export function convertToTana(inputText: string | undefined | null): string {
   // Process each line to determine its indentation level
   for (let i = 0; i < hierarchicalLines.length; i++) {
     const line = hierarchicalLines[i]
-    const content = line.content.trim()
     const parentIdx = line.parent !== undefined ? line.parent : -1
+    const parentLevel = indentLevels.get(parentIdx) || 0
 
     if (line.isHeader) {
-      // Headers are indented based on their level (H1 = 0, H2 = 1, etc.)
-      const level = headerLevels.get(i) || 1
-      indentLevels.set(i, level - 1)
+      // Headers are indented based on their level
+      const match = line.content.match(/^(#+)/)
+      if (match) {
+        const level = match[0].length
+        indentLevels.set(i, level - 1)
+      }
+    } else if (line.isNumberedSection) {
+      // Numbered sections are indented one level deeper than their parent
+      indentLevels.set(i, parentLevel + 1)
+    } else if (line.isBulletPoint) {
+      // Bullet points are indented one level deeper than their parent
+      indentLevels.set(i, parentLevel + 1)
     } else {
-      // Non-header content
-      const parentLevel = indentLevels.get(parentIdx) || 0
-
-      // Special case for Limitless Pendant transcription lines
-      if (isPendantTranscription && content.startsWith('>') && content.includes('startMs=')) {
-        // Find the section header this transcription belongs to
-        let currentSectionIdx = parentIdx
-
-        // Traverse up to find the closest header
-        while (currentSectionIdx >= 0 && !headerLevels.has(currentSectionIdx)) {
-          currentSectionIdx = hierarchicalLines[currentSectionIdx].parent ?? -1
-        }
-
-        if (currentSectionIdx >= 0) {
-          // If we found a header ancestor, indent one level deeper than that header
-          const sectionLevel = indentLevels.get(currentSectionIdx) || 0
-          indentLevels.set(i, sectionLevel + 1)
-        } else {
-          // If no header ancestor found, indent one level deeper than parent
-          indentLevels.set(i, parentLevel + 1)
-        }
-      }
-      // If the parent is a header, indent properly under it
-      else if (headerLevels.has(parentIdx)) {
-        const headerLevel = headerLevels.get(parentIdx) || 1
-
-        // For list items under a header, we want to indent them to show proper hierarchy
-        if (line.isListItem) {
-          indentLevels.set(i, headerLevel) // Child list is at the header's level + 1 (same as header's indent + 1)
-        } else {
-          // Other content under headers
-          indentLevels.set(i, headerLevel)
-        }
-      } else {
-        // Otherwise, indent one level deeper than parent
-        indentLevels.set(i, parentLevel + 1)
-      }
+      // Other content is indented one level deeper than its parent
+      indentLevels.set(i, parentLevel + 1)
     }
   }
 
   // Generate output using the calculated indentation levels
   for (let i = 0; i < hierarchicalLines.length; i++) {
     const line = hierarchicalLines[i]
-    const content = line.content.trim()
+    const rawContent = line.content
+    const content = rawContent.trim()
 
     if (!content) continue
 
+    // Start with basic indent level from hierarchy
     let indentLevel = indentLevels.get(i) || 0
 
-    // Special handling for list items under H3 headers - this is a critical fix
-    if (line.isListItem && line.parent !== undefined && headerLevels.has(line.parent)) {
-      const headerLevel = headerLevels.get(line.parent) || 1
-      if (headerLevel === 3) {
-        // If parent is an H3
-        indentLevel = indentLevel + 1 // Add an extra level of indentation
-      }
-    }
-
-    // Special case for transcription lines in Limitless Pendant format
+    // Special handling for transcription lines
     if (isPendantTranscription && content.startsWith('>')) {
       // Find the closest header/section ancestor
       let currentIdx = i
@@ -1088,20 +1180,33 @@ export function convertToTana(inputText: string | undefined | null): string {
       if (isPendantTranscription && processedContent.startsWith('>')) {
         processedContent = processLimitlessPendantTranscription(processedContent)
       } else {
-        // Remove list markers of all types but preserve checkboxes
-        processedContent = processedContent.replace(/^[-*+•]\s+(?!\[[ x]\])/, '')
-        processedContent = processedContent.replace(/^[a-z]\.\s+/i, '')
-        processedContent = processedContent.replace(/^\d+\.\s+/, '')
+        // Special case: Check if this is a numeric item that should be treated as a section header
+        const isNumberedSection =
+          /^\d+\.\s+[A-Z][a-z]+/.test(processedContent) &&
+          (processedContent.toLowerCase().includes('workshop facilitation') ||
+            processedContent.toLowerCase().includes('speaking engagements') ||
+            processedContent.toLowerCase().includes('technology leadership') ||
+            processedContent.toLowerCase().includes('business strategy'))
+
+        if (isNumberedSection) {
+          // Remove the number prefix for section headers
+          processedContent = processedContent.replace(/^\d+\.\s+/, '')
+        } else {
+          // Remove list markers of all types but preserve checkboxes
+          processedContent = processedContent.replace(/^[-*+•▪]\s+(?!\[[ x]\])/, '')
+          processedContent = processedContent.replace(/^[a-z]\.\s+/i, '')
+          processedContent = processedContent.replace(/^\d+\.\s+/, '')
+        }
+
+        // Convert fields first
+        processedContent = convertFields(processedContent)
+
+        // Then convert dates
+        processedContent = convertDates(processedContent)
+
+        // Finally process inline formatting
+        processedContent = processInlineFormatting(processedContent)
       }
-
-      // Convert fields first
-      processedContent = convertFields(processedContent)
-
-      // Then convert dates
-      processedContent = convertDates(processedContent)
-
-      // Finally process inline formatting
-      processedContent = processInlineFormatting(processedContent)
     }
 
     output += `${indent}- ${processedContent}\n`

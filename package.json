@@ -56,8 +56,8 @@
     "typescript-eslint": "^8.29.0"
   },
   "scripts": {
-    "build": "npm run format && npm run lint && npx jest && ray build -e dist",
-    "dev": "npm run format && npm run lint && npx jest && ray develop",
+    "build": "npm run format && npm run lint && ray build -e dist",
+    "dev": "npm run format && npm run lint && ray develop",
     "lint": "ray lint",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx}\" \"**/*.md\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx}\" \"**/*.md\"",

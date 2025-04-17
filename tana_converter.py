@@ -470,18 +470,31 @@ def process_table_row(text):
     """Process table row."""
     return ' | '.join(cell.strip() for cell in text.split('|') if cell.strip())
 
+def format_timestamp(ms):
+    """Format milliseconds timestamp to HH:MM:SS or MM:SS."""
+    total_seconds = ms // 1000
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
+
+    if hours > 0:
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    return f"{minutes:02d}:{seconds:02d}"
+
 def process_limitless_pendant_transcription(text):
     """Process a line in Limitless Pendant transcription format."""
     # Check if it matches the Limitless Pendant format
-    match = re.match(r'^>\s*\[(.*?)\]\(#startMs=\d+&endMs=\d+\):\s*(.*?)$', text)
+    match = re.match(r'^>\s*\[(.*?)\]\(#startMs=(\d+)&endMs=\d+\):\s*(.*?)$', text)
     if not match:
         return text
     
     speaker = match.group(1)
-    content = match.group(2)
+    start_ms = int(match.group(2))
+    content = match.group(3)
+    timestamp = format_timestamp(start_ms)
     
-    # Format as simple "{Speaker}: {Content}" (no fields)
-    return f"{speaker}: {content}"
+    # Format as "{Speaker} (timestamp): {Content}"
+    return f"{speaker} ({timestamp}): {content}"
 
 def is_limitless_pendant_transcription(text):
     """Detect if text is a Limitless Pendant transcription."""
@@ -499,6 +512,53 @@ def is_limitless_pendant_transcription(text):
     
     return False
 
+def is_new_transcription_format(text):
+    """Detect if text is in the new transcription format."""
+    lines = text.split('\n')
+    speaker_count = 0
+    timestamp_count = 0
+
+    for i in range(len(lines)):
+        line = lines[i].strip()
+        if not line:
+            continue
+
+        # Check for speaker pattern (non-empty line followed by empty line)
+        if i < len(lines) - 1 and not lines[i + 1].strip():
+            speaker_count += 1
+        # Check for timestamp pattern (line with date/time)
+        if re.match(r'(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)', line):
+            timestamp_count += 1
+
+    # If we have multiple speakers and timestamps, it's likely this format
+    return speaker_count >= 2 and timestamp_count >= 2
+
+def process_new_transcription_format(text):
+    """Process a line in the new transcription format."""
+    lines = text.split('\n')
+    result = []
+    current_speaker = ''
+
+    for i in range(len(lines)):
+        line = lines[i].strip()
+        if not line:
+            continue
+
+        # Check if this is a speaker line (followed by empty line)
+        if i < len(lines) - 1 and not lines[i + 1].strip():
+            current_speaker = line
+            continue
+
+        # Skip timestamp lines
+        if re.match(r'(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)', line):
+            continue
+
+        # If we have a speaker, format the content
+        if current_speaker:
+            result.append(f"{current_speaker}: {line}")
+
+    return '\n'.join(result)
+
 def convert_to_tana(input_text):
     """
     Convert markdown to Tana format
@@ -512,6 +572,9 @@ def convert_to_tana(input_text):
     # Check if this is a Limitless Pendant transcription
     is_pendant_transcription = is_limitless_pendant_transcription(input_text)
     
+    # Check if this is the new transcription format
+    is_new_transcription = is_new_transcription_format(input_text)
+
     # Split into lines and parse
     lines = [parse_line(line) for line in input_text.split('\n')]
     
@@ -589,6 +652,12 @@ def convert_to_tana(input_text):
     in_code_block = False
     code_block_lines = []
     
+    # Process the input for the new transcription format
+    if is_new_transcription:
+        processed_text = process_new_transcription_format(input_text)
+        lines = [parse_line(line) for line in processed_text.split('\n')]
+        hierarchical_lines = build_hierarchy(lines)
+
     # Second pass to generate the output
     for i, line in enumerate(hierarchical_lines):
         content = line.content.strip()
