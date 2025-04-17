@@ -1,5 +1,14 @@
 # Tana Paste For Raycast Changelog
 
+## [1.5.4] - 2025-04-17
+
+### Fixed
+- Fixed incorrect indentation in Tana converter that was causing all content to be placed under a single node (#27)
+- Fixed bullet point conversion for mixed format lists (#24)
+  - Fixed nested bullets not being properly separated
+  - Added support for multiple bullet formats (numbers, symbols, letters)
+  - Improved handling of nested bullet points
+  - Added proper indentation for mixed format lists
 
 ## [1.5.2] - 2025-04-13
 
