@@ -104,15 +104,15 @@ describe('Tana Converter', () => {
     // Verify content and structure
     expect(result).toContain('- Meeting Title')
     expect(result).toContain('- Section One')
-    expect(result).toContain('- Speaker 1: Hello everyone')
-    expect(result).toContain('- You: Good morning')
-    expect(result).toContain("- Speaker 2: Let's get started")
+    expect(result).toContain('- Speaker 1 (00:29:03): Hello everyone')
+    expect(result).toContain('- You (00:29:03): Good morning')
+    expect(result).toContain("- Speaker 2 (00:29:03): Let's get started")
 
     // Split into lines to check hierarchical order
     const lines = result.split('\n')
     const titleLineIndex = lines.findIndex((line) => line.includes('- Meeting Title'))
     const sectionLineIndex = lines.findIndex((line) => line.includes('- Section One'))
-    const speaker1LineIndex = lines.findIndex((line) => line.includes('Speaker 1: Hello everyone'))
+    const speaker1LineIndex = lines.findIndex((line) => line.includes('Speaker 1 (00:29:03): Hello everyone'))
 
     // Verify correct order (hierarchy)
     expect(titleLineIndex).toBeLessThan(sectionLineIndex)
@@ -280,5 +280,36 @@ describe('Tana Converter', () => {
     expect(result).toContain('- Annual review: [[date:2023-12]]')
     expect(result).toContain('- Meeting time: [[date:2023-05-15 14:30]]')
     expect(result).toContain('- Follow-up: [[date:2023-05-21 10:30]]')
+  })
+
+  test('converts new transcription format', () => {
+    const input = `Speaker 1
+
+Yesterday, 11:00 AM
+Lisa, hi.
+Hello. Hello.
+Speaker 2
+
+Yesterday, 11:00 AM
+You're on mute. It going?
+Speaker 1
+
+Yesterday, 11:00 AM
+Yeah. Pretty good. Pretty good. How are you? Very good.
+Hey.
+Speaker 3`
+
+    const result = convertToTana(input)
+
+    // Check for Tana header
+    expect(result.startsWith('%%tana%%')).toBe(true)
+
+    // Verify content and structure
+    expect(result).toContain('- Speaker 1 (Yesterday, 11:00 AM): Lisa, hi.')
+    expect(result).toContain('- Speaker 1 (Yesterday, 11:00 AM): Hello. Hello.')
+    expect(result).toContain("- Speaker 2 (Yesterday, 11:00 AM): You're on mute. It going?")
+    expect(result).toContain('- Speaker 1 (Yesterday, 11:00 AM): Yeah. Pretty good. Pretty good. How are you? Very good.')
+    expect(result).toContain('- Speaker 1 (Yesterday, 11:00 AM): Hey.')
+    expect(result).toContain('- Speaker 3')
   })
 })
