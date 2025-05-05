@@ -912,7 +912,7 @@ function formatTimestamp(ms: number): string {
 }
 
 /**
- * Process a Limitless Pendant transcription section
+ * Process a Limitless Pendant transcription section without timestamps
  * Format: > [Speaker](#startMs=timestamp&endMs=timestamp): Text
  */
 function processLimitlessPendantTranscription(text: string): string {
@@ -921,12 +921,38 @@ function processLimitlessPendantTranscription(text: string): string {
   if (!match) return text
 
   const speaker = match[1]
-  const startMs = parseInt(match[2], 10)
   const content = match[3]
-  const timestamp = formatTimestamp(startMs)
 
-  // Format as "{Speaker} (timestamp): {Content}"
-  return `${speaker} (${timestamp}): ${content}`
+  // Format as "{Speaker}: {Content}" without timestamp
+  return `${speaker}: ${content}`
+}
+
+/**
+ * Process a Limitless Pendant transcription into a single line for chunking
+ * This produces the same output format as the Limitless App format but with better spacing
+ */
+function processLimitlessPendantTranscriptToSingleLine(text: string): string {
+  const lines = text.split('\n')
+  const combinedContent: string[] = []
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (!line) continue
+    
+    // Skip header lines (# and ##)
+    if (line.startsWith('#')) continue
+    
+    // Check if this is a pendant line format
+    if (line.startsWith('>')) {
+      const processedContent = processLimitlessPendantTranscription(line)
+      if (processedContent !== line) {
+        combinedContent.push(processedContent)
+      }
+    }
+  }
+  
+  // Join all entries with periods to better separate speakers
+  return combinedContent.join(' ')
 }
 
 /**
@@ -1181,10 +1207,12 @@ export function convertToTana(inputText: string | undefined | null): string {
   // Join the processed lines back together
   let processedInputText = processedLines.join('\n')
 
-  // For Limitless App transcriptions, directly apply chunking to the processed single line
-  if (isNewTranscription) {
+  // For Limitless App or Pendant transcriptions, directly apply chunking to the processed single line
+  if (isNewTranscription || isPendantTranscription) {
     // First convert to a single line transcript
-    const singleLineTranscript = processLimitlessAppTranscriptToSingleLine(processedInputText)
+    const singleLineTranscript = isNewTranscription 
+      ? processLimitlessAppTranscriptToSingleLine(processedInputText)
+      : processLimitlessPendantTranscriptToSingleLine(processedInputText);
 
     // Calculate number of chunks needed
     const maxContentSize = MAX_TRANSCRIPT_CHUNK_SIZE - 10 // Account for header and formatting
@@ -1211,7 +1239,7 @@ export function convertToTana(inputText: string | undefined | null): string {
     return result
   }
 
-  // If this is the new transcription format, process it
+  // If this is the new transcription format, process it (this block should never be reached for transcripts now)
   if (isNewTranscription) {
     processedInputText = processNewTranscriptionFormat(processedInputText)
   }
@@ -1226,134 +1254,37 @@ export function convertToTana(inputText: string | undefined | null): string {
   let output = '%%tana%%\n'
 
   // For transcripts that need chunking, we'll use a simpler approach to ensure consistent formatting
-  if (isPendantTranscription || isNewTranscription || hasYouTubeTranscript) {
-    // Process transcription format
-    if (isPendantTranscription) {
-      // Handle special formatting for lines in pendant format
-      hierarchicalLines.forEach((line) => {
-        if (!line.content.trim()) return
+  if (hasYouTubeTranscript) {
+    // Process YouTube transcript format
+    hierarchicalLines.forEach((line) => {
+      if (!line.content.trim()) return
 
-        if (line.isHeader) {
-          const match = line.content.trim().match(/^(#{1,6})\s+(.+)$/)
-          if (match) {
-            output += `- ${match[2]}\n` // Use regular format for backward compatibility
-          }
-        } else if (line.content.trim().startsWith('>')) {
-          const processedContent = processLimitlessPendantTranscription(line.content.trim())
-          output += `- ${processedContent}\n`
-        } else {
-          // Remove list markers and preserve content
-          let processedContent = line.content
-            .trim()
-            .replace(/^[-*+•▪]\s+/, '')
-            .replace(/^\d+\.\s+/, '')
-            .replace(/^[a-z]\.\s+/i, '')
-
-          // Process other formatting
-          processedContent = convertFields(processedContent)
-          processedContent = convertDates(processedContent)
-          processedContent = processInlineFormatting(processedContent)
-
-          output += `- ${processedContent}\n`
+      if (line.isHeader) {
+        const match = line.content.trim().match(/^(#{1,6})\s+(.+)$/)
+        if (match) {
+          output += `- ${match[2]}\n` // Use regular format for backward compatibility
         }
-      })
-    } else {
-      // Calculate the indentation level for each line
-      const indentLevels = new Map<number, number>()
-      indentLevels.set(-1, 0) // Root level
+      } else {
+        let processedContent = line.content.trim()
 
-      // First pass - calculate base indentation levels
-      for (let i = 0; i < hierarchicalLines.length; i++) {
-        const line = hierarchicalLines[i]
-        if (!line.content.trim()) continue
+        // Remove list markers and preserve content
+        processedContent = processedContent
+          .replace(/^[-*+•▪]\s+/, '')
+          .replace(/^\d+\.\s+/, '')
+          .replace(/^[a-z]\.\s+/i, '')
 
-        if (line.isHeader) {
-          // Headers are always at level 0
-          indentLevels.set(i, 0)
-        } else {
-          // For non-header content, start with parent's indent
-          const parentIdx = line.parent !== undefined ? line.parent : -1
-          const parentIndent = indentLevels.get(parentIdx) || 0
-          indentLevels.set(i, parentIndent + 1)
-        }
+        // Process other formatting
+        processedContent = convertFields(processedContent)
+        processedContent = convertDates(processedContent)
+        processedContent = processInlineFormatting(processedContent)
+
+        output += `- ${processedContent}\n`
       }
-
-      // Generate output using the calculated indentation levels
-      for (let i = 0; i < hierarchicalLines.length; i++) {
-        const line = hierarchicalLines[i]
-        const content = line.content.trim()
-
-        if (!content) continue
-
-        const indentLevel = indentLevels.get(i) || 0
-        const indent = '  '.repeat(indentLevel)
-
-        // Process line content
-        let processedContent = content
-
-        // Handle headers
-        if (line.isHeader) {
-          const match = content.match(/^(#{1,6})\s+(.+)$/)
-          if (match) {
-            processedContent = match[2] // Don't add !! for backward compatibility
-          }
-        } else {
-          // Remove list markers but preserve content
-          processedContent = processedContent
-            .replace(/^[-*+•▪]\s+/, '')
-            .replace(/^\d+\.\s+/, '')
-            .replace(/^[a-z]\.\s+/i, '')
-
-          // Process other formatting
-          processedContent = convertFields(processedContent)
-          processedContent = convertDates(processedContent)
-          processedContent = processInlineFormatting(processedContent)
-        }
-
-        // Add the line to output with proper Tana formatting
-        output += `${indent}- ${processedContent}\n`
-      }
-    }
+    })
 
     // Apply chunking and return with double newlines to ensure separation
     return chunkTranscript(output).join('\n\n')
   } else {
-    // Special handling for test cases - use very simple approach to match expected output
-    // This is needed only for the basic test cases
-    const isBasicTest =
-      inputText.includes('Parent\n  - Child 1\n  - Child 2\n- Another parent') ||
-      inputText.includes('2 + 2 = 4') ||
-      inputText.startsWith('# Detailed Overview of Prompt Structure')
-
-    if (isBasicTest) {
-      // Special handling for basic test cases
-      // Generate output with two spaces of indentation for all non-header items
-      output = '%%tana%%\n'
-      let currentIndent = 1
-
-      for (let i = 0; i < hierarchicalLines.length; i++) {
-        const line = hierarchicalLines[i]
-        const content = line.content.trim()
-
-        if (!content) continue
-
-        // If this is a header, reset indent to 0
-        if (line.isHeader) {
-          const match = content.match(/^(#{1,6})\s+(.+)$/)
-          if (match) {
-            const headerLevel = match[1].length
-            // H1 = indent 0, H2 = indent 1, etc.
-            currentIndent = headerLevel - 1
-            output += `${'  '.repeat(currentIndent)}- ${match[2]}\n`
-          }
-        } else {
-          // Use the original indentation from the input (plus 1 for basic indentation)
-          output += `${'  '.repeat(currentIndent)}- ${content.replace(/^[-*+•▪]\s+/, '')}\n`
-        }
-      }
-      return output
-    }
-
     // Standard non-transcript processing - maintain compatibility with existing tests
     // Calculate the indentation level for each line
     const indentLevels = new Map<number, number>()
@@ -1365,50 +1296,13 @@ export function convertToTana(inputText: string | undefined | null): string {
       if (!line.content.trim()) continue
 
       if (line.isHeader) {
-        // Headers should be at root level with header level determining their content
-        const headerMatch = line.content.match(/^(#{1,6})\s+(.+)$/)
-        if (headerMatch) {
-          const headerLevel = headerMatch[1].length - 1
-          indentLevels.set(i, headerLevel)
-        } else {
-          indentLevels.set(i, 0)
-        }
+        // Headers are always at level 0
+        indentLevels.set(i, 0)
       } else {
         // For non-header content, start with parent's indent
         const parentIdx = line.parent !== undefined ? line.parent : -1
         const parentIndent = indentLevels.get(parentIdx) || 0
-
-        // Preserve original indentation for nested lists
-        if (
-          line.originalIndent > 0 &&
-          line.isBulletPoint &&
-          parentIdx >= 0 &&
-          hierarchicalLines[parentIdx].isBulletPoint
-        ) {
-          // This is a nested bullet point - preserve its relative indentation
-          const parentOriginalIndent = hierarchicalLines[parentIdx].originalIndent
-          const indentDifference = Math.max(
-            1,
-            Math.floor((line.originalIndent - parentOriginalIndent) / 2)
-          )
-          indentLevels.set(i, parentIndent + indentDifference)
-        } else {
-          indentLevels.set(i, parentIndent + 1)
-        }
-      }
-    }
-
-    // Track which lines are direct children of headers
-    const headerChildren = new Set<number>()
-    for (let i = 0; i < hierarchicalLines.length; i++) {
-      const line = hierarchicalLines[i]
-      if (
-        line.parent !== undefined &&
-        line.parent >= 0 &&
-        line.parent < hierarchicalLines.length &&
-        hierarchicalLines[line.parent].isHeader
-      ) {
-        headerChildren.add(i)
+        indentLevels.set(i, parentIndent + 1)
       }
     }
 
@@ -1420,7 +1314,6 @@ export function convertToTana(inputText: string | undefined | null): string {
       if (!content) continue
 
       const indentLevel = indentLevels.get(i) || 0
-
       const indent = '  '.repeat(indentLevel)
 
       // Process line content
@@ -1448,7 +1341,7 @@ export function convertToTana(inputText: string | undefined | null): string {
       // Add the line to output with proper Tana formatting
       output += `${indent}- ${processedContent}\n`
     }
-
-    return output
   }
+
+  return output
 }
