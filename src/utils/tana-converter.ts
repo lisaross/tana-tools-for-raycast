@@ -1085,9 +1085,52 @@ function processNewTranscriptionFormat(text: string): string {
  * Determine if content appears to contain a YouTube transcript
  */
 function containsYouTubeTranscript(text: string): boolean {
-  // Check if there's a Transcript field followed by timestamp patterns
-  const transcriptMatch = text.match(/Transcript:.*?\(\d+:\d+(?::\d+)?\)/i)
-  return !!transcriptMatch
+  // Check if there's a Transcript field or marker
+  return /\bTranscript:(?::|\s|\n)/i.test(text)
+}
+
+/**
+ * Process a YouTube transcript into a single line format
+ * Similar to how we process Limitless App and Pendant transcripts
+ */
+function processYouTubeTranscriptToSingleLine(text: string): string {
+  const lines = text.split('\n')
+  const transcriptLines: string[] = []
+  let inTranscript = false
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (!line) continue
+    
+    // Check if this is the beginning of a transcript - handle both Transcript: and Transcript::
+    if (line.match(/\bTranscript:(?::|\s)/i)) {
+      inTranscript = true
+      
+      // Extract the transcript part after the "Transcript::" or "Transcript:" label
+      const transcriptPart = line.replace(/^.*?\bTranscript:(?::|\s)/, '').trim()
+      if (transcriptPart) {
+        // Strip hashtags from transcript content
+        const cleanedTranscript = transcriptPart.replace(/#\w+\b/g, '').trim()
+        transcriptLines.push(cleanedTranscript)
+      }
+      continue
+    }
+    
+    // Process transcript content if we're in the transcript section
+    // and it's not another field marker
+    if (inTranscript && !line.match(/^[^:]+::/)) {
+      // Strip hashtags from transcript content
+      const cleanedLine = line.replace(/#\w+\b/g, '').trim()
+      if (cleanedLine) {
+        transcriptLines.push(cleanedLine)
+      }
+    } else if (line.match(/^[^:]+::/) && inTranscript) {
+      // If we hit another field marker, we're done with the transcript
+      inTranscript = false;
+    }
+  }
+  
+  return transcriptLines.join(' ')
 }
 
 /**
@@ -1207,13 +1250,13 @@ export function convertToTana(inputText: string | undefined | null): string {
   // Join the processed lines back together
   let processedInputText = processedLines.join('\n')
 
-  // For Limitless App or Pendant transcriptions, directly apply chunking to the processed single line
-  if (isNewTranscription || isPendantTranscription) {
-    // First convert to a single line transcript
-    const singleLineTranscript = isNewTranscription 
-      ? processLimitlessAppTranscriptToSingleLine(processedInputText)
-      : processLimitlessPendantTranscriptToSingleLine(processedInputText);
-
+  // For transcripts that need chunking, handle them using a special approach
+  if (isPendantTranscription || isNewTranscription) {
+    // For Pendant and App transcripts, we want the entire content as a single transcript
+    const singleLineTranscript = isPendantTranscription
+      ? processLimitlessPendantTranscriptToSingleLine(processedInputText)
+      : processLimitlessAppTranscriptToSingleLine(processedInputText)
+    
     // Calculate number of chunks needed
     const maxContentSize = MAX_TRANSCRIPT_CHUNK_SIZE - 10 // Account for header and formatting
     const totalChunks = Math.ceil(singleLineTranscript.length / maxContentSize)
@@ -1238,12 +1281,114 @@ export function convertToTana(inputText: string | undefined | null): string {
 
     return result
   }
-
-  // If this is the new transcription format, process it (this block should never be reached for transcripts now)
-  if (isNewTranscription) {
-    processedInputText = processNewTranscriptionFormat(processedInputText)
+  
+  // Handle YouTube transcript separately to maintain hierarchy
+  if (hasYouTubeTranscript) {
+    const lines = processedInputText.split('\n').map((line) => parseLine(line))
+    const hierarchicalLines = buildHierarchy(lines)
+    
+    // Find the transcript line
+    let transcriptIdx = -1;
+    let transcriptContent = "";
+    
+    for (let i = 0; i < hierarchicalLines.length; i++) {
+      if (hierarchicalLines[i].content.match(/^Transcript::/)) {
+        transcriptIdx = i;
+        // Extract the transcript content and strip hashtags
+        const rawTranscriptContent = hierarchicalLines[i].content.replace(/^Transcript::/, '').trim();
+        transcriptContent = rawTranscriptContent.replace(/#\w+\b/g, '').trim();
+        break;
+      }
+    }
+    
+    // If we have a transcript, process it
+    if (transcriptIdx >= 0 && transcriptContent) {
+      // Process transcript content for chunking
+      const maxContentSize = MAX_TRANSCRIPT_CHUNK_SIZE - 10;
+      const totalChunks = Math.ceil(transcriptContent.length / maxContentSize);
+      
+      // Start building output
+      let output = '%%tana%%\n';
+      
+      // Calculate indentation levels
+      const indentLevels = new Map<number, number>();
+      indentLevels.set(-1, 0); // Root level
+      
+      // First pass - calculate indentation levels
+      for (let i = 0; i < hierarchicalLines.length; i++) {
+        const line = hierarchicalLines[i];
+        if (!line.content.trim()) continue;
+        
+        if (line.isHeader) {
+          indentLevels.set(i, 0);
+        } else {
+          const parentIdx = line.parent !== undefined ? line.parent : -1;
+          const parentIndent = indentLevels.get(parentIdx) || 0;
+          indentLevels.set(i, parentIndent + 1);
+        }
+      }
+      
+      // Generate output for all lines except the transcript
+      for (let i = 0; i < hierarchicalLines.length; i++) {
+        if (i === transcriptIdx) continue; // Skip the transcript line, we'll handle it specially
+        
+        const line = hierarchicalLines[i];
+        const content = line.content.trim();
+        if (!content) continue;
+        
+        const indentLevel = indentLevels.get(i) || 0;
+        const indent = '  '.repeat(indentLevel);
+        
+        // Process line content
+        let processedContent = content;
+        
+        if (line.isHeader) {
+          const match = content.match(/^(#{1,6})\s+(.+)$/);
+          if (match) {
+            processedContent = match[2];
+          }
+        } else {
+          // Remove list markers but preserve content
+          processedContent = processedContent
+            .replace(/^[-*+•▪]\s+/, '')
+            .replace(/^\d+\.\s+/, '')
+            .replace(/^[a-z]\.\s+/i, '');
+            
+          // Process other formatting
+          processedContent = convertFields(processedContent);
+          processedContent = convertDates(processedContent);
+          processedContent = processInlineFormatting(processedContent);
+        }
+        
+        // Add the line to output with proper Tana formatting
+        output += `${indent}- ${processedContent}\n`;
+        
+        // If this is where the transcript should go (right after the line that would be its parent)
+        if (i === (hierarchicalLines[transcriptIdx].parent || 0)) {
+          // Determine transcript indentation (should be one level deeper than its parent)
+          const transcriptIndent = '  '.repeat((indentLevel || 0) + 1);
+          
+          // Add the transcript field with no content - it will be a parent node for chunks
+          output += `${transcriptIndent}- Transcript::\n`;
+          
+          // Add transcript content as indented list items under the Transcript field
+          const transcriptChunkIndent = '  '.repeat((indentLevel || 0) + 2);
+          
+          // For each chunk, add as a separate list item under the Transcript field
+          for (let j = 0; j < totalChunks; j++) {
+            const start = j * maxContentSize;
+            const end = Math.min(start + maxContentSize, transcriptContent.length);
+            const chunk = transcriptContent.substring(start, end);
+            output += `${transcriptChunkIndent}- ${chunk}\n`;
+          }
+        }
+      }
+      
+      return output;
+    }
   }
 
+  // Standard processing for non-transcript content
   // Split into lines and parse
   const lines = processedInputText.split('\n').map((line) => parseLine(line))
 
@@ -1253,94 +1398,61 @@ export function convertToTana(inputText: string | undefined | null): string {
   // Generate output
   let output = '%%tana%%\n'
 
-  // For transcripts that need chunking, we'll use a simpler approach to ensure consistent formatting
-  if (hasYouTubeTranscript) {
-    // Process YouTube transcript format
-    hierarchicalLines.forEach((line) => {
-      if (!line.content.trim()) return
+  // Standard non-transcript processing
+  // Calculate the indentation level for each line
+  const indentLevels = new Map<number, number>()
+  indentLevels.set(-1, 0) // Root level
 
-      if (line.isHeader) {
-        const match = line.content.trim().match(/^(#{1,6})\s+(.+)$/)
-        if (match) {
-          output += `- ${match[2]}\n` // Use regular format for backward compatibility
-        }
-      } else {
-        let processedContent = line.content.trim()
+  // First pass - calculate base indentation levels
+  for (let i = 0; i < hierarchicalLines.length; i++) {
+    const line = hierarchicalLines[i]
+    if (!line.content.trim()) continue
 
-        // Remove list markers and preserve content
-        processedContent = processedContent
-          .replace(/^[-*+•▪]\s+/, '')
-          .replace(/^\d+\.\s+/, '')
-          .replace(/^[a-z]\.\s+/i, '')
+    if (line.isHeader) {
+      // Headers are always at level 0
+      indentLevels.set(i, 0)
+    } else {
+      // For non-header content, start with parent's indent
+      const parentIdx = line.parent !== undefined ? line.parent : -1
+      const parentIndent = indentLevels.get(parentIdx) || 0
+      indentLevels.set(i, parentIndent + 1)
+    }
+  }
 
-        // Process other formatting
-        processedContent = convertFields(processedContent)
-        processedContent = convertDates(processedContent)
-        processedContent = processInlineFormatting(processedContent)
+  // Generate output using the calculated indentation levels
+  for (let i = 0; i < hierarchicalLines.length; i++) {
+    const line = hierarchicalLines[i]
+    const content = line.content.trim()
 
-        output += `- ${processedContent}\n`
+    if (!content) continue
+
+    const indentLevel = indentLevels.get(i) || 0
+    const indent = '  '.repeat(indentLevel)
+
+    // Process line content
+    let processedContent = content
+
+    // Handle headers - don't use !! for backwards compatibility with tests
+    if (line.isHeader) {
+      const match = content.match(/^(#{1,6})\s+(.+)$/)
+      if (match) {
+        processedContent = match[2]
       }
-    })
+    } else {
+      // Remove list markers but preserve content
+      processedContent = processedContent
+        .replace(/^[-*+•▪]\s+/, '')
+        .replace(/^\d+\.\s+/, '')
+        .replace(/^[a-z]\.\s+/i, '')
 
-    // Apply chunking and return with double newlines to ensure separation
-    return chunkTranscript(output).join('\n\n')
-  } else {
-    // Standard non-transcript processing - maintain compatibility with existing tests
-    // Calculate the indentation level for each line
-    const indentLevels = new Map<number, number>()
-    indentLevels.set(-1, 0) // Root level
-
-    // First pass - calculate base indentation levels
-    for (let i = 0; i < hierarchicalLines.length; i++) {
-      const line = hierarchicalLines[i]
-      if (!line.content.trim()) continue
-
-      if (line.isHeader) {
-        // Headers are always at level 0
-        indentLevels.set(i, 0)
-      } else {
-        // For non-header content, start with parent's indent
-        const parentIdx = line.parent !== undefined ? line.parent : -1
-        const parentIndent = indentLevels.get(parentIdx) || 0
-        indentLevels.set(i, parentIndent + 1)
-      }
+      // Process other formatting
+      processedContent = convertFields(processedContent)
+      processedContent = convertDates(processedContent)
+      processedContent = processInlineFormatting(processedContent)
     }
 
-    // Generate output using the calculated indentation levels
-    for (let i = 0; i < hierarchicalLines.length; i++) {
-      const line = hierarchicalLines[i]
-      const content = line.content.trim()
-
-      if (!content) continue
-
-      const indentLevel = indentLevels.get(i) || 0
-      const indent = '  '.repeat(indentLevel)
-
-      // Process line content
-      let processedContent = content
-
-      // Handle headers - don't use !! for backwards compatibility with tests
-      if (line.isHeader) {
-        const match = content.match(/^(#{1,6})\s+(.+)$/)
-        if (match) {
-          processedContent = match[2]
-        }
-      } else {
-        // Remove list markers but preserve content
-        processedContent = processedContent
-          .replace(/^[-*+•▪]\s+/, '')
-          .replace(/^\d+\.\s+/, '')
-          .replace(/^[a-z]\.\s+/i, '')
-
-        // Process other formatting
-        processedContent = convertFields(processedContent)
-        processedContent = convertDates(processedContent)
-        processedContent = processInlineFormatting(processedContent)
-      }
-
-      // Add the line to output with proper Tana formatting
-      output += `${indent}- ${processedContent}\n`
-    }
+    // Add the line to output with proper Tana formatting
+    output += `${indent}- ${processedContent}\n`
   }
 
   return output
