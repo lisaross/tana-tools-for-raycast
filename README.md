@@ -248,6 +248,63 @@ More examples can be found in the `examples/` directory, including:
 
 ## Development
 
+### Branch Structure and Development Workflow
+
+⚠️ **IMPORTANT: This project uses a specific branch structure** ⚠️
+
+This project maintains two distinct environments:
+
+1. **DEVELOPMENT ENVIRONMENT** (`development-with-memory-bank` branch)
+   - Contains full development files (memory-bank, examples, docs)
+   - **ALWAYS do development work on this branch**
+   - All features, fixes, and enhancements should be created here
+
+2. **PUBLISH ENVIRONMENT** (main and publish branches)
+   - Stripped down for Raycast store submission
+   - Used ONLY for publishing to Raycast store
+   - **NEVER make development changes on these branches**
+
+#### Development Process
+
+1. Ensure you're on the development branch:
+   ```bash
+   git checkout development-with-memory-bank
+   ```
+
+2. Verify your environment (you should see the memory-bank directory):
+   ```bash
+   ./scripts/check-environment.sh
+   ```
+
+3. Create feature branches from the development branch:
+   ```bash
+   git checkout -b feature/your-feature-name development-with-memory-bank
+   ```
+
+4. When ready to merge, create PRs to the `development-with-memory-bank` branch
+
+#### Publishing Process
+
+When ready to publish to Raycast store:
+
+1. Ensure all changes are committed to the development branch
+2. Run the publishing script:
+   ```bash
+   ./scripts/prepare-for-publish.sh
+   ```
+3. Follow the on-screen instructions to create a clean publish branch
+4. Create a PR from the generated publish branch to `main` for publishing
+5. **Always switch back to the development branch immediately after publishing**
+
+#### If You Lose Your Development Environment
+
+If you find yourself without memory-bank files and didn't intentionally run the publish script:
+1. STOP - don't make any changes
+2. Run `git checkout development-with-memory-bank`
+3. Verify with `ls memory-bank/` that you're back in the development environment
+
+### Development Guidelines
+
 - `npm run dev` - Start development mode
 - `npm run build` - Build the extension
 - `npm run lint` - Run linter
