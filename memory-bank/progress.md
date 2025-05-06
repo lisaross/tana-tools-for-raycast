@@ -19,10 +19,13 @@
 - Specialized format support:
   - YouTube transcript timestamps
   - Limitless Pendant transcriptions
+  - Limitless App transcriptions
   - YouTube video metadata extraction
   - HTML entity decoding for special characters
-- Browser extension integration for web content extraction
-- Proper indentation hierarchy for nested content under headings
+  - Transcript chunking for large transcriptions
+- Browser extension integration for YouTube videos
+- Secure development workflow with branch protection
+- Automated publishing process
 
 ## Recent Additions
 - Version 1.3.0 (2025-04-03):
@@ -54,32 +57,27 @@
   - Updated documentation and CHANGELOG
 
 ## What's Left to Build
-- Features in development:
-  - Support for more complex Markdown structures
-  - Additional formatting options
-  - Performance optimizations
-- Potential future enhancements:
-  - Support for tables
-  - Enhanced code block handling
-  - Additional special format conversions
-  - Support for more transcription formats
-  - Additional YouTube metadata field extraction
-  - Customizable timestamp options for transcripts
+- More specialized format detections
+- Additional formatting options
+- Performance optimization for large documents
+- Support for other video platforms beyond YouTube
+- Enhanced metadata extraction options
+- Mobile app integration
 
 ## Current Status
-- Version 1.5.0 released (stable)
-- Pull request submitted to Raycast store (PR #18361)
-- Core functionality complete and tested
-- Python script implementation stable
-- Documentation complete
-- YouTube to Tana feature implemented and tested
+- Version 1.6.0 released
+- ESLint configuration updated to match Raycast recommendations
+- Branch protection system implemented
+- Publishing workflow documented and automated
+- Development vs. publishing environments clearly separated
+- Currently in active development on the `development-with-memory-bank` branch
 
 ## Known Issues
-- Potential edge cases with complex nested structures
-- Special formatting that may not convert correctly
+- Complex nested structures require careful indentation
 - Performance considerations with very large documents
-- Need for continued refinement of conversion rules
-- YouTube extraction may vary based on page structure changes
+- Browser extension API limitations for certain video platforms
+- Occasional ESLint configuration conflicts
+- Branch management confusion (now addressed with new workflow)
 
 ## Test Coverage
 - Unit tests in place for core conversion logic
