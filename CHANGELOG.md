@@ -1,5 +1,17 @@
 # Tana Paste For Raycast Changelog
 
+## [2.0.0] - 2025-05-07
+
+### Added
+- Comprehensive documentation for the Tana converter module
+
+### Changed
+- Complete refactoring of the Tana converter into a modular architecture
+- Enhanced date formatting with improved pattern recognition and conversion
+- Improved text formatting capabilities
+- Optimized transcript processing with dedicated module
+- Better type definitions for improved code maintainability
+
 ## [1.6.1] - 2025-05-06
 
 ### Changed
