@@ -198,7 +198,9 @@ async function extractTranscript(videoId: string): Promise<string> {
       }
 
       // Add the text - strip any hashtags
-      const cleanedText = decodeHTMLEntities(segment.text).replace(/#\w+\b/g, '').trim()
+      const cleanedText = decodeHTMLEntities(segment.text)
+        .replace(/#\w+\b/g, '')
+        .trim()
       if (cleanedText) {
         formattedTranscript += cleanedText
       }
