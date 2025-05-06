@@ -61,11 +61,16 @@ git checkout -b "$PUBLISH_BRANCH"
 echo -e "${BLUE}Removing development-only files...${NC}"
 
 # List of directories/files to remove for publishing
-echo -e "${YELLOW}The following directories will be removed:${NC}"
+echo -e "${YELLOW}The following directories/files will be removed:${NC}"
 echo "- memory-bank/"
 echo "- .github/DEVELOPMENT_WARNING.md"
-echo "- scripts/prepare-for-publish.sh"
-echo "- test-data/"
+echo "- scripts/"
+echo "- examples/"
+echo "- .cursorrules"
+echo "- test directories (__tests__)"
+echo "- tana_converter.py"
+echo "- jest.config.mjs"
+echo "- assets/.DS_Store"
 
 # Ask for confirmation
 read -p "Proceed with removal? (y/n) " -n 1 -r
@@ -77,11 +82,18 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   exit 1
 fi
 
-# Remove directories
+# Remove development directories
 rm -rf memory-bank/
 rm -rf .github/DEVELOPMENT_WARNING.md
-rm -rf test-data/
-# Don't remove the script until the end
+rm -rf scripts/
+rm -rf examples/
+rm -f .cursorrules
+rm -f jest.config.mjs
+rm -f tana_converter.py
+rm -f assets/.DS_Store
+
+# Remove test directories
+find ./src -name '__tests__' -type d -exec rm -rf {} +
 
 # Update version in package.json if needed
 if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
@@ -89,9 +101,61 @@ if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
   sed -i '' "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$NEW_VERSION\"/" package.json
 fi
 
+# Update README.md to remove Python references and development workflows
+echo -e "${BLUE}Updating README.md to remove development-only content...${NC}"
+cp README.md README.md.bak
+cat README.md.bak | awk '
+BEGIN { printing = 1; }
+/^## Backup Solution: Python Script/ { printing = 0; }
+/^## Example/ && !printing { printing = 1; }
+/^## Development/ { printing = 0; }
+/^## Technical Details/ && !printing { printing = 1; }
+/^More examples can be found in the/ { next; }
+printing { print $0; }
+' > README.md
+rm README.md.bak
+
+# Make sure metadata folder exists
+if [ ! -d "metadata" ]; then
+  echo -e "${YELLOW}WARNING: metadata folder not found!${NC}"
+  echo -e "${YELLOW}Do you want to copy it from main branch? (y/n)${NC}"
+  read -p "" -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo -e "${BLUE}Copying metadata folder from main branch...${NC}"
+    git checkout main -- metadata/
+  else
+    echo -e "${RED}WARNING: metadata folder is required for Raycast store submissions!${NC}"
+  fi
+fi
+
+# Update CHANGELOG.md with new version if needed
+if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
+  echo -e "${BLUE}Updating CHANGELOG.md with new version...${NC}"
+  DATE=$(date +%Y-%m-%d)
+  TEMP_FILE=$(mktemp)
+  echo "# Tana Paste For Raycast Changelog
+
+## [$NEW_VERSION] - $DATE
+
+### Changed
+- Updated project structure to comply with Raycast store requirements
+- Removed Python script dependency for streamlined installation
+- Improved documentation for clarity and focus on Raycast extension functionality
+- Updated ESLint configuration to match Raycast recommendations
+
+" > $TEMP_FILE
+  cat CHANGELOG.md >> $TEMP_FILE
+  mv $TEMP_FILE CHANGELOG.md
+fi
+
 # Run lint to ensure everything is formatted correctly
 echo -e "${BLUE}Running linter...${NC}"
 npm run lint -- --fix
+
+# Run build to verify everything works
+echo -e "${BLUE}Building extension to verify it works...${NC}"
+npm run build
 
 # Commit changes
 echo -e "${BLUE}Committing changes...${NC}"
@@ -104,14 +168,11 @@ echo -e "${GREEN}Publish branch '${PUBLISH_BRANCH}' has been created!${NC}"
 echo -e "${GREEN}=================================================================${NC}"
 echo -e "${YELLOW}Next steps:${NC}"
 echo -e "1. Review the changes with: ${BLUE}git diff ${CURRENT_BRANCH}..${PUBLISH_BRANCH}${NC}"
-echo -e "2. Build the extension with: ${BLUE}npm run build${NC}"
-echo -e "3. Test the build in Raycast"
-echo -e "4. Push to GitHub with: ${BLUE}git push -u origin ${PUBLISH_BRANCH}${NC}"
-echo -e "5. Create PR from ${BLUE}${PUBLISH_BRANCH}${NC} to ${BLUE}main${NC} for publishing"
+echo -e "2. Test the built extension in Raycast"
+echo -e "3. Push to GitHub with: ${BLUE}git push -u origin ${PUBLISH_BRANCH}${NC}"
+echo -e "4. Create PR from ${BLUE}${PUBLISH_BRANCH}${NC} to ${BLUE}main${NC} for publishing"
+echo -e "5. After merging PR, run: ${BLUE}npm run publish${NC} from main branch to publish to Raycast"
 echo -e "6. After publishing, switch back to your development branch: ${BLUE}git checkout ${CURRENT_BRANCH}${NC}"
 echo -e "${RED}IMPORTANT: Always develop on the ${CURRENT_BRANCH} branch, NOT on main or publish branches!${NC}"
-
-# Remove this script at the very end (from the publish branch)
-rm -f scripts/prepare-for-publish.sh
 
 echo -e "${GREEN}Done!${NC}" 

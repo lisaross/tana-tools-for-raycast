@@ -27,7 +27,7 @@ This project maintains two distinct environments:
 2. All features, fixes, and enhancements should be developed here
 3. Any time you check out a branch, verify you're in the correct environment:
    ```
-   scripts/check-environment.sh
+   ./scripts/check-environment.sh
    ```
 4. If you accidentally end up on a publish branch:
    ```
@@ -41,19 +41,40 @@ When ready to publish a new version to Raycast:
 1. Ensure all changes are committed to the development branch
 2. Run the publishing script:
    ```
-   scripts/prepare-for-publish.sh
+   ./scripts/prepare-for-publish.sh
    ```
-3. Follow the on-screen instructions to:
+3. The script will automatically:
    - Create a clean publish branch
-   - Specify version number
-   - Remove development-only files
-   - Test the build
-   - Push to GitHub
-4. Create a PR from the publish branch to the `main` branch
-5. After publishing, immediately switch back to development:
+   - Remove all development-only files (memory-bank, examples, tests, Python script)
+   - Keep only files needed for Raycast store
+   - Update the README.md to remove Python references and development info
+   - Update package.json with new version (if specified)
+   - Update CHANGELOG.md with new version details (if needed)
+   - Ensure metadata folder with screenshots exists
+   - Run linting and build verification
+4. After the script completes:
+   - Review the changes
+   - Test the extension in Raycast
+   - Push to GitHub and create a PR to main
+   - After merging PR, run `npm run publish` from main branch
+5. Always switch back to development branch immediately after publishing:
    ```
    git checkout development-with-memory-bank
    ```
+
+## Files Automatically Removed During Publishing
+
+The publishing script automatically removes:
+
+1. `memory-bank/` - All memory bank files
+2. `examples/` - Example files and test data
+3. `scripts/` - Development scripts 
+4. `.github/DEVELOPMENT_WARNING.md` - Development warning
+5. Test directories - `__tests__` directories in src
+6. `tana_converter.py` - Python script 
+7. `jest.config.mjs` - Jest configuration
+8. `.cursorrules` - Cursor AI configuration
+9. `.DS_Store` files - macOS metadata files
 
 ## Safety Measures
 
@@ -72,7 +93,7 @@ If you find yourself without memory-bank files and didn't intentionally run the 
 1. STOP - don't make any changes
 2. Run `git branch` to see which branch you're on
 3. Run `git checkout development-with-memory-bank`
-4. Verify with `ls memory-bank/` that you're back in the development environment
+4. Verify with `./scripts/check-environment.sh` that you're back in the development environment
 
 ## Emergency Recovery
 

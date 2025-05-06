@@ -30,6 +30,22 @@ echo -e "${BLUE}Current branch: ${CURRENT_BRANCH}${NC}"
 CURRENT_VERSION=$(grep '"version":' package.json | sed 's/.*"version": "\(.*\)",/\1/')
 echo -e "${BLUE}Current version: ${CURRENT_VERSION}${NC}"
 
+# Check for metadata folder
+if [ -d "metadata" ]; then
+  echo -e "${GREEN}✅ Metadata folder is present.${NC}"
+else
+  echo -e "${YELLOW}⚠️ Metadata folder is missing! This is required for Raycast store submission.${NC}"
+fi
+
+# Show directory structure
+echo -e "${BLUE}Directory structure:${NC}"
+DIR_COUNT=$(find . -type d -maxdepth 1 | grep -v "^\.$\|^\./\.\|node_modules" | wc -l | xargs)
+echo -e "  ${GREEN}Directories at root level: ${DIR_COUNT}${NC}"
+
+# Count files in src
+SRC_FILES=$(find ./src -type f -name "*.ts*" | wc -l | xargs)
+echo -e "  ${GREEN}TypeScript files in src: ${SRC_FILES}${NC}"
+
 # Show available tools
 echo -e "${YELLOW}Available commands:${NC}"
 echo -e "  ${GREEN}scripts/prepare-for-publish.sh${NC} - Create a clean publish branch"

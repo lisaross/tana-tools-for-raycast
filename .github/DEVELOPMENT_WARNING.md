@@ -23,16 +23,20 @@ To publish this extension to Raycast store:
 4. This script will:
    - Create a clean publish branch
    - Remove development-only files
-   - Update the version
+   - Update the version in package.json if needed
+   - Update the CHANGELOG.md if needed
+   - Automatically edit README.md to remove Python references
+   - Ensure metadata folder exists (required for Raycast)
+   - Run linting and building to verify the extension works
    - Prepare for Raycast store submission
 
 ## How to Identify Your Branch
 
-- **Development branch:** You should see memory-bank/ and full examples/ directories
-- **Publish branch:** These directories will be missing or minimized
+- **Development branch:** You should see memory-bank/ and metadata/ directories
+- **Publish branch:** The memory-bank directory will be missing
 
 ## Safety Measures
 
 1. Always check `git status` before making changes
 2. Look for this warning file - if it's missing, you're on the wrong branch!
-3. Run `ls memory-bank/` to verify your environment has development files 
+3. Run `./scripts/check-environment.sh` to verify your environment has development files 
