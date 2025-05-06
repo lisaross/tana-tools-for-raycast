@@ -19,6 +19,7 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
 - Specialized format support:
   - YouTube transcript
   - Limitless Pendant transcriptions
+  - Limitless App transcriptions
 - Instant feedback via HUD notifications
 - TypeScript implementation with strict typing
 - Comprehensive error handling
@@ -128,49 +129,10 @@ Input:
 Output:
 ```
 %%tana%%
-<<<<<<< HEAD
-- Meeting Title
-  - Discussion Topic
-    - Speaker 1 (00:29:03): Hello everyone.
-    - You (00:29:03): Good morning.
-```
-
-### New Transcription Format Example
-
-Input:
-```
-Speaker 1
-
-Yesterday, 11:00 AM
-Lisa, hi.
-Hello. Hello.
-Speaker 2
-
-Yesterday, 11:00 AM
-You're on mute. It going?
-Speaker 1
-
-Yesterday, 11:00 AM
-Yeah. Pretty good. Pretty good. How are you? Very good.
-Hey.
-Speaker 3
-```
-
-Output:
-```
-%%tana%%
-- Speaker 1: Lisa, hi.
-- Speaker 1: Hello. Hello.
-- Speaker 2: You're on mute. It going?
-- Speaker 1: Yeah. Pretty good. Pretty good. How are you? Very good.
-- Speaker 1: Hey.
-- Speaker 3
-=======
 - !! Meeting Title
   - !! Discussion Topic
     - Speaker 1: Hello everyone.
     - You: Good morning.
->>>>>>> 5035db5 (enhancement: cleanup repository for minimal publication #21)
 ```
 
 ### YouTube Transcript Example
@@ -192,23 +154,18 @@ Output:
 - [05:45] Summary and conclusion
 ```
 
-## Development
+## Technical Details
 
-This project is built with:
-- TypeScript
-- Raycast Extension API
+- Built with TypeScript and strict type checking
+- Uses Raycast API v1.55.2
+- Follows functional programming principles
+- Implements comprehensive error handling
+- Includes proper input validation
 
-For development, you can use the standard Raycast development commands:
+## Contributing
 
-```bash
-npm run dev     # Development mode with hot reload
-npm run build   # Build the extension
-```
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-<<<<<<< HEAD
-This project is licensed under the MIT License - see the LICENSE file for details.
-=======
-MIT License 
->>>>>>> 5035db5 (enhancement: cleanup repository for minimal publication #21)
+MIT License
