@@ -1,5 +1,13 @@
 # Tana Paste For Raycast Changelog
 
+## [1.6.1] - 2025-05-06
+
+### Changed
+- Updated project structure to comply with Raycast store requirements
+- Removed Python script dependency for streamlined installation
+- Improved documentation for clarity and focus on Raycast extension functionality
+- Updated ESLint configuration to match Raycast recommendations
+
 ## [1.6.0] - 2025-04-18
 
 ### Added
