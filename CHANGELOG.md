@@ -1,5 +1,13 @@
 # Tana Paste For Raycast Changelog
 
+## [1.6.0] - 2025-04-18
+
+### Added
+- Enhanced YouTube transcript processing with improved formatting (#33)
+- Added transcript chunking functionality for better organization
+- Enhanced Limitless Pendant transcription processing
+- Added Limitless App transcription support
+
 ## [1.5.4] - 2025-04-17
 
 ### Fixed

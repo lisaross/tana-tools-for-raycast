@@ -197,8 +197,11 @@ async function extractTranscript(videoId: string): Promise<string> {
         formattedTranscript += ' '
       }
 
-      // Add the text
-      formattedTranscript += decodeHTMLEntities(segment.text)
+      // Add the text - strip any hashtags
+      const cleanedText = decodeHTMLEntities(segment.text).replace(/#\w+\b/g, '').trim()
+      if (cleanedText) {
+        formattedTranscript += cleanedText
+      }
       lastTime = currentTime
     }
 
@@ -222,17 +225,9 @@ function formatForTanaMarkdown(videoInfo: VideoInfo): string {
   markdown += `Channel URL::${videoInfo.channelUrl}\n`
   markdown += `Author::${videoInfo.channelName}\n`
 
-  // Add transcript as a field if available, only using first paragraph
+  // Add transcript as a field that will be processed into a nested structure
   if (videoInfo.transcript) {
-    const transcriptParagraphs = videoInfo.transcript.split('\n\n')
-    markdown += `Transcript::${transcriptParagraphs[0]}\n`
-
-    // Add additional transcript paragraphs as separate nodes
-    for (let i = 1; i < transcriptParagraphs.length; i++) {
-      if (transcriptParagraphs[i].trim()) {
-        markdown += `\n${transcriptParagraphs[i].trim()}`
-      }
-    }
+    markdown += `Transcript::${videoInfo.transcript.replace(/\n\n/g, ' ')}\n`
   }
 
   markdown += `\nDescription::${videoInfo.description.split('\n\n')[0] || 'No description available'}\n`
