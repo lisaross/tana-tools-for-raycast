@@ -274,3 +274,59 @@ export const _test = {
   convertFields,
   processInlineFormatting,
 }
+
+/**
+ * Send content to Tana Input API (addToNodeV2)
+ * @param {string} apiKey - Tana Input API key
+ * @param {string} nodeId - Node ID to add content to (e.g., inbox)
+ * @param {string} content - Content to send (plain text or Tana format)
+ * @returns {Promise<void>} Throws on error
+ */
+export async function sendToTanaInbox(apiKey: string, nodeId: string, content: string): Promise<void> {
+  const url = 'https://api.tana.inc/inputs';
+  const payload = {
+    targetNodeId: nodeId,
+    nodes: [
+      {
+        name: content,
+      },
+    ],
+  };
+
+  // Debug: Log request details (do not log full API key)
+  console.log('[Tana API] Sending request', {
+    url,
+    payload,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey?.slice(0, 6)}...`,
+    },
+  });
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    // Debug: Log error details
+    console.error('[Tana API] Request failed', {
+      status: response.status,
+      statusText: response.statusText,
+      responseHeaders: Object.fromEntries(response.headers.entries()),
+      errorText,
+    });
+    throw new Error(`Tana API error: ${response.status} - ${errorText}`);
+  } else {
+    // Debug: Log success
+    console.log('[Tana API] Request succeeded', {
+      status: response.status,
+      statusText: response.statusText,
+    });
+  }
+}

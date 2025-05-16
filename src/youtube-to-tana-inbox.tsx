@@ -1,7 +1,6 @@
-import { Clipboard, showHUD, BrowserExtension, Toast, showToast, ActionPanel, Action, getPreferenceValues } from '@raycast/api'
+import { showHUD, showToast, Toast, BrowserExtension, getPreferenceValues } from '@raycast/api'
 import { convertToTana, sendToTanaInbox } from './utils/tana-converter'
 import { YoutubeTranscript } from 'youtube-transcript'
-import React, { useState } from 'react'
 
 interface VideoInfo {
   title: string
@@ -13,9 +12,6 @@ interface VideoInfo {
   transcript?: string // Make transcript optional
 }
 
-/**
- * Decodes HTML entities in a string
- */
 function decodeHTMLEntities(text: string): string {
   const entities = {
     '&amp;': '&',
@@ -25,102 +21,62 @@ function decodeHTMLEntities(text: string): string {
     '&#39;': "'",
     '&nbsp;': ' ',
   }
-
-  // Replace all encoded entities
   let decoded = text
   for (const [entity, char] of Object.entries(entities)) {
     decoded = decoded.replace(new RegExp(entity, 'g'), char)
   }
-
-  // Additionally handle numeric entities like &#39;
   decoded = decoded.replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
-
   return decoded
 }
 
-/**
- * Extracts video information from the active YouTube tab
- */
 async function extractVideoInfo(): Promise<VideoInfo> {
   try {
-    // Get the active tab
     const tabs = await BrowserExtension.getTabs()
-
     if (!tabs || tabs.length === 0) {
-      throw new Error(
-        'Could not access browser tabs. Please ensure Raycast has permission to access your browser.'
-      )
+      throw new Error('Could not access browser tabs. Please ensure Raycast has permission to access your browser.')
     }
-
-    // Find the active YouTube tab
     const activeTab = tabs.find((tab) => tab.active && tab.url?.includes('youtube.com/watch'))
-
     if (!activeTab) {
-      throw new Error(
-        'No active YouTube video tab found. Please open a YouTube video and try again.'
-      )
+      throw new Error('No active YouTube video tab found. Please open a YouTube video and try again.')
     }
-
-    // Extract the video ID from URL
     const urlObj = new URL(activeTab.url)
     const videoId = urlObj.searchParams.get('v')
-
     if (!videoId) {
       throw new Error('Could not extract video ID from the URL.')
     }
-
-    // Extract title directly from the tab
     const title = await BrowserExtension.getContent({
       cssSelector: 'h1.ytd-video-primary-info-renderer',
       format: 'text',
       tabId: activeTab.id,
     })
-
     if (!title) {
-      throw new Error(
-        'Could not find video title. Please make sure the video page is fully loaded.'
-      )
+      throw new Error('Could not find video title. Please make sure the video page is fully loaded.')
     }
-
-    // Extract channel name and URL
     const channelElement = await BrowserExtension.getContent({
       cssSelector: '#channel-name yt-formatted-string a',
       format: 'html',
       tabId: activeTab.id,
     })
-
     if (!channelElement) {
-      throw new Error(
-        'Could not find channel information. Please make sure the video page is fully loaded.'
-      )
+      throw new Error('Could not find channel information. Please make sure the video page is fully loaded.')
     }
-
-    // Extract channel name and URL using string manipulation
     const hrefMatch = channelElement.match(/href="([^"]+)"/)
     const textMatch = channelElement.match(/<a[^>]*>([^<]+)<\/a>/)
-
     if (!hrefMatch || !textMatch) {
       throw new Error('Could not parse channel information.')
     }
-
     const channelUrl = hrefMatch[1]
     const channelName = decodeHTMLEntities(textMatch[1].trim())
-
-    // Format the channel URL
     const fullChannelUrl = channelUrl.startsWith('http')
       ? channelUrl
       : `https://www.youtube.com${channelUrl}`
-
-    // Extract description - try multiple selectors for expanded content
     const descriptionSelectors = [
       'ytd-text-inline-expander yt-attributed-string',
       'ytd-text-inline-expander yt-formatted-string',
       'ytd-text-inline-expander #snippet-text',
       'ytd-text-inline-expander #plain-snippet-text',
     ]
-
     let description = ''
-
     for (const selector of descriptionSelectors) {
       description = await BrowserExtension.getContent({
         cssSelector: selector,
@@ -131,27 +87,20 @@ async function extractVideoInfo(): Promise<VideoInfo> {
         break
       }
     }
-
     if (!description) {
-      throw new Error(
-        'Could not find video description. Please make sure the video page is fully loaded and the description is visible.'
-      )
+      throw new Error('Could not find video description. Please make sure the video page is fully loaded and the description is visible.')
     }
-
-    // Clean up the description
     const cleanedDescription = decodeHTMLEntities(
       description
-        .replace(/Show more$/, '') // Remove "Show more" text if present
-        .replace(/Show less$/, '') // Remove "Show less" text if present
-        .replace(/^\s*\.{3}\s*/, '') // Remove leading ellipsis
-        .replace(/\s*\.{3}$/, '') // Remove trailing ellipsis
-        .replace(/^\s*Show more\s*\n?/, '') // Remove "Show more" at start
-        .replace(/\n?\s*Show less\s*$/, '') // Remove "Show less" at end
-        .replace(/^\s+|\s+$/g, '') // Trim whitespace from start and end
+        .replace(/Show more$/, '')
+        .replace(/Show less$/, '')
+        .replace(/^\s*\.{3}\s*/, '')
+        .replace(/\s*\.{3}$/, '')
+        .replace(/^\s*Show more\s*\n?/, '')
+        .replace(/\n?\s*Show less\s*$/, '')
+        .replace(/^\s+|\s+$/g, '')
         .trim()
     )
-
-    // Return complete VideoInfo
     return {
       title: decodeHTMLEntities(title.trim()),
       channelName: channelName,
@@ -161,7 +110,6 @@ async function extractVideoInfo(): Promise<VideoInfo> {
       description: cleanedDescription,
     }
   } catch (error) {
-    // Show a persistent error toast with more details
     await showToast({
       style: Toast.Style.Failure,
       title: 'Failed to extract video information',
@@ -171,34 +119,22 @@ async function extractVideoInfo(): Promise<VideoInfo> {
   }
 }
 
-/**
- * Extracts the transcript from a YouTube video
- */
 async function extractTranscript(videoId: string): Promise<string> {
   try {
-    // Fetch transcript using the youtube-transcript library
     const transcriptData = await YoutubeTranscript.fetchTranscript(videoId)
-
     if (!transcriptData || transcriptData.length === 0) {
       throw new Error('No transcript available for this video')
     }
-
-    // Format the transcript segments - without timestamps
     let formattedTranscript = ''
     let lastTime = -1
-    const paragraphBreakThreshold = 6 // seconds between segments to create a paragraph break
-
+    const paragraphBreakThreshold = 6
     for (const segment of transcriptData) {
-      // Check if we need a paragraph break (if there's a significant time gap)
       const currentTime = Math.floor(segment.offset / 1000)
-
       if (lastTime !== -1 && currentTime - lastTime > paragraphBreakThreshold) {
         formattedTranscript += '\n\n'
       } else if (formattedTranscript) {
         formattedTranscript += ' '
       }
-
-      // Add the text - strip any hashtags
       const cleanedText = decodeHTMLEntities(segment.text)
         .replace(/#\w+\b/g, '')
         .trim()
@@ -207,7 +143,6 @@ async function extractTranscript(videoId: string): Promise<string> {
       }
       lastTime = currentTime
     }
-
     return formattedTranscript.trim()
   } catch (error) {
     console.error('Transcript extraction error:', error)
@@ -217,132 +152,60 @@ async function extractTranscript(videoId: string): Promise<string> {
   }
 }
 
-/**
- * Formats YouTube video information for Tana in Markdown format
- * that can be processed by our existing Tana converter
- */
 function formatForTanaMarkdown(videoInfo: VideoInfo): string {
-  // Create a Markdown representation that our tana-converter can process
   let markdown = `# ${videoInfo.title} #video\n`
   markdown += `URL::${videoInfo.url}\n`
   markdown += `Channel URL::${videoInfo.channelUrl}\n`
   markdown += `Author::${videoInfo.channelName}\n`
-
-  // Add transcript as a field that will be processed into a nested structure
   if (videoInfo.transcript) {
     markdown += `Transcript::${videoInfo.transcript.replace(/\n\n/g, ' ')}\n`
   }
-
   markdown += `\nDescription::${videoInfo.description.split('\n\n')[0] || 'No description available'}\n`
-
-  // Add additional description paragraphs as separate nodes
   const descriptionParagraphs = videoInfo.description.split('\n\n').slice(1)
   for (const paragraph of descriptionParagraphs) {
     if (paragraph.trim()) {
       markdown += `\n${paragraph.trim()}`
     }
   }
-
   return markdown
 }
 
-// Main command entry point
-export default function Command() {
-  const [isLoading, setIsLoading] = useState(false)
-
-  async function processVideo(): Promise<{ tanaFormat: string; transcriptAvailable: boolean }> {
-    // Show HUD to indicate processing has started
+export default async function Command(props: { arguments: { nodeId?: string } }) {
+  try {
     await showToast({
       style: Toast.Style.Animated,
       title: 'Processing YouTube Video',
     })
-    // Extract video information from the active tab
     const videoInfo = await extractVideoInfo()
-    let transcriptAvailable = false
     try {
-      // Try to extract transcript
       const transcript = await extractTranscript(videoInfo.videoId)
       videoInfo.transcript = transcript
-      transcriptAvailable = true
     } catch (transcriptError) {
-      // Show a toast but continue
       await showToast({
         style: Toast.Style.Failure,
         title: 'Transcript Extraction Failed',
         message: transcriptError instanceof Error ? transcriptError.message : 'Unknown error',
       })
     }
-    // Format for Tana
     const markdownFormat = formatForTanaMarkdown(videoInfo)
     const tanaFormat = convertToTana(markdownFormat)
-    return { tanaFormat, transcriptAvailable }
-  }
-
-  async function handleClipboard() {
-    setIsLoading(true)
-    try {
-      const { tanaFormat, transcriptAvailable } = await processVideo()
-      await Clipboard.copy(tanaFormat)
-      await showHUD(
-        transcriptAvailable
-          ? 'YouTube video info and transcript copied to clipboard in Tana format'
-          : 'YouTube video info copied to clipboard in Tana format (no transcript available)'
-      )
-    } catch (error) {
+    const prefs = getPreferenceValues<{ tanaApiKey?: string; tanaInboxNodeId?: string }>()
+    const nodeId = props.arguments.nodeId || prefs.tanaInboxNodeId
+    if (!prefs.tanaApiKey || !nodeId) {
       await showToast({
         style: Toast.Style.Failure,
-        title: 'Processing Failed',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        title: 'Missing Tana API Key or Inbox Node ID',
+        message: 'Please set both in the extension preferences. To find your Node ID: right-click your inbox node in Tana, select "Copy Node ID", and paste it here.',
       })
-    } finally {
-      setIsLoading(false)
+      return
     }
+    await sendToTanaInbox(prefs.tanaApiKey, nodeId, tanaFormat)
+    await showHUD('YouTube video info sent to Tana inbox!')
+  } catch (error) {
+    await showToast({
+      style: Toast.Style.Failure,
+      title: 'Processing Failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    })
   }
-
-  async function handleSendToTana() {
-    setIsLoading(true)
-    try {
-      const { tanaFormat, transcriptAvailable } = await processVideo()
-      const prefs = getPreferenceValues<{ tanaApiKey?: string; tanaInboxNodeId?: string }>()
-      if (!prefs.tanaApiKey || !prefs.tanaInboxNodeId) {
-        await showToast({
-          style: Toast.Style.Failure,
-          title: 'Missing Tana API Key or Inbox Node ID',
-          message: 'Please set both in the extension preferences.',
-        })
-        return
-      }
-      await sendToTanaInbox(prefs.tanaApiKey, prefs.tanaInboxNodeId, tanaFormat)
-      await showHUD(
-        transcriptAvailable
-          ? 'YouTube video info and transcript sent to Tana inbox!'
-          : 'YouTube video info sent to Tana inbox (no transcript available)'
-      )
-    } catch (error) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: 'Failed to send to Tana',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  return (
-    <ActionPanel>
-      <Action
-        title="Copy to Clipboard (Default)"
-        onAction={() => { if (!isLoading) handleClipboard() }}
-        shortcut={{ modifiers: [], key: 'return' }}
-        icon="clipboard.png"
-      />
-      <Action
-        title="Send to Tana Inbox"
-        onAction={() => { if (!isLoading) handleSendToTana() }}
-        shortcut={{ modifiers: ['opt'], key: 'return' }}
-        icon="inbox.png"
-      />
-    </ActionPanel>
-  )
-}
+} 

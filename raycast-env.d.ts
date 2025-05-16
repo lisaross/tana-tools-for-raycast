@@ -7,7 +7,12 @@
 
 /* eslint-disable @typescript-eslint/ban-types */
 
-type ExtensionPreferences = {}
+type ExtensionPreferences = {
+  /** Tana Inbox Node ID - The Node ID for your Tana inbox. Right-click your inbox node in Tana, select 'Copy Node ID', and paste it here. */
+  "tanaInboxNodeId"?: string,
+  /** Tana Input API Key - Your Tana Input API key. Get it from https://tana.inc/docs/input-api. */
+  "tanaApiKey"?: string
+}
 
 /** Preferences accessible in all the extension's commands */
 declare type Preferences = ExtensionPreferences
@@ -21,6 +26,8 @@ declare namespace Preferences {
   export type SelectedToTana = ExtensionPreferences & {}
   /** Preferences accessible in the `youtube-to-tana` command */
   export type YoutubeToTana = ExtensionPreferences & {}
+  /** Preferences accessible in the `youtube-to-tana-inbox` command */
+  export type YoutubeToTanaInbox = ExtensionPreferences & {}
 }
 
 declare namespace Arguments {
@@ -32,5 +39,7 @@ declare namespace Arguments {
   export type SelectedToTana = {}
   /** Arguments passed to the `youtube-to-tana` command */
   export type YoutubeToTana = {}
+  /** Arguments passed to the `youtube-to-tana-inbox` command */
+  export type YoutubeToTanaInbox = {}
 }
 
