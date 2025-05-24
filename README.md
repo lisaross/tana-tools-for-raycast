@@ -1,212 +1,98 @@
 # Tana Tools for Raycast
 
-A Raycast extension that converts clipboard content to Tana Paste format. Perfect for quickly transforming Markdown text into Tana's node-based structure.
+Quickly convert text, Markdown, YouTube, and Limitless content to Tana Paste format—right from Raycast.
+
+> **Note:** This is not an official Tana product. Made with nerd love by Lisa Ross. Suggestions welcome—open a GitHub issue or DM me on Slack!
 
 ## Features
 
-- Multiple ways to convert content:
-  - Quick clipboard conversion (no UI)
-  - Paste and edit interface for reviewing before conversion
-  - Convert selected text directly
-  - Extract YouTube video metadata directly from browser
-- Automatically converts clipboard content to Tana Paste format
-- Supports Markdown elements:
-  - Headings (H1-H6)
-  - Bullet lists (`-`, `*`, `+`)
-  - Numbered lists
-  - Paragraphs
-  - Nested content with proper indentation
-- Specialized format support:
-  - YouTube transcript
-  - Limitless Pendant transcriptions
-  - Limitless App transcriptions
-- Instant feedback via HUD notifications
-- TypeScript implementation with strict typing
-- Comprehensive error handling
+- Convert clipboard or selected text to Tana Paste format
+- Edit and preview before converting
+- Extract and format YouTube video metadata and transcripts (with transcript chunking for large videos)
+- Supports Limitless Pendant and Limitless App transcriptions
+- Supports most Markdown transformations (headings, lists, paragraphs, nesting, etc.)
+- Instant feedback via Raycast HUD
+- If something isn't working as expected, please open an issue!
 
 ## Installation
 
-1. Make sure you have [Raycast](https://raycast.com/) installed
-2. Install Node.js and npm if you haven't already
-3. Clone this repository:
+1. Install [Raycast](https://raycast.com/)
+2. Clone this repo and install dependencies:
 
-   ```bash
+   ```sh
    git clone https://github.com/lisaross/tana-tools-for-raycast.git
    cd tana-tools-for-raycast
-   ```
-
-4. Install dependencies:
-
-   ```bash
    npm install
    ```
 
-5. Build the extension:
+3. Build and start development:
 
-   ```bash
+   ```sh
    npm run build
-   ```
-
-6. Start development mode:
-
-   ```bash
    npm run dev
    ```
 
 ## Usage
 
-### Quick Clipboard Conversion
+- **Quick Clipboard to Tana:**
+  1. Copy any text or Markdown to your clipboard (⌘+C).
+  2. Open Raycast and run the "Quick Clipboard to Tana" command.
+  3. The clipboard content is instantly scrubbed and converted to Tana Paste format.
+  4. Paste into Tana (⌘+V).
 
-1. Copy your Markdown text to clipboard (⌘+C)
-2. Open Raycast (⌘+Space)
-3. Type "Quick Clipboard to Tana"
-4. Press Enter
-5. Your clipboard now contains the Tana-formatted version
-6. Paste into Tana (⌘+V)
+- **Paste and Edit for Tana:**
+  1. Copy any text or Markdown to your clipboard (⌘+C).
+  2. Open Raycast and run the "Paste and Edit for Tana" command.
+  3. The clipboard content appears in a Raycast window—edit as needed.
+  4. Press Enter to convert and copy the edited text to Tana Paste format.
+  5. Paste into Tana (⌘+V).
+  6. Example window:
 
-### Paste and Edit Mode
+      ![Paste and Edit for Tana example](metadata/02_convert-open.png)
+      *Example: Edit your clipboard content before converting to Tana Paste format*
 
-1. Open Raycast (⌘+Space)
-2. Type "Paste and Edit for Tana"
-3. Press Enter
-4. Edit your text in the interface
-5. Press Enter to convert and copy to clipboard
-6. Paste into Tana (⌘+V)
+- **Convert Selected Text to Tana:**
+  1. Highlight text in any application (web page, document, etc.).
+  2. Open Raycast and run the "Convert Selected Text to Tana" command.
+  3. If the selection is from a website, the output will use the page title as the parent node and add the URL as the first child node.
+  4. The selected text is converted to Tana Paste format and copied to your clipboard.
+  5. Paste into Tana (⌘+V).
 
-### Convert Selected Text
+- **YouTube to Tana:**
+  1. Go to a YouTube video page in your browser.
+  2. Open Raycast and run the "YouTube to Tana" command (bonus: assign it a keyboard shortcut in Raycast Preferences for even faster access).
+  3. Wait for the Raycast HUD notification confirming the result is ready.
+  4. Paste into Tana (⌘+V) — the result will be formatted and chunked for Tana, including video title, URL, channel, description, and transcript.
+  5. Example output:
 
-1. Select text in any application
-2. Open Raycast (⌘+Space)
-3. Type "Convert Selected Text to Tana"
-4. Press Enter
-5. The converted text is now in your clipboard
-6. Paste into Tana (⌘+V)
+      ![YouTube to Tana example output](metadata/04_youtube-tana-transcript.png)
+      *Example: YouTube video transcript and metadata pasted into Tana*
 
-**Features:**
+- **Limitless Pendant/App:** Paste or select Limitless transcriptions and convert them to Tana Paste format.
 
-- If the selected text is from a web page, the output will:
-  - Use the page title as the parent node
-  - Add the #swipe supertag to the parent node
-  - Place the URL as the first child node under the parent
-  - Indent the selected text as child nodes under the parent
-
-**Example (selected from a web page):**
-
-Input (selected on a web page):
-
-```
-This is a quote from the page.
-And another line.
-```
-
-Output:
-
-```
-%%tana%%
-- !! Page Title #swipe
-  - URL::https://example.com/page
-  - This is a quote from the page.
-  - And another line.
-```
-
-### YouTube to Tana
-
-1. Open a YouTube video in your browser
-2. Open Raycast (⌘+Space)
-3. Type "YouTube to Tana"
-4. Press Enter
-5. Video metadata and transcript (if available) are extracted, formatted, and copied to your clipboard
-6. Paste into Tana (⌘+V)
-
-**Features:**
-
-- Extracts video title, URL, channel information, and description
-- Automatically retrieves video transcript (when available)
-- Formats everything in Tana's node structure
-- Works with videos in any language that has captions
-
-**Troubleshooting:**
-
-- Make sure you have at least one YouTube watch page open (not a channel, home, or shorts page)
-- If you get "Can't find video description" errors, try clicking "Show more" on the description
-- Not all videos have transcripts available - in this case, only the metadata will be extracted
-- For videos with multiple language options, the default language is extracted
+Paste the result into Tana with ⌘+V.
 
 ## Example
 
-Input (in clipboard):
+**Input:**
 
 ```markdown
 # My Heading
-## Subheading
-- List item 1
-  - Nested item
-- List item 2
+- List item
 ```
 
-Output (in clipboard):
+**Output:**
 
 ```
 %%tana%%
 - !! My Heading
-  - !! Subheading
-    - List item 1
-      - Nested item
-    - List item 2
+  - List item
 ```
 
-### Limitless Pendant Transcription Example
+## Technical
 
-Input:
-
-```markdown
-# Meeting Title
-
-## Discussion Topic
-
-> [Speaker 1](#startMs=1743688649931&endMs=1743688652931): Hello everyone.
-
-> [You](#startMs=1743688652931&endMs=1743688653931): Good morning.
-```
-
-Output:
-
-```
-%%tana%%
-- !! Meeting Title
-  - !! Discussion Topic
-    - Speaker 1: Hello everyone.
-    - You: Good morning.
-```
-
-### YouTube Transcript Example
-
-Input:
-
-```markdown
-> [00:00] Introduction to the topic
-> 
-> [01:30] Key concept explanation
-> 
-> [05:45] Summary and conclusion
-```
-
-Output:
-
-```
-%%tana%%
-- [00:00] Introduction to the topic
-- [01:30] Key concept explanation
-- [05:45] Summary and conclusion
-```
-
-## Technical Details
-
-- Built with TypeScript and strict type checking
-- Uses Raycast API v1.55.2
-- Follows functional programming principles
-- Implements comprehensive error handling
-- Includes proper input validation
+- TypeScript, Raycast API v1.99.2
+- Functional programming, strict typing, error handling
 
 ## Contributing
 

@@ -38,9 +38,13 @@ export default async function Command() {
             format: 'text',
             tabId: activeTab.id,
           })
-        } catch { /* ignore error */ }
+        } catch {
+          /* ignore error */
+        }
       }
-    } catch { /* ignore error */ }
+    } catch {
+      /* ignore error */
+    }
 
     // Format output: if pageTitle, use as parent node
     let textWithUrl = selectedText + urlField
