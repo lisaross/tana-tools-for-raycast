@@ -1,4 +1,4 @@
-# Tana Paste for Raycast
+# Tana Tools for Raycast
 
 A Raycast extension that converts clipboard content to Tana Paste format. Perfect for quickly transforming Markdown text into Tana's node-based structure.
 
@@ -29,19 +29,26 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
 1. Make sure you have [Raycast](https://raycast.com/) installed
 2. Install Node.js and npm if you haven't already
 3. Clone this repository:
+
    ```bash
-   git clone https://github.com/lisaross/tana-paste-for-raycast.git
-   cd tana-paste-for-raycast
+   git clone https://github.com/lisaross/tana-tools-for-raycast.git
+   cd tana-tools-for-raycast
    ```
+
 4. Install dependencies:
+
    ```bash
    npm install
    ```
+
 5. Build the extension:
+
    ```bash
    npm run build
    ```
+
 6. Start development mode:
+
    ```bash
    npm run dev
    ```
@@ -49,6 +56,7 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
 ## Usage
 
 ### Quick Clipboard Conversion
+
 1. Copy your Markdown text to clipboard (⌘+C)
 2. Open Raycast (⌘+Space)
 3. Type "Quick Clipboard to Tana"
@@ -57,6 +65,7 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
 6. Paste into Tana (⌘+V)
 
 ### Paste and Edit Mode
+
 1. Open Raycast (⌘+Space)
 2. Type "Paste and Edit for Tana"
 3. Press Enter
@@ -65,6 +74,7 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
 6. Paste into Tana (⌘+V)
 
 ### Convert Selected Text
+
 1. Select text in any application
 2. Open Raycast (⌘+Space)
 3. Type "Convert Selected Text to Tana"
@@ -72,7 +82,35 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
 5. The converted text is now in your clipboard
 6. Paste into Tana (⌘+V)
 
+**Features:**
+
+- If the selected text is from a web page, the output will:
+  - Use the page title as the parent node
+  - Add the #swipe supertag to the parent node
+  - Place the URL as the first child node under the parent
+  - Indent the selected text as child nodes under the parent
+
+**Example (selected from a web page):**
+
+Input (selected on a web page):
+
+```
+This is a quote from the page.
+And another line.
+```
+
+Output:
+
+```
+%%tana%%
+- !! Page Title #swipe
+  - URL::https://example.com/page
+  - This is a quote from the page.
+  - And another line.
+```
+
 ### YouTube to Tana
+
 1. Open a YouTube video in your browser
 2. Open Raycast (⌘+Space)
 3. Type "YouTube to Tana"
@@ -81,12 +119,14 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
 6. Paste into Tana (⌘+V)
 
 **Features:**
+
 - Extracts video title, URL, channel information, and description
 - Automatically retrieves video transcript (when available)
 - Formats everything in Tana's node structure
 - Works with videos in any language that has captions
 
 **Troubleshooting:**
+
 - Make sure you have at least one YouTube watch page open (not a channel, home, or shorts page)
 - If you get "Can't find video description" errors, try clicking "Show more" on the description
 - Not all videos have transcripts available - in this case, only the metadata will be extracted
@@ -95,6 +135,7 @@ A Raycast extension that converts clipboard content to Tana Paste format. Perfec
 ## Example
 
 Input (in clipboard):
+
 ```markdown
 # My Heading
 ## Subheading
@@ -104,6 +145,7 @@ Input (in clipboard):
 ```
 
 Output (in clipboard):
+
 ```
 %%tana%%
 - !! My Heading
@@ -116,6 +158,7 @@ Output (in clipboard):
 ### Limitless Pendant Transcription Example
 
 Input:
+
 ```markdown
 # Meeting Title
 
@@ -127,6 +170,7 @@ Input:
 ```
 
 Output:
+
 ```
 %%tana%%
 - !! Meeting Title
@@ -138,6 +182,7 @@ Output:
 ### YouTube Transcript Example
 
 Input:
+
 ```markdown
 > [00:00] Introduction to the topic
 > 
@@ -147,6 +192,7 @@ Input:
 ```
 
 Output:
+
 ```
 %%tana%%
 - [00:00] Introduction to the topic

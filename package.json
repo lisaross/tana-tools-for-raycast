@@ -1,7 +1,7 @@
 {
-  "name": "tana-paste-for-raycast",
-  "title": "Tana Paste for Raycast",
-  "description": "Convert text and Markdown to Tana Paste format",
+  "name": "tana-tools-for-raycast",
+  "title": "Tana Tools for Raycast",
+  "description": "Convert text and Markdown to Tana Paste format and more for Tana via Raycast.",
   "icon": "command-icon.png",
   "author": "lisaross",
   "type": "module",

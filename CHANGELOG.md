@@ -1,11 +1,13 @@
-# Tana Paste For Raycast Changelog
+# Tana Tools for Raycast Changelog
 
 ## [2.0.0] - 2025-05-07
 
 ### Added
+
 - Comprehensive documentation for the Tana converter module
 
 ### Changed
+
 - Complete refactoring of the Tana converter into a modular architecture
 - Enhanced date formatting with improved pattern recognition and conversion
 - Improved text formatting capabilities
@@ -15,6 +17,7 @@
 ## [1.6.1] - 2025-05-06
 
 ### Changed
+
 - Updated project structure to comply with Raycast store requirements
 - Removed Python script dependency for streamlined installation
 - Improved documentation for clarity and focus on Raycast extension functionality
@@ -23,6 +26,7 @@
 ## [1.6.0] - 2025-04-18
 
 ### Added
+
 - Enhanced YouTube transcript processing with improved formatting (#33)
 - Added transcript chunking functionality for better organization
 - Enhanced Limitless Pendant transcription processing
@@ -31,6 +35,7 @@
 ## [1.5.4] - 2025-04-17
 
 ### Fixed
+
 - Fixed incorrect indentation in Tana converter that was causing all content to be placed under a single node (#27)
 - Fixed bullet point conversion for mixed format lists (#24)
   - Fixed nested bullets not being properly separated
@@ -69,7 +74,7 @@
 
 ### Changed
 
-- Renamed extension to "tana-paste-for-raycast" to avoid naming conflicts
+- Renamed extension to "tana-tools-for-raycast" to avoid naming conflicts
 - Refactored complex date pattern regex into named components for improved readability and maintainability
 - Extracted magic indentation numbers to named constants
 - Enhanced code quality through better naming and organization
@@ -124,6 +129,7 @@
   - Support for timestamps
 
 ### Features
+
 - Convert Markdown headings to Tana nodes with proper indentation
 - Intelligent field detection to distinguish between actual fields and regular text with colons
 - Preserve bracketed elements in text that shouldn't be converted to tags
@@ -131,4 +137,4 @@
 - Process inline formatting (bold, italic, highlights)
 - Convert dates to Tana's date format
 - Handle nested lists and indented content
-- Automatic opening of Tana after conversion 
+- Automatic opening of Tana after conversion
