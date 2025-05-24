@@ -1,5 +1,12 @@
 # Tana Tools for Raycast Changelog
 
+## [2.1.0] - 2025-05-24
+
+### Added
+- The "Convert Selected Text to Tana" command now automatically adds a URL field and the #swipe supertag when text is selected from a web page.
+- The URL is placed above the selected text as a child node under the page title.
+- The page title is used as the parent node for the selection when available.
+
 ## [2.0.0] - 2025-05-07
 
 ### Added
