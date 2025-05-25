@@ -57,15 +57,15 @@ export default async function Command() {
     const turndownService = new TurndownService()
     turndownService.addRule('no-images', {
       filter: 'img',
-      replacement: () => ''
+      replacement: () => '',
     })
     const markdown = turndownService.turndown(pageHtml)
 
     // Indent markdown content while preserving structure
     const indentedMarkdown = markdown
       .split('\n\n') // Split by paragraphs instead of lines
-      .filter(paragraph => paragraph.trim() !== "")
-      .map(paragraph => `  - ${paragraph.replace(/\n/g, ' ')}`) // Join lines within paragraphs
+      .filter((paragraph) => paragraph.trim() !== '')
+      .map((paragraph) => `  - ${paragraph.replace(/\n/g, ' ')}`) // Join lines within paragraphs
       .join('\n')
 
     // Compose Tana input: root node, URL, then the indented main content
@@ -75,11 +75,8 @@ export default async function Command() {
     await showHUD('Copied page content to Tana Paste!')
 
     // Cross-platform open for tana://
-    const opener = os.platform() === 'darwin'
-      ? 'open'
-      : os.platform() === 'win32'
-        ? 'start'
-        : 'xdg-open'
+    const opener =
+      os.platform() === 'darwin' ? 'open' : os.platform() === 'win32' ? 'start' : 'xdg-open'
     await execAsync(`${opener} tana://`)
   } catch (error) {
     console.error(error)
