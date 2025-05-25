@@ -7,12 +7,11 @@ Quickly convert text, Markdown, YouTube, and Limitless content to Tana Paste for
 ## Features
 
 - Convert clipboard or selected text to Tana Paste format
+- Clip the main content of any web page and instantly convert it to a clean, organized Tana outline.
 - Edit and preview before converting
 - Extract and format YouTube video metadata and transcripts (with transcript chunking for large videos)
 - Supports Limitless Pendant and Limitless App transcriptions
 - Supports most Markdown transformations (headings, lists, paragraphs, nesting, etc.)
-- Instant feedback via Raycast HUD
-- If something isn't working as expected, please open an issue!
 
 ## Installation
 
@@ -25,20 +24,22 @@ Quickly convert text, Markdown, YouTube, and Limitless content to Tana Paste for
    npm install
    ```
 
-3. Build and start development:
+3. Build and start using (in development mode until we get it on the store):
 
    ```sh
    npm run build
    npm run dev
    ```
 
-## Usage
+## Commands
 
 - **Quick Clipboard to Tana:**
   1. Copy any text or Markdown to your clipboard (⌘+C).
   2. Open Raycast and run the "Quick Clipboard to Tana" command.
   3. The clipboard content is instantly scrubbed and converted to Tana Paste format.
   4. Paste into Tana (⌘+V).
+  
+  *How it works: The command takes whatever is on your clipboard, cleans up the formatting, and converts it into a Tana-ready outline you can paste directly into your workspace.*
 
 - **Paste and Edit for Tana:**
   1. Copy any text or Markdown to your clipboard (⌘+C).
@@ -51,12 +52,16 @@ Quickly convert text, Markdown, YouTube, and Limitless content to Tana Paste for
       ![Paste and Edit for Tana example](metadata/02_convert-open.png)
       *Example: Edit your clipboard content before converting to Tana Paste format*
 
+  *How it works: Lets you review and edit your clipboard content before it's converted, so you can make quick tweaks and see the result before sending it to Tana.*
+
 - **Convert Selected Text to Tana:**
   1. Highlight text in any application (web page, document, etc.).
   2. Open Raycast and run the "Convert Selected Text to Tana" command.
   3. If the selection is from a website, the output will use the page title as the parent node and add the URL as the first child node.
   4. The selected text is converted to Tana Paste format and copied to your clipboard.
   5. Paste into Tana (⌘+V).
+
+  *How it works: Automatically detects if your selection is from a web page, adds the page title and URL, and formats your selection for Tana Paste.*
 
 - **YouTube to Tana:**
   1. Go to a YouTube video page in your browser.
@@ -68,9 +73,20 @@ Quickly convert text, Markdown, YouTube, and Limitless content to Tana Paste for
       ![YouTube to Tana example output](metadata/04_youtube-tana-transcript.png)
       *Example: YouTube video transcript and metadata pasted into Tana*
 
+  *How it works: Extracts all available metadata and transcript from the YouTube page, organizes it into a Tana-friendly outline, and chunks long transcripts for easy pasting.*
+
 - **Limitless Pendant/App:** Paste or select Limitless transcriptions and convert them to Tana Paste format.
 
-Paste the result into Tana with ⌘+V.
+  *How it works: Recognizes Limitless transcription formats and converts them into a clean, structured Tana outline.*
+
+- **Copy Page Content to Tana Paste:**
+  1. Open a web page in your browser.
+  2. Open Raycast and run the "Copy Page Content to Tana Paste" command.
+  3. The command will extract all text from the current page, use the page title as the parent node, add the URL as a field, and add the #swipe supertag.
+  4. The result is converted to Tana Paste format and copied to your clipboard.
+  5. Paste into Tana (⌘+V).
+
+  *How it works: Extracts the main content of the web page (ignoring navigation, sidebars, and ads), excludes images, and organizes everything under the page title for a clean Tana import.*
 
 ## Example
 
@@ -92,11 +108,10 @@ Paste the result into Tana with ⌘+V.
 ## Technical
 
 - TypeScript, Raycast API v1.99.2
-- Functional programming, strict typing, error handling
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please feel free to submit a Pull Request. Open an issue if you want a feature.
 
 ## License
 
