@@ -4,6 +4,7 @@ import { promisify } from 'util'
 import os from 'os'
 import TurndownService from 'turndown'
 import { convertToTana } from './utils/tana-converter'
+import * as cheerio from 'cheerio'
 
 const execAsync = promisify(exec)
 
@@ -53,13 +54,18 @@ export default async function Command() {
       return
     }
 
+    // Remove <script> and <style> tags using Cheerio
+    const $ = cheerio.load(pageHtml)
+    $('script, style').remove()
+    const cleanedHtml = $.html()
+
     // Use Turndown to convert HTML to Markdown, but ignore images
     const turndownService = new TurndownService()
     turndownService.addRule('no-images', {
       filter: 'img',
       replacement: () => '',
     })
-    const markdown = turndownService.turndown(pageHtml)
+    const markdown = turndownService.turndown(cleanedHtml)
 
     // Indent markdown content while preserving structure
     const indentedMarkdown = markdown
