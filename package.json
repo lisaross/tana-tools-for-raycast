@@ -31,10 +31,18 @@
       "title": "Youtube to Tana",
       "description": "Extract YouTube video information and convert to Tana Paste format",
       "mode": "no-view"
+    },
+    {
+      "name": "copy-page-content-to-tana",
+      "title": "Copy Page Content to Tana",
+      "description": "Extract all text from the current browser page and convert to Tana Paste format",
+      "mode": "no-view"
     }
   ],
   "dependencies": {
     "@raycast/api": "^1.99.2",
+    "cheerio": "^1.0.0",
+    "turndown": "^7.2.0",
     "youtube-transcript": "^1.2.1"
   },
   "devDependencies": {
@@ -44,6 +52,7 @@
     "@types/node": "^18.8.3",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.1",
+    "@types/turndown": "^5.0.5",
     "eslint": "^9.23.0",
     "eslint-plugin-react": "^7.37.4",
     "globals": "^16.0.0",
