@@ -1,7 +1,7 @@
 import { showHUD, Clipboard, BrowserExtension } from '@raycast/api'
 import { exec } from 'child_process'
 import { promisify } from 'util'
-import { load } from 'cheerio'
+import os from 'os'
 import TurndownService from 'turndown'
 import { convertToTana } from './utils/tana-converter'
 
@@ -48,10 +48,7 @@ export default async function Command() {
       }
     }
 
-    // Use Cheerio to select the main content
-    const $ = load(pageHtml)
-    const mainElemHtml = $('main').html() || $('article').html() || $('body').html() || ''
-    if (!mainElemHtml) {
+    if (!pageHtml) {
       await showHUD('Unable to extract main content.')
       return
     }
@@ -60,15 +57,15 @@ export default async function Command() {
     const turndownService = new TurndownService()
     turndownService.addRule('no-images', {
       filter: 'img',
-      replacement: () => '',
+      replacement: () => ''
     })
-    const markdown = turndownService.turndown(mainElemHtml)
+    const markdown = turndownService.turndown(pageHtml)
 
-    // Indent all markdown lines as children of the root node
+    // Indent markdown content while preserving structure
     const indentedMarkdown = markdown
-      .split('\n')
-      .filter((line) => line.trim() !== '')
-      .map((line) => `  - ${line}`)
+      .split('\n\n') // Split by paragraphs instead of lines
+      .filter(paragraph => paragraph.trim() !== "")
+      .map(paragraph => `  - ${paragraph.replace(/\n/g, ' ')}`) // Join lines within paragraphs
       .join('\n')
 
     // Compose Tana input: root node, URL, then the indented main content
@@ -76,7 +73,14 @@ export default async function Command() {
     const tanaPaste = convertToTana(tanaInput)
     await Clipboard.copy(tanaPaste)
     await showHUD('Copied page content to Tana Paste!')
-    await execAsync('open tana://')
+
+    // Cross-platform open for tana://
+    const opener = os.platform() === 'darwin'
+      ? 'open'
+      : os.platform() === 'win32'
+        ? 'start'
+        : 'xdg-open'
+    await execAsync(`${opener} tana://`)
   } catch (error) {
     console.error(error)
     await showHUD('Error: ' + (error as Error).message)
