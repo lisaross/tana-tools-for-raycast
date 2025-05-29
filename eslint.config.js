@@ -17,6 +17,10 @@ export default [
       }],
       // Turn off regular no-unused-vars in favor of the TypeScript version
       "no-unused-vars": "off",
+      // Disallow unary operators ++ and --
+      "no-plusplus": "error",
+      // Require trailing commas in multiline structures
+      "comma-dangle": ["error", "always-multiline"],
       // Adjust any other rules as needed
       "react/react-in-jsx-scope": "off"
     }

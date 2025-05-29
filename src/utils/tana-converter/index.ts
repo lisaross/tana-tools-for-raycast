@@ -67,7 +67,7 @@ export function convertToTana(inputText: string | undefined | null): string {
     let result = '%%tana%%\n'
 
     // Create each chunk
-    for (let i = 0; i < totalChunks; i++) {
+    for (let i = 0; i < totalChunks; i += 1) {
       const start = i * maxContentSize
       const end = Math.min(start + maxContentSize, singleLineTranscript.length)
       const chunkContent = singleLineTranscript.substring(start, end)
@@ -93,7 +93,7 @@ export function convertToTana(inputText: string | undefined | null): string {
     let transcriptIdx = -1
     let transcriptContent = ''
 
-    for (let i = 0; i < hierarchicalLines.length; i++) {
+    for (let i = 0; i < hierarchicalLines.length; i += 1) {
       if (hierarchicalLines[i].content.match(/^Transcript::/)) {
         transcriptIdx = i
         // Extract the transcript content and strip hashtags
@@ -119,7 +119,7 @@ export function convertToTana(inputText: string | undefined | null): string {
       indentLevels.set(-1, 0) // Root level
 
       // First pass - calculate indentation levels
-      for (let i = 0; i < hierarchicalLines.length; i++) {
+      for (let i = 0; i < hierarchicalLines.length; i += 1) {
         const line = hierarchicalLines[i]
         if (!line.content.trim()) continue
 
@@ -133,7 +133,7 @@ export function convertToTana(inputText: string | undefined | null): string {
       }
 
       // Generate output for all lines except the transcript
-      for (let i = 0; i < hierarchicalLines.length; i++) {
+      for (let i = 0; i < hierarchicalLines.length; i += 1) {
         if (i === transcriptIdx) continue // Skip the transcript line, we'll handle it specially
 
         const line = hierarchicalLines[i]
@@ -179,7 +179,7 @@ export function convertToTana(inputText: string | undefined | null): string {
           const transcriptChunkIndent = '  '.repeat((indentLevel || 0) + 2)
 
           // For each chunk, add as a separate list item under the Transcript field
-          for (let j = 0; j < totalChunks; j++) {
+          for (let j = 0; j < totalChunks; j += 1) {
             const start = j * maxContentSize
             const end = Math.min(start + maxContentSize, transcriptContent.length)
             const chunk = transcriptContent.substring(start, end)
@@ -208,7 +208,7 @@ export function convertToTana(inputText: string | undefined | null): string {
   indentLevels.set(-1, 0) // Root level
 
   // First pass - calculate base indentation levels
-  for (let i = 0; i < hierarchicalLines.length; i++) {
+  for (let i = 0; i < hierarchicalLines.length; i += 1) {
     const line = hierarchicalLines[i]
     if (!line.content.trim()) continue
 
@@ -224,7 +224,7 @@ export function convertToTana(inputText: string | undefined | null): string {
   }
 
   // Generate output using the calculated indentation levels
-  for (let i = 0; i < hierarchicalLines.length; i++) {
+  for (let i = 0; i < hierarchicalLines.length; i += 1) {
     const line = hierarchicalLines[i]
     const content = line.content.trim()
 

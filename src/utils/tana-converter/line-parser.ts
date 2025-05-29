@@ -85,7 +85,7 @@ export function splitMultipleBullets(line: string): string[] {
           index: match.index || 0,
           text: match[1].trim(),
           number: parseInt(match[1]),
-        })
+        }),
       )
 
       // Sort sections by their position in the text
@@ -101,7 +101,7 @@ export function splitMultipleBullets(line: string): string[] {
             end,
             text: section.text,
           }
-        }
+        },
       )
 
       // For each section, extract its bullets
@@ -185,7 +185,7 @@ export function buildHierarchy(lines: Line[]): Line[] {
   let lastLineIdx = -1
 
   // First pass - process headers and build initial hierarchy
-  for (let i = 0; i < result.length; i++) {
+  for (let i = 0; i < result.length; i += 1) {
     const line = result[i]
     const content = line.content.trim()
 

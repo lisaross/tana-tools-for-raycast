@@ -24,7 +24,7 @@ export function convertFields(text: string): string {
     key: string,
     value: string,
     prefix: string | undefined,
-    fullLine: string
+    fullLine: string,
   ): boolean => {
     // If this isn't a list item and doesn't look like a metadata block, it's likely regular text
     const isStandaloneText = !prefix && !fullLine.trim().startsWith('-')
@@ -167,7 +167,7 @@ export function convertFields(text: string): string {
         (pattern) =>
           key.toLowerCase() === pattern ||
           key.toLowerCase().startsWith(pattern + ' ') ||
-          key.toLowerCase().endsWith(' ' + pattern)
+          key.toLowerCase().endsWith(' ' + pattern),
       )
     ) {
       return false // Not regular text, it's a field
@@ -240,7 +240,7 @@ export function processInlineFormatting(text: string): string {
 
   // Handle image syntax
   text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, title, url) =>
-    title ? `${title}::!${title} ${url}` : `!Image ${url}`
+    title ? `${title}::!${title} ${url}` : `!Image ${url}`,
   )
 
   // Handle link syntax
@@ -260,12 +260,12 @@ export function processInlineFormatting(text: string): string {
   }
 
   // Restore bold elements
-  for (let i = 0; i < boldElements.length; i++) {
+  for (let i = 0; i < boldElements.length; i += 1) {
     text = text.replace(`__BOLD_${i}__`, boldElements[i])
   }
 
   // Restore protected content
-  for (let i = 0; i < protectedItems.length; i++) {
+  for (let i = 0; i < protectedItems.length; i += 1) {
     text = text.replace(`__PROTECTED_${i}__`, protectedItems[i])
   }
 

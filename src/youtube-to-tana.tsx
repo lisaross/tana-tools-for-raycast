@@ -44,7 +44,7 @@ async function extractVideoInfo(): Promise<VideoInfo> {
 
     if (!tabs || tabs.length === 0) {
       throw new Error(
-        'Could not access browser tabs. Please ensure Raycast has permission to access your browser.'
+        'Could not access browser tabs. Please ensure Raycast has permission to access your browser.',
       )
     }
 
@@ -53,7 +53,7 @@ async function extractVideoInfo(): Promise<VideoInfo> {
 
     if (!activeTab) {
       throw new Error(
-        'No active YouTube video tab found. Please open a YouTube video and try again.'
+        'No active YouTube video tab found. Please open a YouTube video and try again.',
       )
     }
 
@@ -74,7 +74,7 @@ async function extractVideoInfo(): Promise<VideoInfo> {
 
     if (!title) {
       throw new Error(
-        'Could not find video title. Please make sure the video page is fully loaded.'
+        'Could not find video title. Please make sure the video page is fully loaded.',
       )
     }
 
@@ -87,7 +87,7 @@ async function extractVideoInfo(): Promise<VideoInfo> {
 
     if (!channelElement) {
       throw new Error(
-        'Could not find channel information. Please make sure the video page is fully loaded.'
+        'Could not find channel information. Please make sure the video page is fully loaded.',
       )
     }
 
@@ -130,7 +130,7 @@ async function extractVideoInfo(): Promise<VideoInfo> {
 
     if (!description) {
       throw new Error(
-        'Could not find video description. Please make sure the video page is fully loaded and the description is visible.'
+        'Could not find video description. Please make sure the video page is fully loaded and the description is visible.',
       )
     }
 
@@ -144,7 +144,7 @@ async function extractVideoInfo(): Promise<VideoInfo> {
         .replace(/^\s*Show more\s*\n?/, '') // Remove "Show more" at start
         .replace(/\n?\s*Show less\s*$/, '') // Remove "Show less" at end
         .replace(/^\s+|\s+$/g, '') // Trim whitespace from start and end
-        .trim()
+        .trim(),
     )
 
     // Return complete VideoInfo
@@ -208,7 +208,7 @@ async function extractTranscript(videoId: string): Promise<string> {
   } catch (error) {
     console.error('Transcript extraction error:', error)
     throw new Error(
-      `Could not extract transcript: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Could not extract transcript: ${error instanceof Error ? error.message : 'Unknown error'}`,
     )
   }
 }

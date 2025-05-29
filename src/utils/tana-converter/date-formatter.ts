@@ -56,6 +56,10 @@ export function parseDate(text: string): ParsedDate | null {
   const weekMatch = text.match(/^Week (\d{1,2}),\s*(\d{4})$/)
   if (weekMatch) {
     const [, week, year] = weekMatch
+    const wk = parseInt(week, 10)
+    if (wk < 1 || wk > 53) {
+      return null // Invalid week number, return null to keep current API
+    }
     return {
       type: 'week',
       value: `${year}-W${week.padStart(2, '0')}`,
@@ -66,6 +70,11 @@ export function parseDate(text: string): ParsedDate | null {
   const weekRangeMatch = text.match(/^Weeks (\d{1,2})-(\d{1,2}),\s*(\d{4})$/)
   if (weekRangeMatch) {
     const [, week1, week2, year] = weekRangeMatch
+    const wk1 = parseInt(week1, 10)
+    const wk2 = parseInt(week2, 10)
+    if (wk1 < 1 || wk1 > 53 || wk2 < 1 || wk2 > 53) {
+      return null // Invalid week number(s), return null to keep current API
+    }
     return {
       type: 'duration',
       value: `${year}-W${week1.padStart(2, '0')}/W${week2.padStart(2, '0')}`,
@@ -106,7 +115,9 @@ export function parseDate(text: string): ParsedDate | null {
   }
 
   // "of" formats - "1st of February, 2023" or "The 14th of January 2018"
-  const ofMatch = text.match(/^(?:The\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+of\s+([A-Z][a-z]+),?\s+(\d{4})$/)
+  const ofMatch = text.match(
+    /^(?:The\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+of\s+([A-Z][a-z]+),?\s+(\d{4})$/,
+  )
   if (ofMatch) {
     const [, day, month, year] = ofMatch
     return {
@@ -116,7 +127,9 @@ export function parseDate(text: string): ParsedDate | null {
   }
 
   // Day of week prefix with British format - "Wednesday, 1st February 2023"
-  const weekdayBritishMatch = text.match(/^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+(\d{1,2})(?:st|nd|rd|th)?\s+([A-Z][a-z]+)\s+(\d{4})$/)
+  const weekdayBritishMatch = text.match(
+    /^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+(\d{1,2})(?:st|nd|rd|th)?\s+([A-Z][a-z]+)\s+(\d{4})$/,
+  )
   if (weekdayBritishMatch) {
     const [, day, month, year] = weekdayBritishMatch
     return {
@@ -126,7 +139,9 @@ export function parseDate(text: string): ParsedDate | null {
   }
 
   // Day of week prefix with American format - "Wednesday, February 1st, 2023"
-  const weekdayAmericanMatch = text.match(/^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})$/)
+  const weekdayAmericanMatch = text.match(
+    /^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})$/,
+  )
   if (weekdayAmericanMatch) {
     const [, month, day, year] = weekdayAmericanMatch
     return {
@@ -158,7 +173,9 @@ export function parseDate(text: string): ParsedDate | null {
   }
 
   // Then check for the time variant separately to avoid complex nested groups
-  const legacyTimeMatch = text.match(/^([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,\s*(\d{4}),\s*(\d{1,2}):(\d{2})\s*(AM|PM)$/)
+  const legacyTimeMatch = text.match(
+    /^([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,\s*(\d{4}),\s*(\d{1,2}):(\d{2})\s*(AM|PM)$/,
+  )
   if (legacyTimeMatch) {
     const [, month, day, year, hour, min, ampm] = legacyTimeMatch
     const h = parseInt(hour)
@@ -170,7 +187,9 @@ export function parseDate(text: string): ParsedDate | null {
   }
 
   // Duration with mixed formats - simplified pattern
-  const durationMatch = text.match(/^([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?\s*-\s*([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,\s*(\d{4})$/)
+  const durationMatch = text.match(
+    /^([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?\s*-\s*([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,\s*(\d{4})$/,
+  )
   if (durationMatch) {
     const [, month1, day1, month2, day2, year] = durationMatch
     return {
@@ -289,46 +308,46 @@ export function convertDates(text: string): string {
 
   // Process dates using individual, simple regex patterns tested sequentially
   // This approach avoids both dynamic construction and catastrophic backtracking
-  
+
   // Simple static patterns without nested quantifiers to prevent ReDoS
   const datePatterns = [
     // Already processed Tana dates - keep as-is
     /\[\[date:[^\]]+\]\]/g,
-    
+
     // ISO date formats (simple, non-nested)
     /\d{4}-\d{2}-\d{2}\/\d{4}-\d{2}-\d{2}/g, // ISO duration
-    /\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/g,     // ISO date with time
-    /\d{4}-\d{2}-\d{2}/g,                    // Simple ISO date
-    
+    /\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/g, // ISO date with time
+    /\d{4}-\d{2}-\d{2}/g, // Simple ISO date
+
     // Numeric date formats (DD/MM/YYYY and MM/DD/YYYY)
-    /\d{1,2}\/\d{1,2}\/\d{4}/g,              // Numeric dates
-    
+    /\d{1,2}\/\d{1,2}\/\d{4}/g, // Numeric dates
+
     // Week formats (simple, bounded)
-    /Weeks\s+\d{1,2}-\d{1,2},\s*\d{4}/g,    // Week range
-    /Week\s+\d{1,2},\s*\d{4}/g,             // Single week
-    
+    /Weeks\s+\d{1,2}-\d{1,2},\s*\d{4}/g, // Week range
+    /Week\s+\d{1,2},\s*\d{4}/g, // Single week
+
     // British format: Day Month Year
     /\d{1,2}(?:st|nd|rd|th)?\s+[A-Z][a-z]+\s+\d{4}/g, // "14th March 2016"
-    /\d{1,2}\s+[A-Z][a-z]+\s+\d{4}/g,       // "14 March 2016"
-    
+    /\d{1,2}\s+[A-Z][a-z]+\s+\d{4}/g, // "14 March 2016"
+
     // "of" formats
     /\d{1,2}(?:st|nd|rd|th)?\s+of\s+[A-Z][a-z]+,?\s+\d{4}/g, // "1st of February, 2023"
     /The\s+\d{1,2}(?:st|nd|rd|th)?\s+of\s+[A-Z][a-z]+\s+\d{4}/g, // "The 14th of January 2018"
-    
+
     // Day of week prefixes
     /(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}(?:st|nd|rd|th)?\s+[A-Z][a-z]+\s+\d{4}/g, // "Wednesday, 1st February 2023"
     /(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+[A-Z][a-z]+\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}/g, // "Wednesday, February 1st, 2023"
-    
+
     // American format: Month Day, Year with optional time
     /[A-Z][a-z]+\s+\d{1,2}(?:st|nd|rd|th)?\s*-\s*[A-Z][a-z]+\s+\d{1,2}(?:st|nd|rd|th)?,\s*\d{4}/g, // Date range
     /[A-Z][a-z]+\s+\d{1,2}(?:st|nd|rd|th)?,\s*\d{4}(?:,\s*\d{1,2}:\d{2}\s*(?:AM|PM))?/g, // Month day year with optional time
-    
+
     // Month/year formats (simple, bounded)
-    /[A-Z][a-z]+\s+(?:⌘\s+)?\d{4}/g,        // Month year
+    /[A-Z][a-z]+\s+(?:⌘\s+)?\d{4}/g, // Month year
     /[A-Z][a-z]+\s+\d{1,2}(?:st|nd|rd|th)?/g, // Month day (no year) - "February 1st"
-    
+
     // Year only (simple)
-    /(?:⌘\s+)?\d{4}/g                        // Year only
+    /(?:⌘\s+)?\d{4}/g, // Year only
   ]
 
   // Apply each pattern individually to avoid complex alternations
@@ -338,12 +357,12 @@ export function convertDates(text: string): string {
       if (match.match(/^\d+$/) && match.length < 5) {
         return match
       }
-      
+
       // Skip already processed dates
       if (match.startsWith('[[date:')) {
         return match
       }
-      
+
       const parsed = parseDate(match)
       return parsed ? formatTanaDate(parsed) : match
     })

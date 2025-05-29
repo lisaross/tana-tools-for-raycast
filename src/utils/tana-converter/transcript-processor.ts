@@ -41,7 +41,7 @@ export function processYouTubeTranscriptTimestamps(text: string): string[] {
   }
 
   // Process each timestamp and the text that follows it
-  for (let i = 0; i < matches.length; i++) {
+  for (let i = 0; i < matches.length; i += 1) {
     const currentMatch = matches[i]
     const nextMatch = i < matches.length - 1 ? matches[i + 1] : null
 
@@ -92,7 +92,7 @@ export function processLimitlessPendantTranscriptToSingleLine(text: string): str
   const lines = text.split('\n')
   const combinedContent: string[] = []
 
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i].trim()
     if (!line) continue
 
@@ -124,7 +124,7 @@ export function isLimitlessPendantTranscription(text: string): boolean {
 
   for (const line of lines) {
     if (line.match(/^>\s*\[(.*?)\]\(#startMs=\d+&endMs=\d+\):/)) {
-      pendantFormatCount++
+      pendantFormatCount += 1
     }
 
     // If we found multiple matching lines, it's likely a Limitless Pendant transcription
@@ -151,21 +151,21 @@ export function isNewTranscriptionFormat(text: string): boolean {
   let speakerCount = 0
   let timestampCount = 0
 
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i].trim()
     if (!line) continue
 
     // Check for speaker pattern (non-empty line followed by empty line)
     if (i < lines.length - 1 && !lines[i + 1].trim()) {
-      speakerCount++
+      speakerCount += 1
     }
     // Check for timestamp pattern (line with date/time)
     if (
       line.match(
-        /(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/
+        /(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/,
       )
     ) {
-      timestampCount++
+      timestampCount += 1
     }
   }
 
@@ -188,7 +188,7 @@ export function processLimitlessAppTranscriptToSingleLine(text: string): string 
   let currentSpeaker = ''
   let contentBuffer = ''
 
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i].trim()
     if (!line) continue
 
@@ -207,7 +207,7 @@ export function processLimitlessAppTranscriptToSingleLine(text: string): string 
     // Skip timestamp lines - we don't want them in the output
     if (
       line.match(
-        /(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/
+        /(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/,
       )
     ) {
       continue
@@ -267,7 +267,7 @@ export function processYouTubeTranscriptToSingleLine(text: string): string {
   const transcriptLines: string[] = []
   let inTranscript = false
 
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i].trim()
     if (!line) continue
 
@@ -310,7 +310,7 @@ export function processYouTubeTranscriptToSingleLine(text: string): string {
  */
 export function chunkTranscript(
   content: string,
-  maxChunkSize: number = CONSTANTS.MAX_TRANSCRIPT_CHUNK_SIZE
+  maxChunkSize: number = CONSTANTS.MAX_TRANSCRIPT_CHUNK_SIZE,
 ): string[] {
   // If content is already smaller than max size, return it as is
   if (content.length <= maxChunkSize) {
@@ -353,7 +353,7 @@ export function chunkTranscript(
   let currentSize = 0
 
   // Process each line to create chunks
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i]
 
     // Skip empty lines
