@@ -142,10 +142,10 @@ export function splitMultipleBullets(line: string): string[] {
       .map((part, index) => {
         if (index === 0) {
           // First part is the main content
-          return leadingWhitespace + part
+          return `${leadingWhitespace}${part}`
         }
         // Add bullet marker for other parts
-        return leadingWhitespace + `\t▪ ${part.trim()}`
+        return `${leadingWhitespace}\t▪ ${part.trim()}`
       })
       .filter((line) => line.trim())
   }
@@ -160,15 +160,15 @@ export function splitMultipleBullets(line: string): string[] {
 
       // Ensure bullet points have proper spacing
       if (/^[▪-][^\s]/.test(trimmed)) {
-        return leadingWhitespace + trimmed.replace(/^([▪-])/, '$1 ')
+        return `${leadingWhitespace}${trimmed.replace(/^([▪-])/, '$1 ')}`
       }
 
       // Ensure numbered items have proper spacing
       if (/^\d+\.[^\s]/.test(trimmed)) {
-        return leadingWhitespace + trimmed.replace(/^(\d+\.)/, '$1 ')
+        return `${leadingWhitespace}${trimmed.replace(/^(\d+\.)/, '$1 ')}`
       }
 
-      return leadingWhitespace + trimmed
+      return `${leadingWhitespace}${trimmed}`
     })
     .filter((line) => line.trim())
 }

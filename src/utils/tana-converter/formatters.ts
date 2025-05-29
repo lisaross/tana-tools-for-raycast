@@ -247,9 +247,9 @@ export function processInlineFormatting(text: string): string {
   text = text.replace(/==([^=]+)==/g, '^^$1^^') // Highlight
 
   // Handle image syntax
-  text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, title, url) =>
-    title ? `${title}::!${title} ${url}` : `!Image ${url}`,
-  )
+  text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, title, url) => {
+    return title ? `${title}::!${title} ${url}` : `!Image ${url}`
+  })
 
   // Handle link syntax
   const linkItems: { [key: string]: string } = {}
