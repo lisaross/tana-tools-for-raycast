@@ -13,23 +13,20 @@ interface VideoInfo {
 }
 
 /**
- * Decodes HTML entities in a string
+ * Decode HTML entities to their text equivalents
+ * @param text Text containing HTML entities
+ * @returns Decoded text
  */
 function decodeHTMLEntities(text: string): string {
-  const entities = {
-    '&amp;': '&',
-    '&lt;': '<',
-    '&gt;': '>',
-    '&quot;': '"',
-    '&#39;': "'",
-    '&nbsp;': ' ',
-  }
-
-  // Replace all encoded entities
+  // Replace all encoded entities using static patterns to prevent ReDoS
   let decoded = text
-  for (const [entity, char] of Object.entries(entities)) {
-    decoded = decoded.replace(new RegExp(entity, 'g'), char)
-  }
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ')
 
   // Additionally handle numeric entities like &#39;
   decoded = decoded.replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
