@@ -20,6 +20,14 @@ export function convertFields(text: string): string {
   if (text.includes('|')) return text
 
   // Check for patterns that indicate colons in regular text rather than fields
+  /**
+   * Determines if a key-value pair is likely regular text rather than a field
+   * @param key The text before the colon
+   * @param value The text after the colon
+   * @param prefix The prefix of the line (e.g., bullet point markers)
+   * @param fullLine The complete line being analyzed
+   * @returns True if the text is likely regular content, false if it's likely a field
+   */
   const isLikelyRegularText = (
     key: string,
     value: string,

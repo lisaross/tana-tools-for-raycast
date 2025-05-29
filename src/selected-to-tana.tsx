@@ -5,6 +5,11 @@ import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
+/**
+ * Raycast command that converts currently selected text to Tana format
+ * Gets the selected text from the system, optionally includes browser context (URL and page title),
+ * converts it to Tana format, copies to clipboard, and opens the Tana application
+ */
 export default async function Command() {
   try {
     // Get selected text

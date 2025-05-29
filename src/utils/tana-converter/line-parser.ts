@@ -12,14 +12,13 @@ export function parseLine(line: string): Line {
   const raw = line
 
   // Calculate indent level based on spaces and tabs
-  const match = line.match(/^(\s*)/)
-  const spaces = match ? match[1].length : 0
+  const [, spaces = ''] = line.match(/^(\s*)/) || []
   // Consider tabs as 2 spaces for indentation purposes
-  const tabAdjustedSpaces = line.slice(0, spaces).replace(/\t/g, '  ').length
+  const tabAdjustedSpaces = line.slice(0, spaces.length).replace(/\t/g, '  ').length
   const indent = Math.floor(tabAdjustedSpaces / 2)
 
   // Get content without indentation
-  const content = line.slice(spaces).trimEnd()
+  const content = line.slice(spaces.length).trimEnd()
 
   // Detect if it's a header
   const isHeader = content.startsWith('#')
@@ -46,7 +45,7 @@ export function parseLine(line: string): Line {
     isNumberedList,
     isBulletPoint,
     parent: undefined,
-    originalIndent: spaces,
+    originalIndent: spaces.length,
   }
 }
 
@@ -63,7 +62,7 @@ export function splitMultipleBullets(line: string): string[] {
   }
 
   // Get the leading whitespace to preserve indentation
-  const leadingWhitespace = line.match(/^(\s*)/)?.[1] || ''
+  const [, leadingWhitespace = ''] = line.match(/^(\s*)/) || []
   const content = line.slice(leadingWhitespace.length)
 
   // Detect if this line contains multiple section headers with numbers (like "1.", "2.")
@@ -81,11 +80,14 @@ export function splitMultipleBullets(line: string): string[] {
 
     if (sectionMatches && sectionMatches.length > 0) {
       const sections: { index: number; text: string; number: number }[] = sectionMatches.map(
-        (match) => ({
-          index: match.index || 0,
-          text: match[1].trim(),
-          number: parseInt(match[1], 10),
-        }),
+        (match) => {
+          const [, matchedText] = match
+          return {
+            index: match.index || 0,
+            text: matchedText.trim(),
+            number: parseInt(matchedText, 10),
+          }
+        },
       )
 
       // Sort sections by their position in the text
@@ -117,8 +119,9 @@ export function splitMultipleBullets(line: string): string[] {
 
         // Add each bullet with proper indentation
         for (const bulletMatch of bulletMatches) {
-          if (bulletMatch[1] && bulletMatch[1].trim()) {
-            results.push(`${leadingWhitespace}\t\t▪\t${bulletMatch[1].trim()}`)
+          const [, bulletText] = bulletMatch
+          if (bulletText && bulletText.trim()) {
+            results.push(`${leadingWhitespace}\t\t▪\t${bulletText.trim()}`)
           }
         }
       }
@@ -140,10 +143,9 @@ export function splitMultipleBullets(line: string): string[] {
         if (index === 0) {
           // First part is the main content
           return leadingWhitespace + part
-        } else {
-          // Add bullet marker for other parts
-          return leadingWhitespace + `\t▪ ${part.trim()}`
         }
+        // Add bullet marker for other parts
+        return leadingWhitespace + `\t▪ ${part.trim()}`
       })
       .filter((line) => line.trim())
   }
@@ -193,7 +195,8 @@ export function buildHierarchy(lines: Line[]): Line[] {
 
     // Handle headers
     if (line.isHeader) {
-      const level = (content.match(/^#+/) || [''])[0].length
+      const [, headerMarkers = ''] = content.match(/^(#+)/) || []
+      const level = headerMarkers.length
 
       // Pop headers from stack until we find appropriate parent level
       while (
@@ -248,15 +251,12 @@ export function buildHierarchy(lines: Line[]): Line[] {
       }
     }
     // Regular content
-    else {
-      // Find appropriate parent based on indentation and context
-      if (lastLineIdx >= 0 && line.originalIndent > result[lastLineIdx].originalIndent) {
-        line.parent = lastLineIdx
-      } else if (headerStack.length > 0) {
-        line.parent = headerStack[headerStack.length - 1]
-      } else {
-        line.parent = -1
-      }
+    else if (lastLineIdx >= 0 && line.originalIndent > result[lastLineIdx].originalIndent) {
+      line.parent = lastLineIdx
+    } else if (headerStack.length > 0) {
+      line.parent = headerStack[headerStack.length - 1]
+    } else {
+      line.parent = -1
     }
 
     lastLineIdx = i

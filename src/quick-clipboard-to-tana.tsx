@@ -5,6 +5,11 @@ import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
+/**
+ * Raycast command that converts clipboard content to Tana format and opens Tana app
+ * Reads text from the clipboard, converts it to Tana's paste format, copies it back,
+ * and attempts to open the Tana application
+ */
 export default async function Command() {
   try {
     // Get clipboard content directly - no need to try selected text for quick clipboard command

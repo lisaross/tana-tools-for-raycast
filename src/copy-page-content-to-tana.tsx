@@ -7,6 +7,11 @@ import { convertToTana } from './utils/tana-converter'
 
 const execAsync = promisify(exec)
 
+/**
+ * Raycast command that extracts content from the active browser tab and converts it to Tana format
+ * Extracts the main content (using main, article, or body selectors), converts HTML to markdown,
+ * formats it for Tana with the page title and URL, and opens the Tana application
+ */
 export default async function Command() {
   try {
     let pageTitle = ''

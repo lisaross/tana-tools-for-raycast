@@ -99,8 +99,9 @@ async function extractVideoInfo(): Promise<VideoInfo> {
       throw new Error('Could not parse channel information.')
     }
 
-    const channelUrl = hrefMatch[1]
-    const channelName = decodeHTMLEntities(textMatch[1].trim())
+    const [, channelUrl] = hrefMatch
+    const [, rawChannelName] = textMatch
+    const channelName = decodeHTMLEntities(rawChannelName.trim())
 
     // Format the channel URL
     const fullChannelUrl = channelUrl.startsWith('http')
@@ -229,11 +230,14 @@ function formatForTanaMarkdown(videoInfo: VideoInfo): string {
     markdown += `Transcript::${videoInfo.transcript.replace(/\n\n/g, ' ')}\n`
   }
 
-  markdown += `\nDescription::${videoInfo.description.split('\n\n')[0] || 'No description available'}\n`
+  // Split description into paragraphs and use destructuring
+  const [firstParagraph = 'No description available', ...additionalParagraphs] =
+    videoInfo.description.split('\n\n')
+
+  markdown += `\nDescription::${firstParagraph}\n`
 
   // Add additional description paragraphs as separate nodes
-  const descriptionParagraphs = videoInfo.description.split('\n\n').slice(1)
-  for (const paragraph of descriptionParagraphs) {
+  for (const paragraph of additionalParagraphs) {
     if (paragraph.trim()) {
       markdown += `\n${paragraph.trim()}`
     }

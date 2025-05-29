@@ -74,8 +74,7 @@ export function processLimitlessPendantTranscription(text: string): string {
   const match = text.match(/^>\s*\[(.*?)\]\(#startMs=(\d+)&endMs=\d+\):\s*(.*?)$/)
   if (!match) return text
 
-  const speaker = match[1]
-  const content = match[3]
+  const [, speaker, , content] = match
 
   // Format as "{Speaker}: {Content}" without timestamp
   return `${speaker}: ${content}`

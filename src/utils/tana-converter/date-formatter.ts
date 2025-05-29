@@ -211,9 +211,10 @@ export function parseDate(text: string): ParsedDate | null {
   // Simple ISO date
   const isoMatch = text.match(/^(\d{4}-\d{2}-\d{2})$/)
   if (isoMatch) {
+    const [, isoDate] = isoMatch
     return {
       type: 'simple',
-      value: isoMatch[1],
+      value: isoDate,
     }
   }
 
@@ -240,18 +241,20 @@ export function parseDate(text: string): ParsedDate | null {
   // Year only - simple pattern
   const yearMatch = text.match(/^(\d{4})$/)
   if (yearMatch) {
+    const [, year] = yearMatch
     return {
       type: 'simple',
-      value: yearMatch[1],
+      value: year,
     }
   }
 
   // Year with command symbol - separate pattern
   const yearCommandMatch = text.match(/^⌘\s+(\d{4})$/)
   if (yearCommandMatch) {
+    const [, year] = yearCommandMatch
     return {
       type: 'simple',
-      value: yearCommandMatch[1],
+      value: year,
     }
   }
 

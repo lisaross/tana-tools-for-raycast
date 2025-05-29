@@ -10,6 +10,11 @@ interface FormValues {
   text: string
 }
 
+/**
+ * Raycast command that provides a form interface for editing and converting text to Tana format
+ * Loads clipboard content by default, allows user editing, converts to Tana format,
+ * and opens the Tana application with the converted content
+ */
 export default function Command() {
   const [text, setText] = useState<string>('')
   const [isLoading, setIsLoading] = useState(true)
