@@ -50,9 +50,9 @@ export default async function Command() {
     let textWithUrl = selectedText + urlField
     if (pageTitle) {
       // Split selectedText into lines and indent each
-      const selectedLines = selectedText.split('\n').map((line) => '  ' + line)
+      const selectedLines = selectedText.split('\n').map((line) => `  ${line}`)
       // Place URL as the first child if present
-      const urlLine = urlField ? '  ' + urlField.trim() : ''
+      const urlLine = urlField ? `  ${urlField.trim()}` : ''
       // Combine URL and selected text lines
       const indented = [urlLine, ...selectedLines].filter(Boolean).join('\n')
       textWithUrl = `# ${pageTitle} #swipe\n${indented}`

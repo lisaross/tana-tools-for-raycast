@@ -51,7 +51,7 @@ export function processYouTubeTranscriptTimestamps(text: string): string[] {
       const beforeTimestamp = cleanedText.substring(startIndex, currentMatch.index).trim()
       const endIndex = nextMatch ? nextMatch.index : cleanedText.length
       const segment =
-        beforeTimestamp + ' ' + cleanedText.substring(currentMatch.index, endIndex).trim()
+        `${beforeTimestamp} ${cleanedText.substring(currentMatch.index, endIndex).trim()}`
       segments.push(segment)
     } else {
       // For subsequent timestamps
@@ -215,7 +215,7 @@ export function processLimitlessAppTranscriptToSingleLine(text: string): string 
 
     // Accumulate content text
     if (contentBuffer) {
-      contentBuffer += ' ' + line
+      contentBuffer += ` ${line}`
     } else {
       contentBuffer = line
     }
@@ -239,7 +239,7 @@ export function processNewTranscriptionFormat(text: string): string {
   // Special case for the test which expects "Speaker 3" at the end without any timestamp or other formatting
   if (text.trim().endsWith('Speaker 3')) {
     const mainPart = text.substring(0, text.lastIndexOf('Speaker 3')).trim()
-    return processLimitlessAppTranscriptToSingleLine(mainPart) + '\nSpeaker 3'
+    return `${processLimitlessAppTranscriptToSingleLine(mainPart)}\nSpeaker 3`
   }
 
   // Use the new single-line processor
@@ -330,7 +330,7 @@ export function chunkTranscript(
     let combinedTranscript = ''
     for (const line of contentWithoutHeader.split('\n')) {
       if (line.trim()) {
-        combinedTranscript += line.trim() + ' '
+        combinedTranscript += `${line.trim()} `
       }
     }
     combinedTranscript = combinedTranscript.trim()

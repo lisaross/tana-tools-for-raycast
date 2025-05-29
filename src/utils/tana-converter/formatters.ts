@@ -166,8 +166,8 @@ export function convertFields(text: string): string {
       likelyFieldPatterns.some(
         (pattern) =>
           key.toLowerCase() === pattern ||
-          key.toLowerCase().startsWith(pattern + ' ') ||
-          key.toLowerCase().endsWith(' ' + pattern),
+          key.toLowerCase().startsWith(`${pattern} `) ||
+          key.toLowerCase().endsWith(` ${pattern}`),
       )
     ) {
       return false // Not regular text, it's a field

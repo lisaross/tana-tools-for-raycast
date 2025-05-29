@@ -80,6 +80,6 @@ export default async function Command() {
     await execAsync(`${opener} tana://`)
   } catch (error) {
     console.error(error)
-    await showHUD('Error: ' + (error as Error).message)
+    await showHUD(`Error: ${(error as Error).message}`)
   }
 }

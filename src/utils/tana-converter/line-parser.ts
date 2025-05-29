@@ -142,7 +142,7 @@ export function splitMultipleBullets(line: string): string[] {
           return leadingWhitespace + part
         } else {
           // Add bullet marker for other parts
-          return leadingWhitespace + '\t▪ ' + part.trim()
+          return leadingWhitespace + `\t▪ ${part.trim()}`
         }
       })
       .filter((line) => line.trim())
