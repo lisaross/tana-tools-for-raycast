@@ -21,6 +21,8 @@ export default [
       "no-plusplus": "error",
       // Require trailing commas in multiline structures
       "comma-dangle": ["error", "always-multiline"],
+      // Enforce radix parameter for parseInt()
+      "radix": "error",
       // Adjust any other rules as needed
       "react/react-in-jsx-scope": "off"
     }

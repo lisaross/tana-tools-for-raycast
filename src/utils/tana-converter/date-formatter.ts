@@ -178,7 +178,7 @@ export function parseDate(text: string): ParsedDate | null {
   )
   if (legacyTimeMatch) {
     const [, month, day, year, hour, min, ampm] = legacyTimeMatch
-    const h = parseInt(hour)
+    const h = parseInt(hour, 10)
     const adjustedHour = ampm === 'PM' && h < 12 ? h + 12 : ampm === 'AM' && h === 12 ? 0 : h
     return {
       type: 'time',
@@ -369,7 +369,7 @@ export function convertDates(text: string): string {
   }
 
   // Restore protected content
-  text = text.replace(/__PROTECTED_(\d+)__/g, (_, index) => protectedItems[parseInt(index)])
+  text = text.replace(/__PROTECTED_(\d+)__/g, (_, index) => protectedItems[parseInt(index, 10)])
 
   return text
 }

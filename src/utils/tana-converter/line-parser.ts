@@ -84,7 +84,7 @@ export function splitMultipleBullets(line: string): string[] {
         (match) => ({
           index: match.index || 0,
           text: match[1].trim(),
-          number: parseInt(match[1]),
+          number: parseInt(match[1], 10),
         }),
       )
 

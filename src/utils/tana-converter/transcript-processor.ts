@@ -50,8 +50,7 @@ export function processYouTubeTranscriptTimestamps(text: string): string[] {
       const startIndex = cleanedText.indexOf('Transcript:')
       const beforeTimestamp = cleanedText.substring(startIndex, currentMatch.index).trim()
       const endIndex = nextMatch ? nextMatch.index : cleanedText.length
-      const segment =
-        `${beforeTimestamp} ${cleanedText.substring(currentMatch.index, endIndex).trim()}`
+      const segment = `${beforeTimestamp} ${cleanedText.substring(currentMatch.index, endIndex).trim()}`
       segments.push(segment)
     } else {
       // For subsequent timestamps
