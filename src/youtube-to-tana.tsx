@@ -399,7 +399,8 @@ async function extractTranscript(videoId: string): Promise<string> {
 
       for (const segment of transcriptData) {
         // Check if we need a paragraph break (if there's a significant time gap)
-        const currentTime = Math.floor(segment.offset)
+        const { offset, text } = segment
+        const currentTime = Math.floor(offset)
 
         if (lastTime !== -1 && currentTime - lastTime > paragraphBreakThreshold) {
           // Use a consistent paragraph separator that we can easily handle later
@@ -409,7 +410,7 @@ async function extractTranscript(videoId: string): Promise<string> {
         }
 
         // Add the text - strip any hashtags and clean up
-        const cleanedText = decodeHTMLEntities(segment.text)
+        const cleanedText = decodeHTMLEntities(text)
           .replace(/#\w+\b/g, '')
           .replace(/\s+/g, ' ') // Normalize whitespace
           .trim()
@@ -492,7 +493,8 @@ async function extractTranscriptWithLanguageFallbacks(videoId: string): Promise<
         const paragraphBreakThreshold = 10 // Consistent with main function
 
         for (const segment of transcriptData) {
-          const currentTime = Math.floor(segment.offset)
+          const { offset, text } = segment
+          const currentTime = Math.floor(offset)
 
           if (lastTime !== -1 && currentTime - lastTime > paragraphBreakThreshold) {
             formattedTranscript += ' [PARAGRAPH_BREAK] '
@@ -500,7 +502,7 @@ async function extractTranscriptWithLanguageFallbacks(videoId: string): Promise<
             formattedTranscript += ' '
           }
 
-          const cleanedText = decodeHTMLEntities(segment.text)
+          const cleanedText = decodeHTMLEntities(text)
             .replace(/#\w+\b/g, '')
             .replace(/\s+/g, ' ')
             .trim()
@@ -752,20 +754,23 @@ async function extractChannelViaWebScraping(videoUrl: string): Promise<{
     // Extract title
     for (const pattern of titlePatterns) {
       const match = html.match(pattern)
-      if (match && match[1]) {
-        const extractedTitle = match[1]
-          .replace(/\\u0026/g, '&')
-          .replace(/\\"/g, '"')
-          .replace(/\\\\/g, '\\')
-          .replace(/\\n/g, ' ')
-          .replace(/\\t/g, ' ')
-          .replace(/ - YouTube$/, '')
-          .replace(/^\(\d+\)\s*/, '') // Remove notification count
-          .trim()
+      if (match) {
+        const [, extractedTitle] = match
+        if (extractedTitle) {
+          const cleanedTitle = extractedTitle
+            .replace(/\\u0026/g, '&')
+            .replace(/\\"/g, '"')
+            .replace(/\\\\/g, '\\')
+            .replace(/\\n/g, ' ')
+            .replace(/\\t/g, ' ')
+            .replace(/ - YouTube$/, '')
+            .replace(/^\(\d+\)\s*/, '') // Remove notification count
+            .trim()
 
-        if (extractedTitle && extractedTitle.length > 0 && extractedTitle.length < 200) {
-          title = extractedTitle
-          break
+          if (cleanedTitle && cleanedTitle.length > 0 && cleanedTitle.length < 200) {
+            title = cleanedTitle
+            break
+          }
         }
       }
     }
@@ -773,39 +778,45 @@ async function extractChannelViaWebScraping(videoUrl: string): Promise<{
     // Extract duration
     for (const pattern of durationPatterns) {
       const match = html.match(pattern)
-      if (match && match[1]) {
-        const durationValue = match[1]
-
-        // Handle different duration formats
-        if (/^\d+$/.test(durationValue)) {
-          // Duration in seconds
-          const seconds = parseInt(durationValue, 10)
-          if (seconds > 0 && seconds < 86400) {
-            // Reasonable range (0-24 hours)
-            duration = formatDuration(seconds)
-            break
-          }
-        } else if (/^\d+M\d+S$/.test(durationValue)) {
-          // Format like "5M30S"
-          const minutesMatch = durationValue.match(/(\d+)M/)
-          const secondsMatch = durationValue.match(/(\d+)S/)
-          if (minutesMatch && secondsMatch) {
-            const totalSeconds = parseInt(minutesMatch[1], 10) * 60 + parseInt(secondsMatch[1], 10)
-            duration = formatDuration(totalSeconds)
-            break
-          }
-        } else if (/^\d+H\d+M\d+S$/.test(durationValue)) {
-          // Format like "1H5M30S"
-          const hoursMatch = durationValue.match(/(\d+)H/)
-          const minutesMatch = durationValue.match(/(\d+)M/)
-          const secondsMatch = durationValue.match(/(\d+)S/)
-          if (hoursMatch && minutesMatch && secondsMatch) {
-            const totalSeconds =
-              parseInt(hoursMatch[1], 10) * 3600 +
-              parseInt(minutesMatch[1], 10) * 60 +
-              parseInt(secondsMatch[1], 10)
-            duration = formatDuration(totalSeconds)
-            break
+      if (match) {
+        const [, durationValue] = match
+        if (durationValue) {
+          // Handle different duration formats
+          if (/^\d+$/.test(durationValue)) {
+            // Duration in seconds
+            const seconds = parseInt(durationValue, 10)
+            if (seconds > 0 && seconds < 86400) {
+              // Reasonable range (0-24 hours)
+              duration = formatDuration(seconds)
+              break
+            }
+          } else if (/^\d+M\d+S$/.test(durationValue)) {
+            // Format like "5M30S"
+            const minutesMatch = durationValue.match(/(\d+)M/)
+            const secondsMatch = durationValue.match(/(\d+)S/)
+            if (minutesMatch && secondsMatch) {
+              const [, minutes] = minutesMatch
+              const [, seconds] = secondsMatch
+              const totalSeconds = parseInt(minutes, 10) * 60 + parseInt(seconds, 10)
+              duration = formatDuration(totalSeconds)
+              break
+            }
+          } else if (/^\d+H\d+M\d+S$/.test(durationValue)) {
+            // Format like "1H5M30S"
+            const hoursMatch = durationValue.match(/(\d+)H/)
+            const minutesMatch = durationValue.match(/(\d+)M/)
+            const secondsMatch = durationValue.match(/(\d+)S/)
+            if (hoursMatch && minutesMatch && secondsMatch) {
+              const [, hours] = hoursMatch
+              const [, minutes] = minutesMatch
+              const [, seconds] = secondsMatch
+              const totalSeconds =
+                parseInt(hours, 10) * 3600 +
+                parseInt(minutes, 10) * 60 +
+                parseInt(seconds, 10)
+              duration = formatDuration(totalSeconds)
+              break
+            }
           }
         }
       }
@@ -814,17 +825,20 @@ async function extractChannelViaWebScraping(videoUrl: string): Promise<{
     // Extract channel name
     for (const pattern of channelNamePatterns) {
       const match = html.match(pattern)
-      if (match && match[1]) {
-        // Decode HTML entities and clean up
-        const extractedName = match[1]
-          .replace(/\\u0026/g, '&')
-          .replace(/\\"/g, '"')
-          .replace(/\\\\/g, '\\')
-          .trim()
+      if (match) {
+        const [, extractedName] = match
+        if (extractedName) {
+          // Decode HTML entities and clean up
+          const cleanedName = extractedName
+            .replace(/\\u0026/g, '&')
+            .replace(/\\"/g, '"')
+            .replace(/\\\\/g, '\\')
+            .trim()
 
-        if (extractedName && extractedName.length > 0 && extractedName.length < 100) {
-          channelName = extractedName
-          break
+          if (cleanedName && cleanedName.length > 0 && cleanedName.length < 100) {
+            channelName = cleanedName
+            break
+          }
         }
       }
     }
@@ -832,47 +846,53 @@ async function extractChannelViaWebScraping(videoUrl: string): Promise<{
     // Extract channel URL
     for (const pattern of channelUrlPatterns) {
       const match = html.match(pattern)
-      if (match && match[1]) {
-        let extractedUrl = match[1].trim()
+      if (match) {
+        const [, extractedUrl] = match
+        if (extractedUrl) {
+          let cleanedUrl = extractedUrl.trim()
 
-        // Handle different URL formats
-        if (extractedUrl.startsWith('/channel/') || extractedUrl.startsWith('/@')) {
-          extractedUrl = `https://www.youtube.com${extractedUrl}`
-        } else if (extractedUrl.startsWith('UC') && extractedUrl.length === 24) {
-          // This is a channel ID
-          extractedUrl = `https://www.youtube.com/channel/${extractedUrl}`
-        } else if (!extractedUrl.startsWith('http')) {
-          continue // Skip invalid URLs
+          // Handle different URL formats
+          if (cleanedUrl.startsWith('/channel/') || cleanedUrl.startsWith('/@')) {
+            cleanedUrl = `https://www.youtube.com${cleanedUrl}`
+          } else if (cleanedUrl.startsWith('UC') && cleanedUrl.length === 24) {
+            // This is a channel ID
+            cleanedUrl = `https://www.youtube.com/channel/${cleanedUrl}`
+          } else if (!cleanedUrl.startsWith('http')) {
+            continue // Skip invalid URLs
+          }
+
+          channelUrl = cleanedUrl
+          break
         }
-
-        channelUrl = extractedUrl
-        break
       }
     }
 
     // Extract description
     for (const pattern of descriptionPatterns) {
       const match = html.match(pattern)
-      if (match && match[1]) {
-        const extractedDescription = match[1]
-          .replace(/\\u0026/g, '&')
-          .replace(/\\"/g, '"')
-          .replace(/\\\\/g, '\\')
-          .replace(/\\n/g, '\n')
-          .replace(/\\t/g, ' ')
-          // Remove hashtags to prevent them from becoming Tana supertags
-          .replace(/#\w+\b/g, '')
-          // Clean up any double spaces that might result from hashtag removal
-          .replace(/\s+/g, ' ')
-          .trim()
+      if (match) {
+        const [, extractedDescription] = match
+        if (extractedDescription) {
+          const cleanedDescription = extractedDescription
+            .replace(/\\u0026/g, '&')
+            .replace(/\\"/g, '"')
+            .replace(/\\\\/g, '\\')
+            .replace(/\\n/g, '\n')
+            .replace(/\\t/g, ' ')
+            // Remove hashtags to prevent them from becoming Tana supertags
+            .replace(/#\w+\b/g, '')
+            // Clean up any double spaces that might result from hashtag removal
+            .replace(/\s+/g, ' ')
+            .trim()
 
-        if (
-          extractedDescription &&
-          extractedDescription.length > 10 &&
-          extractedDescription.length < 5000
-        ) {
-          description = extractedDescription
-          break
+          if (
+            cleanedDescription &&
+            cleanedDescription.length > 10 &&
+            cleanedDescription.length < 5000
+          ) {
+            description = cleanedDescription
+            break
+          }
         }
       }
     }
@@ -886,10 +906,13 @@ async function extractChannelViaWebScraping(videoUrl: string): Promise<{
 
       for (const pattern of metaPatterns) {
         const match = html.match(pattern)
-        if (match && match[1]) {
-          channelName = `@${match[1]}`
-          channelUrl = `https://www.youtube.com/@${match[1]}`
-          break
+        if (match) {
+          const [, handle] = match
+          if (handle) {
+            channelName = `@${handle}`
+            channelUrl = `https://www.youtube.com/@${handle}`
+            break
+          }
         }
       }
     }

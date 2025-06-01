@@ -149,7 +149,8 @@ export function convertToTana(inputText: string | undefined | null): string {
         if (line.isHeader) {
           const match = content.match(/^(#{1,6})\s+(.+)$/)
           if (match) {
-            processedContent = match[2]
+            const [, , headerContent] = match
+            processedContent = headerContent
           }
         } else {
           // Remove list markers but preserve content
@@ -240,7 +241,8 @@ export function convertToTana(inputText: string | undefined | null): string {
     if (line.isHeader) {
       const match = content.match(/^(#{1,6})\s+(.+)$/)
       if (match) {
-        processedContent = match[2]
+        const [, , headerContent] = match
+        processedContent = headerContent
       }
     } else {
       // Remove list markers but preserve content
