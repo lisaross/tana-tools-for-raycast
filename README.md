@@ -16,14 +16,18 @@ Quickly convert text, Markdown, YouTube, and Limitless content to Tana Paste for
 
 ## Browser Compatibility
 
-The extension has been tested and optimized for:
+The extension works seamlessly with **any browser** using a universal approach:
 
-- **Chrome** (primary support)
-- **Safari** (primary support)
-- **Firefox** (enhanced compatibility)
-- **Zen Browser** (enhanced compatibility with specialized Firefox-based optimizations)
+- **Chrome, Safari, Arc** - Uses browser extensions when available for optimal performance
+- **Firefox, Zen Browser** - Uses reliable web scraping for complete metadata extraction  
+- **Any Browser** - Automatically detects the frontmost browser window and extracts YouTube content
 
-The YouTube extraction feature includes special handling for Firefox-based browsers to account for different DOM rendering timing and CSS selector behavior.
+**How it works:** The extension automatically adapts to your browser environment. Whether you're using browser extensions or not, you'll get the same reliable extraction of video titles, channel names, descriptions, and transcripts.
+
+**Multi-Browser Usage:** 
+- The extension always works with whichever browser window is currently frontmost (active)
+- You can switch between different browsers and the extension will follow your focus
+- No setup required - just make sure the YouTube video is open in the active browser window
 
 ## Installation
 
@@ -78,14 +82,15 @@ The YouTube extraction feature includes special handling for Firefox-based brows
 - **YouTube to Tana:**
   1. Go to a YouTube video page in your browser.
   2. Open Raycast and run the "YouTube to Tana" command (bonus: assign it a keyboard shortcut in Raycast Preferences for even faster access).
-  3. Wait for the Raycast HUD notification confirming the result is ready.
-  4. Paste into Tana (⌘+V) — the result will be formatted and chunked for Tana, including video title, URL, channel, description, and transcript.
-  5. Example output:
+  3. Wait for the extraction process to complete (usually takes 2-5 seconds depending on video length and transcript availability).
+  4. **Tana will open automatically** when the extraction is complete and the content is copied to your clipboard.
+  5. Paste into Tana (⌘+V) — the result will be formatted and chunked for Tana, including video title, URL, channel, description, and transcript.
+  6. Example output:
 
       ![YouTube to Tana example output](metadata/04_youtube-tana-transcript.png)
       *Example: YouTube video transcript and metadata pasted into Tana*
 
-  *How it works: Extracts all available metadata and transcript from the YouTube page, organizes it into a Tana-friendly outline, and chunks long transcripts for easy pasting.*
+  *How it works: Extracts all available metadata and transcript from the YouTube page, organizes it into a Tana-friendly outline, chunks long transcripts for easy pasting, and automatically opens Tana when ready. Works with any browser - just keep the YouTube video tab frontmost.*
 
 - **Limitless Pendant/App:** Paste or select Limitless transcriptions and convert them to Tana Paste format.
 
@@ -111,7 +116,7 @@ The YouTube extraction feature includes special handling for Firefox-based brows
 
 **Output:**
 
-```
+```text
 %%tana%%
 - !! My Heading
   - List item

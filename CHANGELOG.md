@@ -1,5 +1,36 @@
 # Tana Tools for Raycast Changelog
 
+## [1.0.0-beta.4] - 2024-12-01
+
+### Fixed
+
+- **Universal Browser Support**: YouTube extraction now works consistently across all browsers (Arc, Safari, Chrome, Zen, Firefox) using unified web scraping approach
+- **Complete Metadata Extraction**: Channel names and descriptions now extracted reliably regardless of browser type
+- **Hashtag Interference**: Removed hashtags (#) from descriptions and transcripts to prevent unwanted Tana supertags
+- **Frontmost Window Detection**: Extension now always works with the actual frontmost browser window
+
+### Enhanced
+
+- **Simplified Architecture**: Replaced complex browser-specific logic with universal web scraping that works everywhere
+- **Direct HTML Parsing**: Channel information extracted directly from YouTube's HTML using robust regex patterns
+- **Improved Description Handling**: Complete video descriptions now properly contained in single Description field
+- **Cross-Browser Reliability**: Same extraction quality whether using browser extensions or AppleScript fallback
+
+### Technical Improvements
+
+- Unified `getFrontmostYouTubeTab()` function that works with any browser
+- Enhanced `extractChannelViaWebScraping()` with channel name, URL, and description extraction
+- Improved hashtag removal in `formatTranscriptForTanaField()` function
+- Streamlined extraction logic removing browser-specific complexity
+- Better error handling with graceful fallbacks
+
+### Notes
+
+- Web scraping approach bypasses browser extension limitations entirely
+- Works identically whether browser extensions are available or not
+- Maintains full functionality: title, channel, description, and transcript extraction
+- Hashtag removal prevents accidental supertag creation in Tana
+
 ## [1.0.0-beta.3] - 2024-12-01
 
 ### Fixed

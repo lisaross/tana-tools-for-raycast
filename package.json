@@ -1,12 +1,12 @@
 {
   "name": "tana-tools-for-raycast",
-  "displayName": "Tana Tools for Raycast",
+  "title": "Tana Tools for Raycast",
   "description": "A collection of tools to work with Tana PKM, including content conversion and clipboard management",
   "icon": "command-icon.png",
   "author": "lisaross",
-  "type": "module",
-  "version": "1.0.0-beta.3",
+  "categories": ["Productivity", "Developer Tools"],
   "license": "MIT",
+  "version": "1.0.0-beta.3",
   "commands": [
     {
       "name": "quick-clipboard-to-tana",
