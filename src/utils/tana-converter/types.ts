@@ -40,9 +40,5 @@ export interface ParsedDate {
  * Configuration constants for the converter
  */
 export const CONSTANTS = {
-  INDENTATION: {
-    TEST_SECTION_ONE: 3, // Special indentation for "Section One" test case
-    STANDARD_SECTION_CHILD_OFFSET: 3, // Standard offset for section children
-  },
   MAX_TRANSCRIPT_CHUNK_SIZE: 7000,
 }

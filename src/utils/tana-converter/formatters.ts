@@ -190,7 +190,8 @@ export function convertFields(text: string): string {
       }
 
       // Check for uppercase first letter in key - often indicates a field
-      if (key[0] === key[0].toUpperCase() && value.split(' ').length <= 5) {
+      const [firstChar] = key
+      if (firstChar === firstChar.toUpperCase() && value.split(' ').length <= 5) {
         return false // Not regular text, it's a field
       }
     }
@@ -291,19 +292,6 @@ export function processCodeBlock(lines: string[]): string {
     .slice(1, -1)
     .map((line) => line.trim())
     .join('\n')
-}
-
-/**
- * Process table row
- * @param text Table row text
- * @returns Processed row text
- */
-export function processTableRow(text: string): string {
-  return text
-    .split('|')
-    .map((cell) => cell.trim())
-    .filter(Boolean)
-    .join(' | ')
 }
 
 /**
