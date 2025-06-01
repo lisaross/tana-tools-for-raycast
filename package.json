@@ -1,15 +1,27 @@
 {
   "name": "tana-tools-for-raycast",
-  "title": "Tana Tools for Raycast",
-  "description": "A collection of tools to work with Tana PKM, including content conversion and clipboard management",
+  "title": "Tana Tools",
+  "description": "Convert text, YouTube videos, and web pages to Tana Paste format",
   "icon": "command-icon.png",
   "author": "lisaross",
   "categories": [
     "Productivity",
     "Developer Tools"
   ],
+  "keywords": [
+    "tana",
+    "pkm",
+    "knowledge",
+    "markdown",
+    "youtube",
+    "converter",
+    "clipboard",
+    "notes",
+    "outline",
+    "productivity"
+  ],
   "license": "MIT",
-  "version": "1.0.0-beta.4",
+  "version": "1.0.0",
   "type": "module",
   "commands": [
     {
@@ -32,7 +44,7 @@
     },
     {
       "name": "youtube-to-tana",
-      "title": "Youtube to Tana",
+      "title": "YouTube to Tana",
       "description": "Extract YouTube video information and convert to Tana Paste format",
       "mode": "no-view"
     },

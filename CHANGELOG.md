@@ -1,5 +1,33 @@
 # Tana Tools for Raycast Changelog
 
+## [1.0.0] - 2024-12-01
+
+### Store Release
+
+- **Initial Store Release**: Ready for Raycast Store submission
+- **Title Case Compliance**: Updated extension and command titles to follow Apple Style Guide
+- **Shortened Description**: Improved store listing with concise description
+- **Version Stability**: Moved from beta to stable release
+
+### Features
+
+- Convert clipboard or selected text to Tana Paste format
+- Edit and preview before converting with interactive form
+- Extract and format YouTube video metadata and transcripts
+- Copy web page content with automatic title and URL extraction
+- Support for Limitless Pendant and App transcriptions
+- Universal browser compatibility (Chrome, Safari, Firefox, Arc, Zen)
+- Automatic Tana app opening after conversion
+- Comprehensive Markdown support (headings, lists, nesting)
+
+### Technical
+
+- TypeScript implementation with Raycast API v1.99.2
+- Robust error handling and user feedback
+- Cross-browser YouTube extraction via web scraping
+- Transcript chunking for large videos
+- Hashtag removal to prevent unwanted supertags
+
 ## [1.0.0-beta.4] - 2024-12-01
 
 ### Fixed
