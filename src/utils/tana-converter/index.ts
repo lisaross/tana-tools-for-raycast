@@ -5,7 +5,7 @@
 import { TextElement, CONSTANTS } from './types'
 import { parseLine, splitMultipleBullets, buildHierarchy } from './line-parser'
 import { convertDates } from './date-formatter'
-import { convertFields, processInlineFormatting, processTableRow } from './formatters'
+import { convertFields, processInlineFormatting } from './formatters'
 import {
   isLimitlessPendantTranscription,
   isNewTranscriptionFormat,
@@ -265,14 +265,4 @@ export function convertToTana(inputText: string | undefined | null): string {
 }
 
 // Re-export types and utility functions that should be publicly available
-export { processTableRow }
 export type { TextElement }
-
-// Convenience exports for testing
-export const _test = {
-  parseLine,
-  buildHierarchy,
-  convertDates,
-  convertFields,
-  processInlineFormatting,
-}

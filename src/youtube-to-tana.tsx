@@ -811,9 +811,7 @@ async function extractChannelViaWebScraping(videoUrl: string): Promise<{
               const [, minutes] = minutesMatch
               const [, seconds] = secondsMatch
               const totalSeconds =
-                parseInt(hours, 10) * 3600 +
-                parseInt(minutes, 10) * 60 +
-                parseInt(seconds, 10)
+                parseInt(hours, 10) * 3600 + parseInt(minutes, 10) * 60 + parseInt(seconds, 10)
               duration = formatDuration(totalSeconds)
               break
             }

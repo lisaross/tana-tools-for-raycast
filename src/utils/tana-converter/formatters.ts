@@ -295,19 +295,6 @@ export function processCodeBlock(lines: string[]): string {
 }
 
 /**
- * Process table row
- * @param text Table row text
- * @returns Processed row text
- */
-export function processTableRow(text: string): string {
-  return text
-    .split('|')
-    .map((cell) => cell.trim())
-    .filter(Boolean)
-    .join(' | ')
-}
-
-/**
  * Format milliseconds timestamp to HH:MM:SS or MM:SS
  * @param ms Timestamp in milliseconds
  * @returns Formatted timestamp string
