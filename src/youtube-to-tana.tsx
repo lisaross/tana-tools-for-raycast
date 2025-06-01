@@ -161,7 +161,7 @@ async function getYouTubeUrlFromAppleScript(): Promise<{ url: string; title?: st
       const urlResult = await execAsync(`osascript -e 'get the clipboard as string'`)
       const clipboardUrl = urlResult.stdout.trim()
 
-      if (clipboardUrl && clipboardUrl.includes('youtube.com/watch')) {
+      if (clipboardUrl?.includes('youtube.com/watch')) {
         return { url: clipboardUrl }
       }
     } catch {
@@ -183,7 +183,7 @@ async function getYouTubeUrlFromAppleScript(): Promise<{ url: string; title?: st
       const urlResult = await execAsync(`osascript -e 'get the clipboard as string'`)
       const clipboardUrl = urlResult.stdout.trim()
 
-      if (clipboardUrl && clipboardUrl.includes('youtube.com/watch')) {
+      if (clipboardUrl?.includes('youtube.com/watch')) {
         return { url: clipboardUrl }
       }
     } catch {
@@ -663,7 +663,261 @@ export default async function Command() {
   }
 }
 
-// Helper function to extract all video metadata via secure web scraping
+/**
+ * Clean and decode HTML entities from extracted text
+ * @param text Raw extracted text
+ * @param options Cleaning options
+ * @returns Cleaned text
+ */
+function cleanExtractedText(
+  text: string,
+  options: {
+    removeHashtags?: boolean
+    preserveNewlines?: boolean
+    maxLength?: number
+  } = {},
+): string {
+  let cleaned = text
+    .replace(/\\u0026/g, '&')
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, '\\')
+
+  if (options.preserveNewlines) {
+    cleaned = cleaned.replace(/\\n/g, '\n')
+  } else {
+    cleaned = cleaned.replace(/\\n/g, ' ')
+  }
+
+  cleaned = cleaned.replace(/\\t/g, ' ')
+
+  if (options.removeHashtags) {
+    // Remove hashtags to prevent them from becoming Tana supertags
+    cleaned = cleaned.replace(/#\w+\b/g, '')
+  }
+
+  // Clean up any double spaces
+  cleaned = cleaned.replace(/\s+/g, ' ').trim()
+
+  return cleaned
+}
+
+/**
+ * Extract video title from HTML content
+ * @param html HTML content from YouTube page
+ * @returns Extracted and cleaned title
+ */
+function extractTitleFromHtml(html: string): string {
+  const titlePatterns = [
+    /"title":"([^"]+)"/,
+    /"videoDetails":[^}]*"title":"([^"]+)"/,
+    /<title>([^<]+)<\/title>/,
+    /"headline":"([^"]+)"/,
+    /"name":"([^"]+)","description"/,
+  ]
+
+  for (const pattern of titlePatterns) {
+    const match = html.match(pattern)
+    if (match) {
+      const [, extractedTitle] = match
+      if (extractedTitle) {
+        const cleanedTitle = cleanExtractedText(extractedTitle)
+          .replace(/ - YouTube$/, '')
+          .replace(/^\(\d+\)\s*/, '') // Remove notification count
+
+        if (cleanedTitle && cleanedTitle.length > 0 && cleanedTitle.length < 300) {
+          return cleanedTitle
+        }
+      }
+    }
+  }
+
+  return 'YouTube Video'
+}
+
+/**
+ * Extract channel information from HTML content
+ * @param html HTML content from YouTube page
+ * @returns Object containing channel name and URL
+ */
+function extractChannelFromHtml(html: string): { name: string; url: string } {
+  const channelNamePatterns = [
+    /"ownerChannelName":"([^"]+)"/,
+    /"author":"([^"]+)"/,
+    /"channelName":"([^"]+)"/,
+    /,"name":"([^"]+)","url":"[^"]*\/@[^"]+"/,
+    /,"name":"([^"]+)","url":"[^"]*\/channel\/[^"]+"/,
+  ]
+
+  const channelUrlPatterns = [
+    /"ownerChannelName":"[^"]+","channelId":"([^"]+)"/,
+    /"externalChannelId":"([^"]+)"/,
+    /,"canonicalChannelUrl":"([^"]+)"/,
+    /href="(\/channel\/[^"]+)"/,
+    /href="(\/@[^"]+)"/,
+  ]
+
+  let channelName = 'Unknown Channel'
+  let channelUrl = 'https://www.youtube.com'
+
+  // Extract channel name
+  for (const pattern of channelNamePatterns) {
+    const match = html.match(pattern)
+    if (match) {
+      const [, extractedName] = match
+      if (extractedName) {
+        const cleanedName = cleanExtractedText(extractedName)
+
+        if (cleanedName && cleanedName.length > 0 && cleanedName.length < 100) {
+          channelName = cleanedName
+          break
+        }
+      }
+    }
+  }
+
+  // Extract channel URL
+  for (const pattern of channelUrlPatterns) {
+    const match = html.match(pattern)
+    if (match) {
+      const [, extractedUrl] = match
+      if (extractedUrl) {
+        let cleanedUrl = extractedUrl.trim()
+
+        // Handle different URL formats
+        if (cleanedUrl.startsWith('/channel/') || cleanedUrl.startsWith('/@')) {
+          cleanedUrl = `https://www.youtube.com${cleanedUrl}`
+        } else if (cleanedUrl.startsWith('UC') && cleanedUrl.length === 24) {
+          // This is a channel ID
+          cleanedUrl = `https://www.youtube.com/channel/${cleanedUrl}`
+        } else if (!cleanedUrl.startsWith('http')) {
+          continue // Skip invalid URLs
+        }
+
+        channelUrl = cleanedUrl
+        break
+      }
+    }
+  }
+
+  // Additional fallback: try to find channel handle in meta tags
+  if (channelName === 'Unknown Channel') {
+    const metaPatterns = [
+      /<meta property="og:url" content="[^"]*\/@([^"/]+)"/,
+      /<link rel="canonical" href="[^"]*\/@([^"/]+)"/,
+    ]
+
+    for (const pattern of metaPatterns) {
+      const match = html.match(pattern)
+      if (match) {
+        const [, handle] = match
+        if (handle) {
+          channelName = `@${handle}`
+          channelUrl = `https://www.youtube.com/@${handle}`
+          break
+        }
+      }
+    }
+  }
+
+  return { name: channelName, url: channelUrl }
+}
+
+/**
+ * Extract video description from HTML content
+ * @param html HTML content from YouTube page
+ * @returns Extracted and cleaned description
+ */
+function extractDescriptionFromHtml(html: string): string {
+  const descriptionPatterns = [
+    /"description":"([^"]+)"/,
+    /"shortDescription":"([^"]+)"/,
+    /"attributedDescription":{"content":"([^"]+)"/,
+    /"videoDetails":[^}]*"shortDescription":"([^"]+)"/,
+  ]
+
+  for (const pattern of descriptionPatterns) {
+    const match = html.match(pattern)
+    if (match) {
+      const [, extractedDescription] = match
+      if (extractedDescription) {
+        const cleanedDescription = cleanExtractedText(extractedDescription, {
+          removeHashtags: true,
+          preserveNewlines: true,
+        })
+
+        if (
+          cleanedDescription &&
+          cleanedDescription.length > 10 &&
+          cleanedDescription.length < 5000
+        ) {
+          return cleanedDescription
+        }
+      }
+    }
+  }
+
+  return 'Description not available'
+}
+
+/**
+ * Extract video duration from HTML content
+ * @param html HTML content from YouTube page
+ * @returns Formatted duration string or undefined if not found
+ */
+function extractDurationFromHtml(html: string): string | undefined {
+  const durationPatterns = [
+    /"lengthSeconds":"(\d+)"/,
+    /"videoDetails":[^}]*"lengthSeconds":"(\d+)"/,
+    /<meta property="video:duration" content="(\d+)"/,
+    /"duration":"PT(\d+)S"/,
+    /"duration":"PT(\d+M\d+S)"/,
+    /"duration":"PT(\d+H\d+M\d+S)"/,
+  ]
+
+  for (const pattern of durationPatterns) {
+    const match = html.match(pattern)
+    if (match) {
+      const [, durationValue] = match
+      if (durationValue) {
+        // Handle different duration formats
+        if (/^\d+$/.test(durationValue)) {
+          // Duration in seconds
+          const seconds = parseInt(durationValue, 10)
+          if (seconds > 0 && seconds < 86400) {
+            // Reasonable range (0-24 hours)
+            return formatDuration(seconds)
+          }
+        } else if (/^\d+M\d+S$/.test(durationValue)) {
+          // Format like "5M30S"
+          const minutesMatch = durationValue.match(/(\d+)M/)
+          const secondsMatch = durationValue.match(/(\d+)S/)
+          if (minutesMatch && secondsMatch) {
+            const [, minutes] = minutesMatch
+            const [, seconds] = secondsMatch
+            const totalSeconds = parseInt(minutes, 10) * 60 + parseInt(seconds, 10)
+            return formatDuration(totalSeconds)
+          }
+        } else if (/^\d+H\d+M\d+S$/.test(durationValue)) {
+          // Format like "1H5M30S"
+          const hoursMatch = durationValue.match(/(\d+)H/)
+          const minutesMatch = durationValue.match(/(\d+)M/)
+          const secondsMatch = durationValue.match(/(\d+)S/)
+          if (hoursMatch && minutesMatch && secondsMatch) {
+            const [, hours] = hoursMatch
+            const [, minutes] = minutesMatch
+            const [, seconds] = secondsMatch
+            const totalSeconds =
+              parseInt(hours, 10) * 3600 + parseInt(minutes, 10) * 60 + parseInt(seconds, 10)
+            return formatDuration(totalSeconds)
+          }
+        }
+      }
+    }
+  }
+
+  return undefined
+}
+
 async function extractChannelViaWebScraping(videoUrl: string): Promise<{
   title: string
   channelName: string
@@ -697,234 +951,20 @@ async function extractChannelViaWebScraping(videoUrl: string): Promise<{
       throw new Error('Failed to fetch page HTML or content too short')
     }
 
-    // Extract video information using regex patterns
-    // YouTube embeds JSON data in the HTML that contains structured video info
-
-    // Pattern 1: Look for video title
-    const titlePatterns = [
-      /"title":"([^"]+)"/,
-      /"videoDetails":[^}]*"title":"([^"]+)"/,
-      /<title>([^<]+)<\/title>/,
-      /"headline":"([^"]+)"/,
-      /"name":"([^"]+)","description"/,
-    ]
-
-    // Pattern 2: Look for channel name in video metadata
-    const channelNamePatterns = [
-      /"ownerChannelName":"([^"]+)"/,
-      /"author":"([^"]+)"/,
-      /"channelName":"([^"]+)"/,
-      /,"name":"([^"]+)","url":"[^"]*\/@[^"]+"/,
-      /,"name":"([^"]+)","url":"[^"]*\/channel\/[^"]+"/,
-    ]
-
-    // Pattern 3: Look for channel URL/ID
-    const channelUrlPatterns = [
-      /"ownerChannelName":"[^"]+","channelId":"([^"]+)"/,
-      /"externalChannelId":"([^"]+)"/,
-      /,"canonicalChannelUrl":"([^"]+)"/,
-      /href="(\/channel\/[^"]+)"/,
-      /href="(\/@[^"]+)"/,
-    ]
-
-    // Pattern 4: Look for video description
-    const descriptionPatterns = [
-      /"description":"([^"]+)"/,
-      /"shortDescription":"([^"]+)"/,
-      /"attributedDescription":{"content":"([^"]+)"/,
-      /"videoDetails":[^}]*"shortDescription":"([^"]+)"/,
-    ]
-
-    // Pattern 5: Look for video duration
-    const durationPatterns = [
-      /"lengthSeconds":"(\d+)"/,
-      /"videoDetails":[^}]*"lengthSeconds":"(\d+)"/,
-      /<meta property="video:duration" content="(\d+)"/,
-      /"duration":"PT(\d+)S"/,
-      /"duration":"PT(\d+M\d+S)"/,
-      /"duration":"PT(\d+H\d+M\d+S)"/,
-    ]
-
-    let title = 'YouTube Video'
-    let channelName = 'Unknown Channel'
-    let channelUrl = 'https://www.youtube.com'
-    let description = 'Description not available'
-    let duration: string | undefined
-
-    // Extract title
-    for (const pattern of titlePatterns) {
-      const match = html.match(pattern)
-      if (match) {
-        const [, extractedTitle] = match
-        if (extractedTitle) {
-          const cleanedTitle = extractedTitle
-            .replace(/\\u0026/g, '&')
-            .replace(/\\"/g, '"')
-            .replace(/\\\\/g, '\\')
-            .replace(/\\n/g, ' ')
-            .replace(/\\t/g, ' ')
-            .replace(/ - YouTube$/, '')
-            .replace(/^\(\d+\)\s*/, '') // Remove notification count
-            .trim()
-
-          if (cleanedTitle && cleanedTitle.length > 0 && cleanedTitle.length < 200) {
-            title = cleanedTitle
-            break
-          }
-        }
-      }
-    }
-
-    // Extract duration
-    for (const pattern of durationPatterns) {
-      const match = html.match(pattern)
-      if (match) {
-        const [, durationValue] = match
-        if (durationValue) {
-          // Handle different duration formats
-          if (/^\d+$/.test(durationValue)) {
-            // Duration in seconds
-            const seconds = parseInt(durationValue, 10)
-            if (seconds > 0 && seconds < 86400) {
-              // Reasonable range (0-24 hours)
-              duration = formatDuration(seconds)
-              break
-            }
-          } else if (/^\d+M\d+S$/.test(durationValue)) {
-            // Format like "5M30S"
-            const minutesMatch = durationValue.match(/(\d+)M/)
-            const secondsMatch = durationValue.match(/(\d+)S/)
-            if (minutesMatch && secondsMatch) {
-              const [, minutes] = minutesMatch
-              const [, seconds] = secondsMatch
-              const totalSeconds = parseInt(minutes, 10) * 60 + parseInt(seconds, 10)
-              duration = formatDuration(totalSeconds)
-              break
-            }
-          } else if (/^\d+H\d+M\d+S$/.test(durationValue)) {
-            // Format like "1H5M30S"
-            const hoursMatch = durationValue.match(/(\d+)H/)
-            const minutesMatch = durationValue.match(/(\d+)M/)
-            const secondsMatch = durationValue.match(/(\d+)S/)
-            if (hoursMatch && minutesMatch && secondsMatch) {
-              const [, hours] = hoursMatch
-              const [, minutes] = minutesMatch
-              const [, seconds] = secondsMatch
-              const totalSeconds =
-                parseInt(hours, 10) * 3600 + parseInt(minutes, 10) * 60 + parseInt(seconds, 10)
-              duration = formatDuration(totalSeconds)
-              break
-            }
-          }
-        }
-      }
-    }
-
-    // Extract channel name
-    for (const pattern of channelNamePatterns) {
-      const match = html.match(pattern)
-      if (match) {
-        const [, extractedName] = match
-        if (extractedName) {
-          // Decode HTML entities and clean up
-          const cleanedName = extractedName
-            .replace(/\\u0026/g, '&')
-            .replace(/\\"/g, '"')
-            .replace(/\\\\/g, '\\')
-            .trim()
-
-          if (cleanedName && cleanedName.length > 0 && cleanedName.length < 100) {
-            channelName = cleanedName
-            break
-          }
-        }
-      }
-    }
-
-    // Extract channel URL
-    for (const pattern of channelUrlPatterns) {
-      const match = html.match(pattern)
-      if (match) {
-        const [, extractedUrl] = match
-        if (extractedUrl) {
-          let cleanedUrl = extractedUrl.trim()
-
-          // Handle different URL formats
-          if (cleanedUrl.startsWith('/channel/') || cleanedUrl.startsWith('/@')) {
-            cleanedUrl = `https://www.youtube.com${cleanedUrl}`
-          } else if (cleanedUrl.startsWith('UC') && cleanedUrl.length === 24) {
-            // This is a channel ID
-            cleanedUrl = `https://www.youtube.com/channel/${cleanedUrl}`
-          } else if (!cleanedUrl.startsWith('http')) {
-            continue // Skip invalid URLs
-          }
-
-          channelUrl = cleanedUrl
-          break
-        }
-      }
-    }
-
-    // Extract description
-    for (const pattern of descriptionPatterns) {
-      const match = html.match(pattern)
-      if (match) {
-        const [, extractedDescription] = match
-        if (extractedDescription) {
-          const cleanedDescription = extractedDescription
-            .replace(/\\u0026/g, '&')
-            .replace(/\\"/g, '"')
-            .replace(/\\\\/g, '\\')
-            .replace(/\\n/g, '\n')
-            .replace(/\\t/g, ' ')
-            // Remove hashtags to prevent them from becoming Tana supertags
-            .replace(/#\w+\b/g, '')
-            // Clean up any double spaces that might result from hashtag removal
-            .replace(/\s+/g, ' ')
-            .trim()
-
-          if (
-            cleanedDescription &&
-            cleanedDescription.length > 10 &&
-            cleanedDescription.length < 5000
-          ) {
-            description = cleanedDescription
-            break
-          }
-        }
-      }
-    }
-
-    // Additional fallback: try to find channel handle in meta tags
-    if (channelName === 'Unknown Channel') {
-      const metaPatterns = [
-        /<meta property="og:url" content="[^"]*\/@([^"/]+)"/,
-        /<link rel="canonical" href="[^"]*\/@([^"/]+)"/,
-      ]
-
-      for (const pattern of metaPatterns) {
-        const match = html.match(pattern)
-        if (match) {
-          const [, handle] = match
-          if (handle) {
-            channelName = `@${handle}`
-            channelUrl = `https://www.youtube.com/@${handle}`
-            break
-          }
-        }
-      }
-    }
+    // Extract video information using helper functions
+    const title = extractTitleFromHtml(html)
+    const { name: channelName, url: channelUrl } = extractChannelFromHtml(html)
+    const description = extractDescriptionFromHtml(html)
+    const duration = extractDurationFromHtml(html)
 
     // Return all extracted data
-    const result = {
+    return {
       title,
       channelName,
       channelUrl,
       description,
       duration,
     }
-
-    return result
   } catch {
     return null
   }
