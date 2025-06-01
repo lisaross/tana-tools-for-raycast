@@ -125,24 +125,32 @@ async function getYouTubeUrlFromAppleScript(): Promise<{ url: string; title?: st
       `osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`,
     )
     const frontApp = frontAppResult.stdout.trim()
-    console.log(`🎯 Frontmost application detected: "${frontApp}"`)
 
-    // STRICT CHECK: Only proceed if the frontmost app is a browser we want to work with
-    const isSupportedBrowser =
-      frontApp.toLowerCase().includes('zen') ||
-      frontApp.toLowerCase().includes('firefox') ||
-      frontApp.toLowerCase().includes('chrome') ||
-      frontApp.toLowerCase().includes('safari') ||
-      frontApp.toLowerCase().includes('arc')
+    // INCLUSIVE CHECK: Exclude only clearly unsupported applications instead of maintaining a restrictive allow-list
+    // This allows Chromium-based browsers (Brave, Edge, Vivaldi, Opera) and other browsers with similar shortcuts
+    const frontAppLower = frontApp.toLowerCase()
+    const isUnsupportedApp =
+      frontAppLower.includes('finder') ||
+      frontAppLower.includes('terminal') ||
+      frontAppLower.includes('textedit') ||
+      frontAppLower.includes('notes') ||
+      frontAppLower.includes('mail') ||
+      frontAppLower.includes('calendar') ||
+      frontAppLower.includes('messages') ||
+      frontAppLower.includes('facetime') ||
+      frontAppLower.includes('music') ||
+      frontAppLower.includes('tv') ||
+      frontAppLower.includes('photos') ||
+      frontAppLower.includes('preview') ||
+      frontAppLower.includes('calculator') ||
+      frontAppLower.includes('system preferences') ||
+      frontAppLower.includes('activity monitor') ||
+      frontAppLower.includes('console') ||
+      frontAppLower.includes('disk utility')
 
-    if (!isSupportedBrowser) {
-      console.log(
-        `❌ Frontmost app "${frontApp}" is not a supported browser, skipping AppleScript method`,
-      )
+    if (isUnsupportedApp) {
       return null
     }
-
-    console.log(`✅ Working with frontmost browser: ${frontApp}`)
 
     try {
       await execAsync(
@@ -154,11 +162,10 @@ async function getYouTubeUrlFromAppleScript(): Promise<{ url: string; title?: st
       const clipboardUrl = urlResult.stdout.trim()
 
       if (clipboardUrl && clipboardUrl.includes('youtube.com/watch')) {
-        console.log('✅ Successfully got YouTube URL via cmd+shift+c')
         return { url: clipboardUrl }
       }
-    } catch (error) {
-      console.log('❌ Failed to get URL via cmd+shift+c:', error)
+    } catch {
+      // Try fallback method
     }
 
     // Fallback: Try selecting address bar and copying (cmd+l, cmd+c)
@@ -177,16 +184,14 @@ async function getYouTubeUrlFromAppleScript(): Promise<{ url: string; title?: st
       const clipboardUrl = urlResult.stdout.trim()
 
       if (clipboardUrl && clipboardUrl.includes('youtube.com/watch')) {
-        console.log('✅ Successfully got YouTube URL via address bar')
         return { url: clipboardUrl }
       }
-    } catch (error) {
-      console.log('❌ Failed to get URL via address bar:', error)
+    } catch {
+      // Both methods failed
     }
 
     return null
-  } catch (error) {
-    console.log('❌ AppleScript fallback failed:', error instanceof Error ? error.message : error)
+  } catch {
     return null
   }
 }
@@ -198,10 +203,8 @@ async function getYouTubeUrlFromAppleScript(): Promise<{ url: string; title?: st
 async function getFrontmostYouTubeTab(): Promise<TabInfo | null> {
   // PRIORITY 1: Use AppleScript first - this respects the frontmost browser
   try {
-    console.log('🎯 Checking frontmost browser first via AppleScript...')
     const appleScriptResult = await getYouTubeUrlFromAppleScript()
     if (appleScriptResult) {
-      console.log('✅ Got YouTube URL from frontmost browser via AppleScript')
       // Try to get the corresponding tab ID for browser extension access
       try {
         const tabs = await BrowserExtension.getTabs()
@@ -210,15 +213,14 @@ async function getFrontmostYouTubeTab(): Promise<TabInfo | null> {
         )
 
         if (matchingTab?.id) {
-          console.log('✅ Found matching tab with browser extension access')
           return {
             url: matchingTab.url,
             tabId: matchingTab.id,
             title: matchingTab.title || appleScriptResult.title,
           }
         }
-      } catch (tabError) {
-        console.log('⚠️ Could not get tab ID for browser extension access:', tabError)
+      } catch {
+        // Could not get browser extension access, continue with AppleScript result
       }
 
       // Return AppleScript result even without tab ID
@@ -227,31 +229,26 @@ async function getFrontmostYouTubeTab(): Promise<TabInfo | null> {
         title: appleScriptResult.title,
       }
     }
-  } catch (error) {
-    console.log('⚠️ AppleScript method failed, trying browser extension fallback:', error)
+  } catch {
+    // AppleScript method failed, try browser extension fallback
   }
 
   // PRIORITY 2: Fallback to browser extension API (may not respect frontmost browser)
   try {
-    console.log('🔄 Fallback: Checking browser extension tabs...')
     const tabs = await BrowserExtension.getTabs()
     const activeTab = tabs.find((tab) => tab.active && tab.url?.includes('youtube.com/watch'))
 
     if (activeTab?.id && activeTab.url) {
-      console.log(
-        '⚠️ Found active YouTube tab via browser extension (may be from background browser)',
-      )
       return {
         url: activeTab.url,
         tabId: activeTab.id,
         title: activeTab.title,
       }
     }
-  } catch (error) {
-    console.log('❌ Browser extension method also failed:', error)
+  } catch {
+    // Browser extension method also failed
   }
 
-  console.log('❌ No YouTube tab found in frontmost browser')
   return null
 }
 
@@ -260,8 +257,6 @@ async function getFrontmostYouTubeTab(): Promise<TabInfo | null> {
  */
 async function extractVideoInfo(): Promise<VideoInfo> {
   try {
-    console.log('🔍 Starting video info extraction...')
-
     // Get the frontmost YouTube tab with better selection logic
     const activeTab = await getFrontmostYouTubeTab()
 
@@ -274,7 +269,6 @@ async function extractVideoInfo(): Promise<VideoInfo> {
     // Extract the video ID from URL
     const urlObj = new URL(activeTab.url)
     const videoId = urlObj.searchParams.get('v')
-    console.log(`🆔 Video ID extracted: ${videoId}`)
 
     if (!videoId) {
       throw new Error('Could not extract video ID from the URL.')
@@ -294,8 +288,6 @@ async function extractVideoInfo(): Promise<VideoInfo> {
         const channelUrl = webScrapingResult.channelUrl
         const description = webScrapingResult.description
 
-        console.log(`✅ Web scraping successful: "${title}" by "${channelName}" -> ${channelUrl}`)
-
         // Include duration in result if available
         const result = {
           title: decodeHTMLEntities(title.trim()),
@@ -307,18 +299,10 @@ async function extractVideoInfo(): Promise<VideoInfo> {
           duration: webScrapingResult.duration,
         }
 
-        console.log('✅ Video info extraction completed successfully:', {
-          title: result.title.substring(0, 50) + '...',
-          channel: result.channelName,
-          videoId: result.videoId,
-          duration: result.duration,
-          descriptionLength: result.description.length,
-        })
-
         return result
       }
-    } catch (error) {
-      console.log('⚠️ Web scraping error:', error)
+    } catch {
+      // Web scraping failed, continue to fallback
     }
 
     // Final fallback result (only reached if web scraping failed)
@@ -332,13 +316,6 @@ async function extractVideoInfo(): Promise<VideoInfo> {
       description: 'Description not available',
       duration: undefined, // No duration available in fallback mode
     }
-
-    console.log('⚠️ Using fallback video info (no duration available):', {
-      title: result.title.substring(0, 50) + '...',
-      channel: result.channelName,
-      videoId: result.videoId,
-      descriptionLength: result.description.length,
-    })
 
     // Return complete VideoInfo
     return result
@@ -359,18 +336,14 @@ async function extractVideoInfo(): Promise<VideoInfo> {
 /**
  * Validates transcript quality to ensure it's substantial enough to be useful
  */
-function validateTranscriptQuality(transcript: string, videoId: string): boolean {
+function validateTranscriptQuality(transcript: string): boolean {
   if (!transcript || transcript.trim().length === 0) {
-    console.log(`Transcript validation failed for ${videoId}: Empty transcript`)
     return false
   }
 
   // Check if transcript is too short (likely incomplete)
   const minLength = 50 // Minimum 50 characters for a meaningful transcript
   if (transcript.trim().length < minLength) {
-    console.log(
-      `Transcript validation failed for ${videoId}: Too short (${transcript.length} chars)`,
-    )
     return false
   }
 
@@ -380,9 +353,6 @@ function validateTranscriptQuality(transcript: string, videoId: string): boolean
     .split(/\s+/)
     .filter((word) => /[a-zA-Z]/.test(word)).length
   if (wordCount < 10) {
-    console.log(
-      `Transcript validation failed for ${videoId}: Too few meaningful words (${wordCount})`,
-    )
     return false
   }
 
@@ -396,14 +366,10 @@ function validateTranscriptQuality(transcript: string, videoId: string): boolean
 
   for (const pattern of errorPatterns) {
     if (pattern.test(transcript)) {
-      console.log(`Transcript validation failed for ${videoId}: Contains error pattern`)
       return false
     }
   }
 
-  console.log(
-    `Transcript validation passed for ${videoId}: ${transcript.length} chars, ${wordCount} words`,
-  )
   return true
 }
 
@@ -416,8 +382,6 @@ async function extractTranscript(videoId: string): Promise<string> {
 
   for (let attempt = 0; attempt < maxRetries; attempt += 1) {
     try {
-      console.log(`Transcript extraction attempt ${attempt + 1}/${maxRetries} for video ${videoId}`)
-
       // Fetch transcript using the youtube-transcript library
       const transcriptData = await YoutubeTranscript.fetchTranscript(videoId, {
         // Add timeout and other options to make it more reliable
@@ -435,7 +399,7 @@ async function extractTranscript(videoId: string): Promise<string> {
 
       for (const segment of transcriptData) {
         // Check if we need a paragraph break (if there's a significant time gap)
-        const currentTime = Math.floor(segment.offset / 1000)
+        const currentTime = Math.floor(segment.offset)
 
         if (lastTime !== -1 && currentTime - lastTime > paragraphBreakThreshold) {
           // Use a consistent paragraph separator that we can easily handle later
@@ -466,19 +430,16 @@ async function extractTranscript(videoId: string): Promise<string> {
       }
 
       // Validate transcript quality
-      if (!validateTranscriptQuality(finalTranscript, videoId)) {
+      if (!validateTranscriptQuality(finalTranscript)) {
         throw new Error(
           'Transcript quality validation failed - transcript may be incomplete or invalid',
         )
       }
 
-      console.log(`Successfully extracted transcript on attempt ${attempt + 1}`)
       return finalTranscript
     } catch (error) {
       const isLastAttempt = attempt === maxRetries - 1
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-
-      console.error(`Transcript extraction attempt ${attempt + 1} failed:`, errorMessage)
 
       if (isLastAttempt) {
         // On the final attempt, throw a more specific error
@@ -505,7 +466,6 @@ async function extractTranscript(videoId: string): Promise<string> {
 
       // Wait before retrying, with exponential backoff
       const delay = baseDelay * Math.pow(1.5, attempt)
-      console.log(`Waiting ${delay}ms before retry...`)
       await new Promise((resolve) => setTimeout(resolve, delay))
     }
   }
@@ -522,8 +482,6 @@ async function extractTranscriptWithLanguageFallbacks(videoId: string): Promise<
 
   for (const lang of languageCodes) {
     try {
-      console.log(`Trying transcript extraction with language: ${lang || 'default'}`)
-
       const options = lang ? { lang } : {}
       const transcriptData = await YoutubeTranscript.fetchTranscript(videoId, options)
 
@@ -534,7 +492,7 @@ async function extractTranscriptWithLanguageFallbacks(videoId: string): Promise<
         const paragraphBreakThreshold = 10 // Consistent with main function
 
         for (const segment of transcriptData) {
-          const currentTime = Math.floor(segment.offset / 1000)
+          const currentTime = Math.floor(segment.offset)
 
           if (lastTime !== -1 && currentTime - lastTime > paragraphBreakThreshold) {
             formattedTranscript += ' [PARAGRAPH_BREAK] '
@@ -559,15 +517,10 @@ async function extractTranscriptWithLanguageFallbacks(videoId: string): Promise<
           .trim()
 
         if (result) {
-          console.log(`Successfully extracted transcript with language: ${lang || 'default'}`)
           return result
         }
       }
-    } catch (error) {
-      console.log(
-        `Language ${lang || 'default'} failed:`,
-        error instanceof Error ? error.message : 'Unknown error',
-      )
+    } catch {
       // Continue to next language
     }
   }
@@ -660,16 +613,12 @@ export default async function Command() {
       const transcript = await extractTranscript(videoInfo.videoId)
       videoInfo.transcript = transcript
       transcriptSuccess = true
-      console.log('Transcript extracted successfully with primary method')
     } catch (transcriptError) {
-      console.log('Primary transcript extraction failed, trying language fallbacks...')
-
       try {
         // Fallback to language-specific extraction
         const transcript = await extractTranscriptWithLanguageFallbacks(videoInfo.videoId)
         videoInfo.transcript = transcript
         transcriptSuccess = true
-        console.log('Transcript extracted successfully with language fallbacks')
       } catch (fallbackError) {
         // Show a toast but continue with video info only
         const primaryError =
@@ -682,8 +631,6 @@ export default async function Command() {
           title: 'Transcript Extraction Failed',
           message: `Primary: ${primaryError}. Fallback: ${fallbackErrorMsg}`,
         })
-
-        console.log('All transcript extraction methods failed')
       }
     }
 
@@ -723,14 +670,11 @@ async function extractChannelViaWebScraping(videoUrl: string): Promise<{
   duration?: string
 } | null> {
   try {
-    console.log('🌐 Attempting direct web scraping for all video metadata...')
-
     // Use execFile instead of shell execution to prevent command injection
     // Pass arguments separately instead of interpolating into command string
     const userAgent =
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
-    console.log('📡 Fetching YouTube page HTML...')
     const htmlResult = await execFileAsync(
       'curl',
       [
@@ -750,8 +694,6 @@ async function extractChannelViaWebScraping(videoUrl: string): Promise<{
     if (!html || html.length < 1000) {
       throw new Error('Failed to fetch page HTML or content too short')
     }
-
-    console.log(`✅ Fetched HTML content (${html.length} characters)`)
 
     // Extract video information using regex patterns
     // YouTube embeds JSON data in the HTML that contains structured video info
@@ -823,7 +765,6 @@ async function extractChannelViaWebScraping(videoUrl: string): Promise<{
 
         if (extractedTitle && extractedTitle.length > 0 && extractedTitle.length < 200) {
           title = extractedTitle
-          console.log(`🎯 Found title via pattern: "${title}"`)
           break
         }
       }
@@ -842,7 +783,6 @@ async function extractChannelViaWebScraping(videoUrl: string): Promise<{
           if (seconds > 0 && seconds < 86400) {
             // Reasonable range (0-24 hours)
             duration = formatDuration(seconds)
-            console.log(`⏱️ Found duration: ${duration} (${seconds} seconds)`)
             break
           }
         } else if (/^\d+M\d+S$/.test(durationValue)) {
@@ -852,7 +792,6 @@ async function extractChannelViaWebScraping(videoUrl: string): Promise<{
           if (minutesMatch && secondsMatch) {
             const totalSeconds = parseInt(minutesMatch[1], 10) * 60 + parseInt(secondsMatch[1], 10)
             duration = formatDuration(totalSeconds)
-            console.log(`⏱️ Found duration: ${duration}`)
             break
           }
         } else if (/^\d+H\d+M\d+S$/.test(durationValue)) {
@@ -866,7 +805,6 @@ async function extractChannelViaWebScraping(videoUrl: string): Promise<{
               parseInt(minutesMatch[1], 10) * 60 +
               parseInt(secondsMatch[1], 10)
             duration = formatDuration(totalSeconds)
-            console.log(`⏱️ Found duration: ${duration}`)
             break
           }
         }
@@ -886,7 +824,6 @@ async function extractChannelViaWebScraping(videoUrl: string): Promise<{
 
         if (extractedName && extractedName.length > 0 && extractedName.length < 100) {
           channelName = extractedName
-          console.log(`🎯 Found channel name via pattern: "${channelName}"`)
           break
         }
       }
@@ -909,7 +846,6 @@ async function extractChannelViaWebScraping(videoUrl: string): Promise<{
         }
 
         channelUrl = extractedUrl
-        console.log(`🔗 Found channel URL via pattern: "${channelUrl}"`)
         break
       }
     }
@@ -936,7 +872,6 @@ async function extractChannelViaWebScraping(videoUrl: string): Promise<{
           extractedDescription.length < 5000
         ) {
           description = extractedDescription
-          console.log(`📄 Found description via pattern: "${description.substring(0, 100)}..."`)
           break
         }
       }
@@ -954,7 +889,6 @@ async function extractChannelViaWebScraping(videoUrl: string): Promise<{
         if (match && match[1]) {
           channelName = `@${match[1]}`
           channelUrl = `https://www.youtube.com/@${match[1]}`
-          console.log(`🎯 Found channel via meta tags: "${channelName}"`)
           break
         }
       }
@@ -969,12 +903,8 @@ async function extractChannelViaWebScraping(videoUrl: string): Promise<{
       duration,
     }
 
-    console.log(
-      `✅ Successfully extracted via web scraping: "${title}" by "${channelName}" -> ${channelUrl}`,
-    )
     return result
-  } catch (error) {
-    console.log('❌ Web scraping failed:', error instanceof Error ? error.message : error)
+  } catch {
     return null
   }
 }
