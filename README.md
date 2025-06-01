@@ -12,6 +12,18 @@ Quickly convert text, Markdown, YouTube, and Limitless content to Tana Paste for
 - Extract and format YouTube video metadata and transcripts (with transcript chunking for large videos)
 - Supports Limitless Pendant and Limitless App transcriptions
 - Supports most Markdown transformations (headings, lists, paragraphs, nesting, etc.)
+- **Compatible with multiple browsers**: Chrome, Safari, Firefox, and Zen Browser
+
+## Browser Compatibility
+
+The extension has been tested and optimized for:
+
+- **Chrome** (primary support)
+- **Safari** (primary support)
+- **Firefox** (enhanced compatibility)
+- **Zen Browser** (enhanced compatibility with specialized Firefox-based optimizations)
+
+The YouTube extraction feature includes special handling for Firefox-based browsers to account for different DOM rendering timing and CSS selector behavior.
 
 ## Installation
 

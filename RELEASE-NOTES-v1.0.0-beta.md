@@ -5,12 +5,14 @@ Welcome to the **first beta release** of Tana Tools for Raycast!
 This extension makes it easy to turn text, web content, and YouTube transcripts into a format you can paste directly into [Tana](https://tana.inc).
 
 ## What is this?
+
 - **Tana Tools for Raycast** is a set of simple commands you can run from [Raycast](https://raycast.com/) (a free Mac app) to quickly convert all kinds of content into Tana’s special “Paste” format.
 - You don’t need to know any code or be a developer to use it!
 
 ---
 
 ## 🚀 What Can You Do With This Extension?
+
 - **Convert any text or Markdown** (from your clipboard or selection) into a Tana outline, ready to paste.
 - **Clip the main content from any web page** (just the important stuff, not ads or menus) and turn it into a clean Tana outline.
 - **Extract YouTube video transcripts and details** and format them for Tana, including the video title, URL, and transcript.
@@ -20,6 +22,7 @@ This extension makes it easy to turn text, web content, and YouTube transcripts 
 ---
 
 ## 🛠️ How Do I Use It?
+
 1. **Install Raycast** (if you haven’t already): [Download here](https://raycast.com/)
 2. **Install this extension** (see the README for setup instructions).
 3. **Use the commands**:
@@ -31,6 +34,7 @@ This extension makes it easy to turn text, web content, and YouTube transcripts 
 ---
 
 ## 💡 Why Use This?
+
 - **Saves time:** No more manual reformatting for Tana.
 - **Works with lots of content:** Web pages, YouTube, Markdown, and more.
 - **No technical skills needed:** Just copy, run the command, and paste.
@@ -38,5 +42,6 @@ This extension makes it easy to turn text, web content, and YouTube transcripts 
 ---
 
 ## 📝 Feedback
+
 This is a **beta** release—your feedback is welcome!
 If you have questions or suggestions, just open an issue on GitHub or contact Lisa Ross.

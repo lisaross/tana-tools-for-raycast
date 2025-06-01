@@ -1,11 +1,11 @@
 {
   "name": "tana-tools-for-raycast",
-  "title": "Tana Tools for Raycast",
-  "description": "Convert text and Markdown to Tana Paste format and more for Tana via Raycast.",
+  "displayName": "Tana Tools for Raycast",
+  "description": "A collection of tools to work with Tana PKM, including content conversion and clipboard management",
   "icon": "command-icon.png",
   "author": "lisaross",
   "type": "module",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.3",
   "license": "MIT",
   "commands": [
     {
