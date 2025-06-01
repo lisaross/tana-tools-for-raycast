@@ -7,103 +7,34 @@ Quickly convert text, Markdown, YouTube, and Limitless content to Tana Paste for
 ## Features
 
 - Convert clipboard or selected text to Tana Paste format
-- Clip the main content of any web page and instantly convert it to a clean, organized Tana outline.
+- Clip the main content of any web page and instantly convert it to a clean, organized Tana outline
 - Edit and preview before converting
-- Extract and format YouTube video metadata and transcripts (with transcript chunking for large videos)
+- Extract and format YouTube video metadata and transcripts
 - Supports Limitless Pendant and Limitless App transcriptions
 - Supports most Markdown transformations (headings, lists, paragraphs, nesting, etc.)
-- **Compatible with multiple browsers**: Chrome, Safari, Firefox, and Zen Browser
-
-## Browser Compatibility
-
-The extension works seamlessly with **any browser** using a universal approach:
-
-- **Chrome, Safari, Arc** - Uses browser extensions when available for optimal performance
-- **Firefox, Zen Browser** - Uses reliable web scraping for complete metadata extraction  
-- **Any Browser** - Automatically detects the frontmost browser window and extracts YouTube content
-
-**How it works:** The extension automatically adapts to your browser environment. Whether you're using browser extensions or not, you'll get the same reliable extraction of video titles, channel names, descriptions, and transcripts.
-
-**Multi-Browser Usage:** 
-- The extension always works with whichever browser window is currently frontmost (active)
-- You can switch between different browsers and the extension will follow your focus
-- No setup required - just make sure the YouTube video is open in the active browser window
-
-## Installation
-
-1. Install [Raycast](https://raycast.com/)
-2. Clone this repo and install dependencies:
-
-   ```sh
-   git clone https://github.com/lisaross/tana-tools-for-raycast.git
-   cd tana-tools-for-raycast
-   npm install
-   ```
-
-3. Build and start using (in development mode until we get it on the store):
-
-   ```sh
-   npm run build
-   npm run dev
-   ```
+- Compatible with all browsers: Chrome, Safari, Firefox, and Zen Browser
 
 ## Commands
 
+**All commands automatically open Tana when complete** — just paste your content with ⌘+V.
+
 - **Quick Clipboard to Tana:**
-  1. Copy any text or Markdown to your clipboard (⌘+C).
-  2. Open Raycast and run the "Quick Clipboard to Tana" command.
-  3. The clipboard content is instantly scrubbed and converted to Tana Paste format.
-  4. Paste into Tana (⌘+V).
-  
-  *How it works: The command takes whatever is on your clipboard, cleans up the formatting, and converts it into a Tana-ready outline you can paste directly into your workspace.*
+  Copy any text or Markdown to your clipboard, run the command, and the content is instantly cleaned and converted to Tana Paste format.
 
 - **Paste and Edit for Tana:**
-  1. Copy any text or Markdown to your clipboard (⌘+C).
-  2. Open Raycast and run the "Paste and Edit for Tana" command.
-  3. The clipboard content appears in a Raycast window—edit as needed.
-  4. Press Enter to convert and copy the edited text to Tana Paste format.
-  5. Paste into Tana (⌘+V).
-  6. Example window:
-
-      ![Paste and Edit for Tana example](metadata/02_convert-open.png)
-      *Example: Edit your clipboard content before converting to Tana Paste format*
-
-  *How it works: Lets you review and edit your clipboard content before it's converted, so you can make quick tweaks and see the result before sending it to Tana.*
+  Like Quick Clipboard, but lets you review and edit your content in a Raycast window before converting.
 
 - **Convert Selected Text to Tana:**
-  1. Highlight text in any application (web page, document, etc.).
-  2. Open Raycast and run the "Convert Selected Text to Tana" command.
-  3. If the selection is from a website, the output will use the page title as the parent node and add the URL as the first child node.
-  4. The selected text is converted to Tana Paste format and copied to your clipboard.
-  5. Paste into Tana (⌘+V).
-
-  *How it works: Automatically detects if your selection is from a web page, adds the page title and URL, and formats your selection for Tana Paste.*
+  Highlight text in any application, run the command, and it's converted to Tana Paste format. If the selection is from a website, it includes the page title and URL.
 
 - **YouTube to Tana:**
-  1. Go to a YouTube video page in your browser.
-  2. Open Raycast and run the "YouTube to Tana" command (bonus: assign it a keyboard shortcut in Raycast Preferences for even faster access).
-  3. Wait for the extraction process to complete (usually takes 2-5 seconds depending on video length and transcript availability).
-  4. **Tana will open automatically** when the extraction is complete and the content is copied to your clipboard.
-  5. Paste into Tana (⌘+V) — the result will be formatted and chunked for Tana, including video title, URL, channel, description, and transcript.
-  6. Example output:
-
-      ![YouTube to Tana example output](metadata/04_youtube-tana-transcript.png)
-      *Example: YouTube video transcript and metadata pasted into Tana*
-
-  *How it works: Extracts all available metadata and transcript from the YouTube page, organizes it into a Tana-friendly outline, chunks long transcripts for easy pasting, and automatically opens Tana when ready. Works with any browser - just keep the YouTube video tab frontmost.*
-
-- **Limitless Pendant/App:** Paste or select Limitless transcriptions and convert them to Tana Paste format.
-
-  *How it works: Recognizes Limitless transcription formats and converts them into a clean, structured Tana outline.*
+  Go to a YouTube video page, run the command, and get the video title, URL, channel, description, and transcript formatted for Tana. *Note: Longer videos may take additional time for transcript extraction.*
 
 - **Copy Page Content to Tana Paste:**
-  1. Open a web page in your browser.
-  2. Open Raycast and run the "Copy Page Content to Tana Paste" command.
-  3. The command will extract all text from the current page, use the page title as the parent node, add the URL as a field, and add the #swipe supertag.
-  4. The result is converted to Tana Paste format and copied to your clipboard.
-  5. Paste into Tana (⌘+V).
+  Extract the main content from any web page, organized under the page title with URL included.
 
-  *How it works: Extracts the main content of the web page (ignoring navigation, sidebars, and ads), excludes images, and organizes everything under the page title for a clean Tana import.*
+- **Limitless Pendant/App:**
+  Convert Limitless transcriptions to clean, structured Tana outlines.
 
 ## Example
 
@@ -122,13 +53,35 @@ The extension works seamlessly with **any browser** using a universal approach:
   - List item
 ```
 
-## Technical
+---
 
-- TypeScript, Raycast API v1.99.2
+## For Developers
 
-## Contributing
+### Installation & Development
+
+1. Install [Raycast](https://raycast.com/)
+2. Clone this repo and install dependencies:
+
+   ```sh
+   git clone https://github.com/lisaross/tana-tools-for-raycast.git
+   cd tana-tools-for-raycast
+   npm install
+   ```
+
+3. Build and start development:
+
+   ```sh
+   npm run build
+   npm run dev
+   ```
+
+### Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. Open an issue if you want a feature.
+
+### Technical
+
+- TypeScript, Raycast API v1.99.2
 
 ## License
 
