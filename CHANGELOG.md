@@ -1,24 +1,22 @@
 # Tana Tools for Raycast Changelog
 
-## [1.0.0] - 2025-06-01
+## [1.0.0] - 2025-01-01
 
 ### Initial Release
 
 Transform text, web content, and YouTube videos into Tana Paste format directly from Raycast.
 
-#### Core Features
+#### Features
 
 - **Text & Markdown Conversion**: Convert clipboard or selected text to Tana format
-- **YouTube Integration**: Extract video metadata, transcripts, and channel information
+- **YouTube Integration**: Extract video metadata and transcripts (works with Chrome, Arc, and Safari)
 - **Web Page Content**: Capture main content from any webpage with title and URL
 - **Interactive Editing**: Preview and edit content before converting
 - **Limitless Support**: Convert Limitless Pendant and App transcriptions
 
-#### Technical Highlights
+#### Requirements
 
-- Universal browser compatibility
-- Automatic Tana app opening after conversion
-- Smart content formatting to prevent Tana parsing issues
+- YouTube feature requires Chrome, Arc, or Safari as frontmost browser
 
 ---
 

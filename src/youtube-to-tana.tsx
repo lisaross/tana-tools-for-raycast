@@ -8,29 +8,24 @@ const execAsync = promisify(exec)
 const execFileAsync = promisify(execFile)
 
 /**
- * YouTube to Tana Converter with Reliable Web Scraping
+ * YouTube to Tana Converter
  *
  * This module extracts YouTube video metadata and transcripts, converting them
- * to Tana Paste format. It uses a streamlined approach with curl-based web scraping
- * for maximum reliability and compatibility across all browsers and systems.
+ * to Tana Paste format. It uses the browser extension API to get the active
+ * YouTube tab and web scraping for reliable metadata extraction.
  *
  * Core Features:
- * - Direct HTML parsing via curl for all video metadata (title, channel, description)
+ * - Direct browser tab detection via Raycast browser extension API
+ * - Web scraping for video metadata (title, channel, description, duration)
  * - YouTube Transcript API for transcript extraction with retry logic
- * - AppleScript integration for URL detection from frontmost browser
  * - Robust error handling with graceful degradation
  * - Clean conversion to Tana Paste format
  *
  * Technical Approach:
- * - Primary: curl + regex parsing of YouTube's embedded JSON metadata
- * - Fallback: Browser tab information when web scraping fails
- * - Universal compatibility: Works regardless of browser or extension support
- * - Single extraction path: Eliminates complexity and maintenance overhead
- *
- * Browser Support:
- * - Universal: Works with any browser (Chrome, Firefox, Safari, Arc, Zen, etc.)
- * - No browser extensions required for core functionality
- * - Respects frontmost browser via AppleScript integration
+ * - Primary: Browser extension API to find active YouTube tab
+ * - Metadata: curl + regex parsing of YouTube's embedded JSON data
+ * - Transcripts: YouTube Transcript API with language fallbacks
+ * - Works with Chrome, Arc, and Safari browsers (Arc: Cmd+Shift+C, Chrome/Safari: Cmd+L+Cmd+C for URL copying)
  */
 
 /**
@@ -79,177 +74,154 @@ function decodeHTMLEntities(text: string): string {
 }
 
 /**
- * Safely escape strings for AppleScript to prevent injection
- * @param str String to escape
- * @returns Escaped string safe for AppleScript
- */
-function escapeForAppleScript(str: string): string {
-  return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-}
-
-/**
- * YouTube to Tana Converter with Enhanced Browser Compatibility
- *
- * This module extracts YouTube video metadata and transcripts, converting them
- * to Tana Paste format. It includes specialized compatibility handling for
- * Firefox-based browsers, particularly Zen Browser.
- *
- * Compatibility Features:
- * - Multiple fallback CSS selectors for different browser DOM structures
- * - Retry mechanisms with configurable delays for content loading
- * - Browser-specific timing adjustments for Firefox/Zen Browser
- * - Robust error handling with graceful degradation
- * - Support for both expanded and collapsed description content
- *
- * Browser Support:
- * - Chrome/Chromium: Primary selectors with fast extraction
- * - Safari: Primary selectors with standard timing
- * - Firefox: Enhanced selectors with retry logic
- * - Zen Browser: Specialized Firefox optimizations with extended delays
- *
- * Technical Notes:
- * - Zen Browser often requires additional time for DOM content to fully render
- * - Firefox-based browsers may use different CSS class structures
- * - Description expansion buttons may have different selectors in Firefox
- * - Retry logic helps handle asynchronous content loading differences
- */
-
-/**
- * Get YouTube URL from frontmost browser window using AppleScript (fallback for unsupported browsers)
- * @returns Object containing URL and optional title, or null if extraction fails
- */
-async function getYouTubeUrlFromAppleScript(): Promise<{ url: string; title?: string } | null> {
-  try {
-    // First, let's get the frontmost app and ensure we ONLY work with it
-    const frontAppResult = await execAsync(
-      `osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`,
-    )
-    const frontApp = frontAppResult.stdout.trim()
-
-    // INCLUSIVE CHECK: Exclude only clearly unsupported applications instead of maintaining a restrictive allow-list
-    // This allows Chromium-based browsers (Brave, Edge, Vivaldi, Opera) and other browsers with similar shortcuts
-    const frontAppLower = frontApp.toLowerCase()
-    const isUnsupportedApp =
-      frontAppLower.includes('finder') ||
-      frontAppLower.includes('terminal') ||
-      frontAppLower.includes('textedit') ||
-      frontAppLower.includes('notes') ||
-      frontAppLower.includes('mail') ||
-      frontAppLower.includes('calendar') ||
-      frontAppLower.includes('messages') ||
-      frontAppLower.includes('facetime') ||
-      frontAppLower.includes('music') ||
-      frontAppLower.includes('tv') ||
-      frontAppLower.includes('photos') ||
-      frontAppLower.includes('preview') ||
-      frontAppLower.includes('calculator') ||
-      frontAppLower.includes('system preferences') ||
-      frontAppLower.includes('activity monitor') ||
-      frontAppLower.includes('console') ||
-      frontAppLower.includes('disk utility')
-
-    if (isUnsupportedApp) {
-      return null
-    }
-
-    try {
-      await execAsync(
-        `osascript -e 'tell application "System Events" to tell process "${escapeForAppleScript(frontApp)}" to keystroke "c" using {command down, shift down}'`,
-      )
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      const urlResult = await execAsync(`osascript -e 'get the clipboard as string'`)
-      const clipboardUrl = urlResult.stdout.trim()
-
-      if (clipboardUrl?.includes('youtube.com/watch')) {
-        return { url: clipboardUrl }
-      }
-    } catch {
-      // Try fallback method
-    }
-
-    // Fallback: Try selecting address bar and copying (cmd+l, cmd+c)
-    try {
-      await execAsync(
-        `osascript -e 'tell application "System Events" to tell process "${escapeForAppleScript(frontApp)}" to keystroke "l" using command down'`,
-      )
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      await execAsync(
-        `osascript -e 'tell application "System Events" to tell process "${escapeForAppleScript(frontApp)}" to keystroke "c" using command down'`,
-      )
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      const urlResult = await execAsync(`osascript -e 'get the clipboard as string'`)
-      const clipboardUrl = urlResult.stdout.trim()
-
-      if (clipboardUrl?.includes('youtube.com/watch')) {
-        return { url: clipboardUrl }
-      }
-    } catch {
-      // Both methods failed
-    }
-
-    return null
-  } catch {
-    return null
-  }
-}
-
-/**
  * Get frontmost YouTube tab using unified approach for all browsers
  * @returns Object containing URL and tab ID, or null if no YouTube tab found
  */
 async function getFrontmostYouTubeTab(): Promise<TabInfo | null> {
-  // PRIORITY 1: Use AppleScript first - this respects the frontmost browser
   try {
-    const appleScriptResult = await getYouTubeUrlFromAppleScript()
-    if (appleScriptResult) {
-      // Try to get the corresponding tab ID for browser extension access
-      try {
-        const tabs = await BrowserExtension.getTabs()
-        const matchingTab = tabs.find(
-          (tab) => tab.url === appleScriptResult.url && tab.url?.includes('youtube.com/watch'),
-        )
+    // First, get the frontmost application to enforce frontmost browser requirement
+    let frontmostApp: string | null = null
+    let frontmostUrl: string | null = null
+    
+    try {
+      // Get the frontmost browser and check if it has a YouTube video
+      const frontAppResult = await execAsync(
+        `osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`,
+      )
+      const frontApp = frontAppResult.stdout.trim()
+      frontmostApp = frontApp
+      
+      // Define supported and all browsers
+      const knownBrowsers = ['Google Chrome', 'Chrome', 'Arc', 'Safari']
+      const isSupportedBrowser = knownBrowsers.some(browser => frontApp.includes(browser))
+      
+      // Check if frontmost app is a browser but not supported
+      const allBrowsers = ['Safari', 'Firefox', 'Microsoft Edge', 'Opera', 'Brave Browser', 'Google Chrome', 'Chrome', 'Arc']
+      const isBrowser = allBrowsers.some(browser => frontApp.includes(browser))
+      
+      // If frontmost is an unsupported browser, error immediately - don't fall back
+      if (isBrowser && !isSupportedBrowser) {
+        throw new Error(`UNSUPPORTED_BROWSER:${frontApp}`)
+      }
+      
+      // If frontmost is a supported browser, try to get the URL
+      if (isSupportedBrowser) {
+        try {
+          // Different browsers use different shortcuts to copy URL
+          if (frontApp.includes('Arc')) {
+            // Arc supports Cmd+Shift+C to copy URL
+            await execAsync(
+              `osascript -e 'tell application "System Events" to tell process "${frontApp.replace(/"/g, '\\"')}" to keystroke "c" using {command down, shift down}'`,
+            )
+          } else if (frontApp.includes('Chrome') || frontApp.includes('Safari')) {
+            // Chrome and Safari require Cmd+L to select address bar, then Cmd+C to copy
+            await execAsync(
+              `osascript -e 'tell application "System Events" to tell process "${frontApp.replace(/"/g, '\\"')}" to keystroke "l" using {command down}'`,
+            )
+            await new Promise((resolve) => setTimeout(resolve, 100)) // Short delay
+            await execAsync(
+              `osascript -e 'tell application "System Events" to tell process "${frontApp.replace(/"/g, '\\"')}" to keystroke "c" using {command down}'`,
+            )
+          }
+          
+          await new Promise((resolve) => setTimeout(resolve, 300))
 
-        if (matchingTab?.id) {
-          return {
-            url: matchingTab.url,
-            tabId: matchingTab.id,
-            title: matchingTab.title || appleScriptResult.title,
+          const urlResult = await execAsync(`osascript -e 'get the clipboard as string'`)
+          const clipboardUrl = urlResult.stdout.trim()
+
+          if (clipboardUrl?.includes('youtube.com/watch')) {
+            frontmostUrl = clipboardUrl
+          }
+        } catch {
+          // AppleScript method failed for URL extraction, but we know it's a supported browser
+          // Fall back to browser extension API only for this supported browser
+        }
+      }
+    } catch (error) {
+      // If we can't determine the frontmost app at all, this is a system issue
+      // Only in this case do we fall back to browser extension
+      if (error instanceof Error && error.message.startsWith('UNSUPPORTED_BROWSER:')) {
+        // Re-throw unsupported browser errors - don't fall back
+        throw error
+      }
+      // For other errors (like can't run AppleScript), continue to fallback
+    }
+
+    // If we got a YouTube URL from the frontmost browser, try to enhance it with tab info
+    if (frontmostUrl) {
+      try {
+        // Try to get tab info from browser extension (if available)
+        const tabs = await BrowserExtension.getTabs()
+        if (tabs && tabs.length > 0) {
+          const matchingTab = tabs.find((tab) => tab.url === frontmostUrl)
+          if (matchingTab?.id) {
+            return {
+              url: matchingTab.url,
+              tabId: matchingTab.id,
+              title: matchingTab.title,
+            }
           }
         }
       } catch {
-        // Could not get browser extension access, continue with AppleScript result
+        // Browser extension not available or failed, that's okay
       }
 
-      // Return AppleScript result even without tab ID
+      // Return the URL from AppleScript even without tab ID (web scraping will still work)
       return {
-        url: appleScriptResult.url,
-        title: appleScriptResult.title,
+        url: frontmostUrl,
+        tabId: undefined, // No tab ID available, but web scraping doesn't need it
+        title: undefined,
       }
     }
-  } catch {
-    // AppleScript method failed, try browser extension fallback
-  }
 
-  // PRIORITY 2: Fallback to browser extension API (may not respect frontmost browser)
-  try {
-    const tabs = await BrowserExtension.getTabs()
-    const activeTab = tabs.find((tab) => tab.active && tab.url?.includes('youtube.com/watch'))
+    // Fallback: Only use browser extension if we have a supported frontmost browser but couldn't get URL
+    // If frontmostApp is set and is a supported browser, try browser extension as last resort
+    if (frontmostApp) {
+      const knownBrowsers = ['Google Chrome', 'Chrome', 'Arc', 'Safari']
+      const isSupportedBrowser = knownBrowsers.some(browser => frontmostApp.includes(browser))
+      
+      if (isSupportedBrowser) {
+        try {
+          const tabs = await BrowserExtension.getTabs()
 
-    if (activeTab?.id && activeTab.url) {
-      return {
-        url: activeTab.url,
-        tabId: activeTab.id,
-        title: activeTab.title,
+          if (!tabs || tabs.length === 0) {
+            throw new Error(
+              'Could not access browser tabs. Please ensure Raycast has permission to access your browser.',
+            )
+          }
+
+          const activeTab = tabs.find((tab) => tab.active && tab.url?.includes('youtube.com/watch'))
+
+          if (!activeTab) {
+            throw new Error(
+              'No active YouTube video tab found. Please open a YouTube video and try again.',
+            )
+          }
+
+          return {
+            url: activeTab.url,
+            tabId: activeTab.id,
+            title: activeTab.title,
+          }
+        } catch {
+          // Browser extension also failed
+          throw new Error(
+            'No active YouTube video found. Please open a YouTube video in Chrome, Arc, or Safari and try again. This extension currently supports Chrome, Arc, and Safari.',
+          )
+        }
+      } else {
+        // We know frontmost app but it's not supported - this should have been caught earlier
+        throw new Error(`UNSUPPORTED_BROWSER:${frontmostApp}`)
       }
     }
-  } catch {
-    // Browser extension method also failed
-  }
 
-  return null
+    // If we get here, we couldn't determine the frontmost app at all
+    throw new Error(
+      'Could not determine the frontmost application. Please ensure you have Chrome, Arc, or Safari as the frontmost window with a YouTube video open.',
+    )
+  } catch (error) {
+    throw error
+  }
 }
 
 /**
@@ -262,7 +234,7 @@ async function extractVideoInfo(): Promise<VideoInfo> {
 
     if (!activeTab) {
       throw new Error(
-        'No YouTube tab found. Please ensure you have a YouTube video open in the frontmost browser window.',
+        'No YouTube tab found. Please ensure you have a YouTube video open in Chrome, Arc, or Safari as the frontmost window.',
       )
     }
 
@@ -655,11 +627,7 @@ export default async function Command() {
       await showHUD(`${baseMessage} (but couldn't open Tana) ✨`)
     }
   } catch (error) {
-    await showToast({
-      style: Toast.Style.Failure,
-      title: 'Processing Failed',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    })
+    await showUserFriendlyError(error)
   }
 }
 
@@ -969,3 +937,65 @@ async function extractChannelViaWebScraping(videoUrl: string): Promise<{
     return null
   }
 }
+
+/**
+ * Show user-friendly error messages with specific solutions
+ */
+async function showUserFriendlyError(error: unknown): Promise<void> {
+  const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+  
+  // Check for specific error patterns and show helpful messages
+  // Check for browser support issues first (more specific than generic YouTube errors)
+  if (errorMessage.startsWith('UNSUPPORTED_BROWSER:')) {
+    const browserName = errorMessage.replace('UNSUPPORTED_BROWSER:', '')
+    await showToast({
+      style: Toast.Style.Failure,
+      title: '🌐 Unsupported Browser',
+      message: `${browserName} is not supported. Please use Chrome, Arc, or Safari instead.`,
+    })
+  } else if (errorMessage.includes('Chrome only') || errorMessage.includes('Chrome and Arc only') || errorMessage.includes('Chrome, Arc, and Safari')) {
+    await showToast({
+      style: Toast.Style.Failure,
+      title: '🌐 Supported Browser Required',
+      message: 'This feature only works with Chrome, Arc, or Safari. Please switch to a supported browser.',
+    })
+  } else if (errorMessage.includes('Could not access browser tabs')) {
+    await showToast({
+      style: Toast.Style.Failure,
+      title: '🔗 Browser Access Issue',
+      message: 'Could not access browser tabs. Please ensure Raycast has permission to access your browser.',
+    })
+  } else if (errorMessage.includes('No YouTube tab found') || errorMessage.includes('No active YouTube video found')) {
+    await showToast({
+      style: Toast.Style.Failure,
+      title: '📹 No YouTube Video Found',
+      message: 'Open a YouTube video in Chrome, Arc, or Safari and make sure it\'s the active tab',
+    })
+  } else if (errorMessage.includes('Could not extract video ID')) {
+    await showToast({
+      style: Toast.Style.Failure,
+      title: '🔗 Invalid YouTube URL',
+      message: 'Make sure you\'re on a YouTube video page (youtube.com/watch?v=...)',
+    })
+  } else if (errorMessage.includes('No transcript available') || errorMessage.includes('Transcript is disabled')) {
+    await showToast({
+      style: Toast.Style.Failure,
+      title: '📄 No Transcript Available',
+      message: 'This video doesn\'t have captions/transcripts available',
+    })
+  } else if (errorMessage.includes('frontmost browser window')) {
+    await showToast({
+      style: Toast.Style.Failure,
+      title: '🖥️ Supported Browser Not Active',
+      message: 'Make sure Chrome, Arc, or Safari is the frontmost window with a YouTube video open',
+    })
+  } else {
+    // Generic error fallback
+    await showToast({
+      style: Toast.Style.Failure,
+      title: '❌ Something Went Wrong',
+      message: errorMessage.length > 100 ? errorMessage.substring(0, 100) + '...' : errorMessage,
+    })
+  }
+}
+

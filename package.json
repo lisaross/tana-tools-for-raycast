@@ -45,7 +45,7 @@
     {
       "name": "youtube-to-tana",
       "title": "Youtube to Tana",
-      "description": "Extract YouTube video information and convert to Tana Paste format",
+      "description": "Extract YouTube video information from Chrome, Arc, or Safari and convert to Tana Paste format",
       "mode": "no-view"
     },
     {
