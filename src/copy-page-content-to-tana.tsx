@@ -51,11 +51,14 @@ interface TabInfo {
  * @returns Object containing URL and tab ID, or null if no tab found
  */
 async function getFrontmostTab(): Promise<TabInfo | null> {
+  console.log('🔍 getFrontmostTab: Starting tab detection...')
+
   // First, get the frontmost application to enforce frontmost browser requirement
   let frontmostApp: string | null = null
   let frontmostUrl: string | null = null
 
   try {
+    console.log('🖥️ getFrontmostTab: Getting frontmost application...')
     // Get the frontmost browser and check if it has a valid URL
     const frontAppResult = await execFileAsync('osascript', [
       '-e',
@@ -63,6 +66,7 @@ async function getFrontmostTab(): Promise<TabInfo | null> {
     ])
     const frontApp = frontAppResult.stdout.trim()
     frontmostApp = frontApp
+    console.log('✅ getFrontmostTab: Frontmost app is:', frontApp)
 
     // Define supported browsers
     const knownBrowsers = ['Google Chrome', 'Chrome', 'Arc', 'Safari']
@@ -88,15 +92,18 @@ async function getFrontmostTab(): Promise<TabInfo | null> {
 
     // If frontmost is a supported browser, try to get the URL
     if (isSupportedBrowser) {
+      console.log('✅ getFrontmostTab: Browser is supported, getting URL...')
       try {
         // Different browsers use different shortcuts to copy URL
         if (frontApp.includes('Arc')) {
+          console.log('🌐 getFrontmostTab: Using Arc URL copy (Cmd+Shift+C)...')
           // Arc supports Cmd+Shift+C to copy URL
           await execFileAsync('osascript', [
             '-e',
             `tell application "System Events" to tell process "${frontApp.replace(/"/g, '\\"')}" to keystroke "c" using {command down, shift down}`,
           ])
         } else if (frontApp.includes('Chrome') || frontApp.includes('Safari')) {
+          console.log('🌐 getFrontmostTab: Using Chrome/Safari URL copy (Cmd+L then Cmd+C)...')
           // Chrome and Safari require Cmd+L to select address bar, then Cmd+C to copy
           await execFileAsync('osascript', [
             '-e',
@@ -113,12 +120,17 @@ async function getFrontmostTab(): Promise<TabInfo | null> {
 
         const urlResult = await execFileAsync('osascript', ['-e', 'get the clipboard as string'])
         const clipboardUrl = urlResult.stdout.trim()
+        console.log('📋 getFrontmostTab: Clipboard content:', clipboardUrl)
 
         // Accept any valid HTTP/HTTPS URL
         if (clipboardUrl?.match(/^https?:\/\/.+/)) {
           frontmostUrl = clipboardUrl
+          console.log('✅ getFrontmostTab: Valid URL found:', frontmostUrl)
+        } else {
+          console.log('⚠️ getFrontmostTab: Clipboard does not contain valid URL')
         }
       } catch {
+        console.log('❌ getFrontmostTab: AppleScript method failed for URL extraction')
         // AppleScript method failed for URL extraction
       }
     }
@@ -448,9 +460,12 @@ function extractPageMetadata(html: string): {
  */
 async function extractPageContent(url: string): Promise<PageInfo> {
   try {
+    console.log('🌍 extractPageContent: Starting content extraction for URL:', url)
+
     const userAgent =
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
+    console.log('📡 extractPageContent: Fetching HTML with curl...')
     const htmlResult = await execFileAsync(
       'curl',
       [
@@ -469,19 +484,28 @@ async function extractPageContent(url: string): Promise<PageInfo> {
     )
 
     const html = htmlResult.stdout
+    console.log('✅ extractPageContent: HTML fetched. Length:', html.length)
 
     if (!html || html.length < 100) {
+      console.error('❌ extractPageContent: HTML too short or empty')
       throw new Error('unable to extract main content')
     }
 
+    console.log('📄 extractPageContent: Extracting metadata...')
     // Extract metadata
     const { title, author, publishDate } = extractPageMetadata(html)
+    console.log('✅ extractPageContent: Metadata extracted. Title:', title)
 
+    console.log('🧹 extractPageContent: Extracting and cleaning main content...')
     // Extract and convert main content
     const rawContent = extractMainContent(html)
+    console.log('✅ extractPageContent: Raw content extracted. Length:', rawContent.length)
+
     const cleanContent = convertHtmlToTanaText(rawContent)
+    console.log('✅ extractPageContent: Content cleaned. Length:', cleanContent.length)
 
     if (!cleanContent || cleanContent.trim().length < 50) {
+      console.error('❌ extractPageContent: Cleaned content too short')
       throw new Error('unable to extract main content')
     }
 
@@ -577,37 +601,62 @@ async function showUserFriendlyError(error: unknown): Promise<void> {
 // Main command entry point
 export default async function Command() {
   try {
+    console.log('🚀 Starting Copy Page Content to Tana command')
+
     await showToast({
       style: Toast.Style.Animated,
       title: 'Extracting Page Content',
     })
 
+    console.log('📱 Getting frontmost tab...')
     // Get the active tab
     const activeTab = await getFrontmostTab()
 
     if (!activeTab) {
+      console.error('❌ No active tab found')
       throw new Error(
         'No active webpage found. Please ensure you have a webpage open in Chrome, Arc, or Safari.',
       )
     }
 
+    console.log('✅ Active tab found:', activeTab.url)
+
+    console.log('🔍 Extracting page content...')
     // Extract page content
     const pageInfo = await extractPageContent(activeTab.url)
 
+    console.log(
+      '✅ Page content extracted. Title:',
+      pageInfo.title,
+      'Content length:',
+      pageInfo.content.length,
+    )
+
+    console.log('📝 Formatting for Tana...')
     // Format for Tana and copy to clipboard
     const tanaMarkdown = formatPageForTana(pageInfo)
+    console.log('✅ Tana markdown formatted. Length:', tanaMarkdown.length)
+
     const tanaFormat = convertToTana(tanaMarkdown)
+    console.log('✅ Tana format converted. Length:', tanaFormat.length)
+
+    console.log('📋 Copying to clipboard...')
     await Clipboard.copy(tanaFormat)
+    console.log('✅ Content copied to clipboard')
 
     // Open Tana automatically
     try {
+      console.log('🚀 Opening Tana app...')
       await execFileAsync('open', ['tana://'])
       await showHUD('Page content copied to clipboard in Tana format. Opening Tana... ✨')
+      console.log('✅ Success! Tana opened and content copied')
     } catch (error) {
-      console.error('Error opening Tana:', error)
+      console.error('⚠️ Error opening Tana:', error)
       await showHUD('Page content copied to clipboard in Tana format ✨')
+      console.log('✅ Success! Content copied (but Tana failed to open)')
     }
   } catch (error) {
+    console.error('❌ Command failed with error:', error)
     await showUserFriendlyError(error)
   }
 }
