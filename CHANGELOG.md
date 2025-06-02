@@ -1,6 +1,6 @@
 # Tana Tools for Raycast Changelog
 
-## [1.0.0] - 2025-01-01
+## [1.0.0] - 2056-06-01
 
 ### Initial Release
 

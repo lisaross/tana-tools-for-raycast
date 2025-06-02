@@ -9,9 +9,9 @@ Convert text, Markdown, YouTube, and Limitless content to Tana Paste format from
 - Convert clipboard, selected text, or web content to Tana Paste format
 - Extract and format YouTube video metadata and transcripts
 - Process Limitless Pendant and App transcriptions
-- Edit and preview content before converting
+- Edit content before converting
 - Support for Markdown transformations (headings, lists, nesting)
-- Compatible with Chrome, Arc, and Safari
+- Web extractions: Compatible with Chrome, Arc, and Safari
 
 ## Commands
 
@@ -22,21 +22,22 @@ Convert text, Markdown, YouTube, and Limitless content to Tana Paste format from
 - **Convert Selected Text to Tana:** Convert highlighted text (includes page title/URL for web content)
 - **YouTube to Tana:** Extract video title, URL, channel, description, and transcript
 - **Copy Page Content to Tana Paste:** Extract main content from web pages
-- **Limitless Pendant/App:** Convert transcriptions to structured Tana outlines
 
 ## Prerequisites
 
-YouTube functionality requires Chrome, Arc, or Safari as the frontmost browser. Other commands work without browser requirements.
+YouTube functionality requires Chrome, Arc, or Safari as the frontmost browser.
 
 ## Example
 
 **Input:**
+
 ```markdown
 # My Heading
 - List item
 ```
 
 **Output:**
+
 ```text
 %%tana%%
 - !! My Heading
@@ -49,6 +50,7 @@ YouTube functionality requires Chrome, Arc, or Safari as the frontmost browser. 
 
 1. Install [Raycast](https://raycast.com/)
 2. Clone and install:
+
    ```sh
    git clone https://github.com/lisaross/tana-tools-for-raycast.git
    cd tana-tools-for-raycast
