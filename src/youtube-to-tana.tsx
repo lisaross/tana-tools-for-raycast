@@ -1,8 +1,20 @@
-import { Clipboard, showHUD, BrowserExtension, Toast, showToast, environment, LaunchType } from '@raycast/api'
-import { convertToTana } from './utils/tana-converter'
-import { YoutubeTranscript } from 'youtube-transcript'
 import { exec, execFile } from 'child_process'
 import { promisify } from 'util'
+import {
+  BrowserExtension,
+  Toast,
+  showToast,
+} from '@raycast/api'
+import { getFrontmostTab } from './utils/browser-detection'
+import { decodeHTMLEntities } from './utils/web-scraping'
+import {
+  showProcessingToast,
+  copyToTanaAndOpen,
+  showContextualError,
+  ERROR_CONTEXTS,
+} from './utils/raycast-integration'
+
+import { YoutubeTranscript } from 'youtube-transcript'
 
 const execAsync = promisify(exec)
 const execFileAsync = promisify(execFile)
@@ -51,141 +63,15 @@ interface TabInfo {
   title?: string
 }
 
-/**
- * Decode HTML entities to their text equivalents
- * @param text Text containing HTML entities
- * @returns Decoded text
- */
-function decodeHTMLEntities(text: string): string {
-  // Replace all encoded entities using static patterns to prevent ReDoS
-  let decoded = text
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&nbsp;/g, ' ')
 
-  // Additionally handle numeric entities like &#39;
-  decoded = decoded.replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
-
-  return decoded
-}
-
-/**
- * Get previously frontmost application before Raycast
- * This is crucial for commands launched via Raycast search interface
- * @returns Object containing URL and tab ID, or null if no YouTube tab found
- */
-async function getPreviouslyActiveYouTubeTab(): Promise<TabInfo | null> {
-  try {
-    // Get list of all application processes, excluding Raycast
-    const processListResult = await execAsync(`
-      osascript -e '
-      tell application "System Events"
-        set allProcesses to every application process
-        set appList to {}
-        repeat with proc in allProcesses
-          if name of proc is not "Raycast" and name of proc is not "System Events" then
-            set end of appList to name of proc
-          end if
-        end repeat
-        return appList
-      end tell'
-    `)
-    
-    const allApps = processListResult.stdout.trim().split(', ')
-    
-    // Define supported browsers in order of preference
-    const supportedBrowsers = ['Google Chrome', 'Chrome', 'Arc', 'Safari']
-    
-    // Find the first supported browser in the list (most recently active non-Raycast app)
-    for (const app of allApps) {
-      if (supportedBrowsers.some(browser => app.includes(browser))) {
-        // Found a supported browser - try to get URL from it
-        try {
-          let browserUrl: string | null = null
-          
-          if (app.includes('Arc')) {
-            // Arc supports Cmd+Shift+C to copy URL
-            await execAsync(
-              `osascript -e 'tell application "System Events" to tell process "${app.replace(/"/g, '\\"')}" to keystroke "c" using {command down, shift down}'`,
-            )
-          } else if (app.includes('Chrome') || app.includes('Safari')) {
-            // Chrome and Safari require Cmd+L to select address bar, then Cmd+C to copy
-            await execAsync(
-              `osascript -e 'tell application "System Events" to tell process "${app.replace(/"/g, '\\"')}" to keystroke "l" using {command down}'`,
-            )
-            await new Promise((resolve) => setTimeout(resolve, 100))
-            await execAsync(
-              `osascript -e 'tell application "System Events" to tell process "${app.replace(/"/g, '\\"')}" to keystroke "c" using {command down}'`,
-            )
-          }
-
-          await new Promise((resolve) => setTimeout(resolve, 300))
-
-          const urlResult = await execAsync(`osascript -e 'get the clipboard as string'`)
-          browserUrl = urlResult.stdout.trim()
-
-          if (browserUrl?.includes('youtube.com/watch')) {
-            // Try to enhance with browser extension info
-            try {
-              const tabs = await BrowserExtension.getTabs()
-              if (tabs && tabs.length > 0) {
-                const matchingTab = tabs.find((tab) => tab.url === browserUrl)
-                if (matchingTab?.id) {
-                  return {
-                    url: matchingTab.url,
-                    tabId: matchingTab.id,
-                    title: matchingTab.title,
-                  }
-                }
-              }
-            } catch {
-              // Browser extension not available, that's okay
-            }
-
-            return {
-              url: browserUrl,
-              tabId: undefined,
-              title: undefined,
-            }
-          }
-        } catch {
-          // Failed to get URL from this browser, continue to next
-          continue
-        }
-      }
-    }
-    
-    return null
-  } catch (error) {
-    console.error('Error getting previously active YouTube browser:', error)
-    return null
-  }
-}
 
 /**
  * Get frontmost YouTube tab using unified approach for all browsers
  * @returns Object containing URL and tab ID, or null if no YouTube tab found
  */
 async function getFrontmostYouTubeTab(): Promise<TabInfo | null> {
-  // Check launch type to determine strategy
-  const isKeyboardLaunch = environment.launchType === LaunchType.UserInitiated
-  
-  // For keyboard shortcuts, use the direct frontmost approach
-  if (isKeyboardLaunch) {
-    return await getDirectFrontmostYouTubeTab()
-  } else {
-    // For Raycast search launches, find previously active browser
-    const previousTab = await getPreviouslyActiveYouTubeTab()
-    if (previousTab) {
-      return previousTab
-    }
-    // Fallback to browser extension if previous approach fails
-    return await getBrowserExtensionYouTubeTab()
-  }
+  // Use the shared browser detection utility with YouTube-specific filtering
+  return await getFrontmostTab({ urlPattern: 'youtube.com/watch' })
 }
 
 /**
@@ -698,11 +584,11 @@ function formatDuration(seconds: number): string {
 export default async function Command() {
   try {
     // Show improved HUD to indicate processing has started
-    await showToast({
-      style: Toast.Style.Animated,
-      title: 'Processing YouTube Video...',
-      message: 'Extracting metadata & transcript → Converting to Tana → Opening Tana',
-    })
+    await showProcessingToast('Processing YouTube Video...', [
+      'Extracting metadata & transcript',
+      'Converting to Tana',
+      'Opening Tana',
+    ])
 
     // Extract video information from the active tab
     const videoInfo = await extractVideoInfo()
@@ -736,26 +622,15 @@ export default async function Command() {
       }
     }
 
-    // Format and copy to clipboard
+    // Format and copy to clipboard, then open Tana
     const markdownFormat = formatForTanaMarkdown(videoInfo)
-    const tanaFormat = convertToTana(markdownFormat)
-    await Clipboard.copy(tanaFormat)
-
-    // Create success message based on transcript availability
-    const baseMessage = transcriptSuccess
+    const message = transcriptSuccess
       ? 'YouTube video info and transcript copied to clipboard in Tana format'
       : 'YouTube video info copied to clipboard in Tana format (no transcript available)'
-
-    // Open Tana automatically like other commands
-    try {
-      await execAsync('open tana://')
-      await showHUD(`${baseMessage}. Opening Tana... ✨`)
-    } catch (error) {
-      console.error('Error opening Tana:', error)
-      await showHUD(`${baseMessage} (but couldn't open Tana) ✨`)
-    }
+    
+    await copyToTanaAndOpen(markdownFormat, message)
   } catch (error) {
-    await showUserFriendlyError(error)
+    await showContextualError(error, ERROR_CONTEXTS.YOUTUBE)
   }
 }
 
