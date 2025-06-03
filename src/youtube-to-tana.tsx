@@ -1,4 +1,4 @@
-import { Clipboard, showHUD, BrowserExtension, Toast, showToast } from '@raycast/api'
+import { Clipboard, showHUD, BrowserExtension, Toast, showToast, environment, LaunchType } from '@raycast/api'
 import { convertToTana } from './utils/tana-converter'
 import { YoutubeTranscript } from 'youtube-transcript'
 import { exec, execFile } from 'child_process'
@@ -74,10 +74,125 @@ function decodeHTMLEntities(text: string): string {
 }
 
 /**
+ * Get previously frontmost application before Raycast
+ * This is crucial for commands launched via Raycast search interface
+ * @returns Object containing URL and tab ID, or null if no YouTube tab found
+ */
+async function getPreviouslyActiveYouTubeTab(): Promise<TabInfo | null> {
+  try {
+    // Get list of all application processes, excluding Raycast
+    const processListResult = await execAsync(`
+      osascript -e '
+      tell application "System Events"
+        set allProcesses to every application process
+        set appList to {}
+        repeat with proc in allProcesses
+          if name of proc is not "Raycast" and name of proc is not "System Events" then
+            set end of appList to name of proc
+          end if
+        end repeat
+        return appList
+      end tell'
+    `)
+    
+    const allApps = processListResult.stdout.trim().split(', ')
+    
+    // Define supported browsers in order of preference
+    const supportedBrowsers = ['Google Chrome', 'Chrome', 'Arc', 'Safari']
+    
+    // Find the first supported browser in the list (most recently active non-Raycast app)
+    for (const app of allApps) {
+      if (supportedBrowsers.some(browser => app.includes(browser))) {
+        // Found a supported browser - try to get URL from it
+        try {
+          let browserUrl: string | null = null
+          
+          if (app.includes('Arc')) {
+            // Arc supports Cmd+Shift+C to copy URL
+            await execAsync(
+              `osascript -e 'tell application "System Events" to tell process "${app.replace(/"/g, '\\"')}" to keystroke "c" using {command down, shift down}'`,
+            )
+          } else if (app.includes('Chrome') || app.includes('Safari')) {
+            // Chrome and Safari require Cmd+L to select address bar, then Cmd+C to copy
+            await execAsync(
+              `osascript -e 'tell application "System Events" to tell process "${app.replace(/"/g, '\\"')}" to keystroke "l" using {command down}'`,
+            )
+            await new Promise((resolve) => setTimeout(resolve, 100))
+            await execAsync(
+              `osascript -e 'tell application "System Events" to tell process "${app.replace(/"/g, '\\"')}" to keystroke "c" using {command down}'`,
+            )
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 300))
+
+          const urlResult = await execAsync(`osascript -e 'get the clipboard as string'`)
+          browserUrl = urlResult.stdout.trim()
+
+          if (browserUrl?.includes('youtube.com/watch')) {
+            // Try to enhance with browser extension info
+            try {
+              const tabs = await BrowserExtension.getTabs()
+              if (tabs && tabs.length > 0) {
+                const matchingTab = tabs.find((tab) => tab.url === browserUrl)
+                if (matchingTab?.id) {
+                  return {
+                    url: matchingTab.url,
+                    tabId: matchingTab.id,
+                    title: matchingTab.title,
+                  }
+                }
+              }
+            } catch {
+              // Browser extension not available, that's okay
+            }
+
+            return {
+              url: browserUrl,
+              tabId: undefined,
+              title: undefined,
+            }
+          }
+        } catch {
+          // Failed to get URL from this browser, continue to next
+          continue
+        }
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error getting previously active YouTube browser:', error)
+    return null
+  }
+}
+
+/**
  * Get frontmost YouTube tab using unified approach for all browsers
  * @returns Object containing URL and tab ID, or null if no YouTube tab found
  */
 async function getFrontmostYouTubeTab(): Promise<TabInfo | null> {
+  // Check launch type to determine strategy
+  const isKeyboardLaunch = environment.launchType === LaunchType.UserInitiated
+  
+  // For keyboard shortcuts, use the direct frontmost approach
+  if (isKeyboardLaunch) {
+    return await getDirectFrontmostYouTubeTab()
+  } else {
+    // For Raycast search launches, find previously active browser
+    const previousTab = await getPreviouslyActiveYouTubeTab()
+    if (previousTab) {
+      return previousTab
+    }
+    // Fallback to browser extension if previous approach fails
+    return await getBrowserExtensionYouTubeTab()
+  }
+}
+
+/**
+ * Get frontmost YouTube tab using direct frontmost application detection
+ * This works well for keyboard shortcuts
+ */
+async function getDirectFrontmostYouTubeTab(): Promise<TabInfo | null> {
   // First, get the frontmost application to enforce frontmost browser requirement
   let frontmostApp: string | null = null
   let frontmostUrl: string | null = null
@@ -189,34 +304,7 @@ async function getFrontmostYouTubeTab(): Promise<TabInfo | null> {
     const isSupportedBrowser = knownBrowsers.some((browser) => frontmostApp.includes(browser))
 
     if (isSupportedBrowser) {
-      try {
-        const tabs = await BrowserExtension.getTabs()
-
-        if (!tabs || tabs.length === 0) {
-          throw new Error(
-            'Could not access browser tabs. Please ensure Raycast has permission to access your browser.',
-          )
-        }
-
-        const activeTab = tabs.find((tab) => tab.active && tab.url?.includes('youtube.com/watch'))
-
-        if (!activeTab) {
-          throw new Error(
-            'No active YouTube video tab found. Please open a YouTube video and try again.',
-          )
-        }
-
-        return {
-          url: activeTab.url,
-          tabId: activeTab.id,
-          title: activeTab.title,
-        }
-      } catch {
-        // Browser extension also failed
-        throw new Error(
-          'No active YouTube video found. Please open a YouTube video in Chrome, Arc, or Safari and try again. This extension currently supports Chrome, Arc, and Safari.',
-        )
-      }
+      return await getBrowserExtensionYouTubeTab()
     } else {
       // We know frontmost app but it's not supported - this should have been caught earlier
       throw new Error(`UNSUPPORTED_BROWSER:${frontmostApp}`)
@@ -227,6 +315,40 @@ async function getFrontmostYouTubeTab(): Promise<TabInfo | null> {
   throw new Error(
     'Could not determine the frontmost application. Please ensure you have Chrome, Arc, or Safari as the frontmost window with a YouTube video open.',
   )
+}
+
+/**
+ * Get YouTube tab using browser extension API only
+ */
+async function getBrowserExtensionYouTubeTab(): Promise<TabInfo | null> {
+  try {
+    const tabs = await BrowserExtension.getTabs()
+
+    if (!tabs || tabs.length === 0) {
+      throw new Error(
+        'Could not access browser tabs. Please ensure Raycast has permission to access your browser.',
+      )
+    }
+
+    const activeTab = tabs.find((tab) => tab.active && tab.url?.includes('youtube.com/watch'))
+
+    if (!activeTab) {
+      throw new Error(
+        'No active YouTube video tab found. Please open a YouTube video and try again.',
+      )
+    }
+
+    return {
+      url: activeTab.url,
+      tabId: activeTab.id,
+      title: activeTab.title,
+    }
+  } catch {
+    // Browser extension also failed
+    throw new Error(
+      'No active YouTube video found. Please open a YouTube video in Chrome, Arc, or Safari and try again. This extension currently supports Chrome, Arc, and Safari.',
+    )
+  }
 }
 
 /**
@@ -575,10 +697,11 @@ function formatDuration(seconds: number): string {
 // Main command entry point
 export default async function Command() {
   try {
-    // Show HUD to indicate processing has started
+    // Show improved HUD to indicate processing has started
     await showToast({
       style: Toast.Style.Animated,
-      title: 'Processing YouTube Video',
+      title: 'Processing YouTube Video...',
+      message: 'Extracting metadata & transcript → Converting to Tana → Opening Tana',
     })
 
     // Extract video information from the active tab
