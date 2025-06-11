@@ -384,6 +384,8 @@ async function extractTranscript(tabId: number): Promise<string | null> {
 function formatTranscriptForTanaField(transcript: string): string {
   return transcript
     .replace(/#\w+\b/g, '') // Remove hashtags
+    .replace(/\b\d{1,2}:\d{2}\b/g, '') // Remove timestamps like 1:23, 12:34
+    .replace(/\b\d{1,2}:\d{2}:\d{2}\b/g, '') // Remove timestamps like 1:23:45
     .replace(/\r\n/g, ' ')   // Replace line breaks with spaces
     .replace(/\r/g, ' ')
     .replace(/\n/g, ' ')
@@ -429,10 +431,7 @@ export default async function Command() {
       throw new Error('No YouTube tab found')
     }
 
-    // Extract video metadata
-    const metadata = await extractVideoMetadata(youtubeTab.tabId, youtubeTab.url)
-    
-    // Try to extract transcript
+    // Check for transcript first
     let transcript: string | null = null
     let transcriptButtonNeeded = false
     
@@ -446,6 +445,19 @@ export default async function Command() {
         console.log(`❌ Transcript extraction error: ${transcriptError}`)
       }
     }
+    
+    // If transcript button needs to be clicked, show warning and stop
+    if (transcriptButtonNeeded) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: 'Click "Show transcript" below video first',
+        message: 'Then run this command again to process the video with transcript.',
+      })
+      return
+    }
+
+    // Extract video metadata
+    const metadata = await extractVideoMetadata(youtubeTab.tabId, youtubeTab.url)
     
     // Combine all info
     const videoInfo: VideoInfo = {
@@ -463,30 +475,16 @@ export default async function Command() {
     const tanaFormat = convertToTana(markdownFormat)
     await Clipboard.copy(tanaFormat)
 
-    // Show success message with appropriate guidance
-    let message: string
+    // Show success message
     if (transcript) {
-      message = 'YouTube video info and transcript copied to clipboard'
-      await showHUD(`${message} ✨`)
+      await showHUD('YouTube video info and transcript copied to clipboard ✨')
     } else {
-      message = 'YouTube video info copied to clipboard'
-      
-      // Show specific guidance based on what we found
-      if (transcriptButtonNeeded) {
-        await showToast({
-          style: Toast.Style.Failure,
-          title: 'Transcript Available',
-          message: 'Click "Show transcript" below the YouTube video, then run this command again to include the transcript.',
-        })
-      } else {
-        await showToast({
-          style: Toast.Style.Failure,
-          title: 'No Transcript Found',
-          message: 'This video may not have captions/transcripts available.',
-        })
-      }
-      
-      await showHUD(`${message} ✨`)
+      await showHUD('YouTube video info copied to clipboard ✨')
+      await showToast({
+        style: Toast.Style.Failure,
+        title: 'No Transcript Found',
+        message: 'This video may not have captions/transcripts available.',
+      })
     }
 
   } catch (error) {
