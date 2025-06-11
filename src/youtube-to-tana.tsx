@@ -1,31 +1,11 @@
 import { Clipboard, showHUD, BrowserExtension, Toast, showToast } from '@raycast/api'
 import { convertToTana } from './utils/tana-converter'
-import { YoutubeTranscript } from 'youtube-transcript'
-import { exec, execFile } from 'child_process'
-import { promisify } from 'util'
-
-const execAsync = promisify(exec)
-const execFileAsync = promisify(execFile)
 
 /**
  * YouTube to Tana Converter
  *
- * This module extracts YouTube video metadata and transcripts, converting them
- * to Tana Paste format. It uses the browser extension API to get the active
- * YouTube tab and web scraping for reliable metadata extraction.
- *
- * Core Features:
- * - Direct browser tab detection via Raycast browser extension API
- * - Web scraping for video metadata (title, channel, description, duration)
- * - YouTube Transcript API for transcript extraction with retry logic
- * - Robust error handling with graceful degradation
- * - Clean conversion to Tana Paste format
- *
- * Technical Approach:
- * - Primary: Browser extension API to find active YouTube tab
- * - Metadata: curl + regex parsing of YouTube's embedded JSON data
- * - Transcripts: YouTube Transcript API with language fallbacks
- * - Works with Chrome, Arc, and Safari browsers (Arc: Cmd+Shift+C, Chrome/Safari: Cmd+L+Cmd+C for URL copying)
+ * Simplified version that uses only the Raycast Browser Extension API
+ * to extract YouTube video metadata and transcripts.
  */
 
 /**
@@ -39,25 +19,13 @@ interface VideoInfo {
   videoId: string
   description: string
   duration?: string
-  transcript?: string // Make transcript optional
-}
-
-/**
- * Tab information from browser or AppleScript
- */
-interface TabInfo {
-  url: string
-  tabId?: number
-  title?: string
+  transcript?: string
 }
 
 /**
  * Decode HTML entities to their text equivalents
- * @param text Text containing HTML entities
- * @returns Decoded text
  */
 function decodeHTMLEntities(text: string): string {
-  // Replace all encoded entities using static patterns to prevent ReDoS
   let decoded = text
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
@@ -67,483 +35,378 @@ function decodeHTMLEntities(text: string): string {
     .replace(/&apos;/g, "'")
     .replace(/&nbsp;/g, ' ')
 
-  // Additionally handle numeric entities like &#39;
+  // Handle numeric entities like &#39;
   decoded = decoded.replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
 
   return decoded
 }
 
 /**
- * Get frontmost YouTube tab using unified approach for all browsers
- * @returns Object containing URL and tab ID, or null if no YouTube tab found
+ * Get YouTube tab using Browser Extension API
  */
-async function getFrontmostYouTubeTab(): Promise<TabInfo | null> {
+async function getYouTubeTab(): Promise<{ url: string; tabId: number; title?: string } | null> {
   try {
-    // First, get the frontmost application to enforce frontmost browser requirement
-    let frontmostApp: string | null = null
-    let frontmostUrl: string | null = null
+    console.log('🔍 Getting YouTube tab via Browser Extension API...')
     
-    try {
-      // Get the frontmost browser and check if it has a YouTube video
-      const frontAppResult = await execAsync(
-        `osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`,
-      )
-      const frontApp = frontAppResult.stdout.trim()
-      frontmostApp = frontApp
-      
-      // Define supported and all browsers
-      const knownBrowsers = ['Google Chrome', 'Chrome', 'Arc', 'Safari']
-      const isSupportedBrowser = knownBrowsers.some(browser => frontApp.includes(browser))
-      
-      // Check if frontmost app is a browser but not supported
-      const allBrowsers = ['Safari', 'Firefox', 'Microsoft Edge', 'Opera', 'Brave Browser', 'Google Chrome', 'Chrome', 'Arc']
-      const isBrowser = allBrowsers.some(browser => frontApp.includes(browser))
-      
-      // If frontmost is an unsupported browser, error immediately - don't fall back
-      if (isBrowser && !isSupportedBrowser) {
-        throw new Error(`UNSUPPORTED_BROWSER:${frontApp}`)
-      }
-      
-      // If frontmost is a supported browser, try to get the URL
-      if (isSupportedBrowser) {
-        try {
-          // Different browsers use different shortcuts to copy URL
-          if (frontApp.includes('Arc')) {
-            // Arc supports Cmd+Shift+C to copy URL
-            await execAsync(
-              `osascript -e 'tell application "System Events" to tell process "${frontApp.replace(/"/g, '\\"')}" to keystroke "c" using {command down, shift down}'`,
-            )
-          } else if (frontApp.includes('Chrome') || frontApp.includes('Safari')) {
-            // Chrome and Safari require Cmd+L to select address bar, then Cmd+C to copy
-            await execAsync(
-              `osascript -e 'tell application "System Events" to tell process "${frontApp.replace(/"/g, '\\"')}" to keystroke "l" using {command down}'`,
-            )
-            await new Promise((resolve) => setTimeout(resolve, 100)) // Short delay
-            await execAsync(
-              `osascript -e 'tell application "System Events" to tell process "${frontApp.replace(/"/g, '\\"')}" to keystroke "c" using {command down}'`,
-            )
-          }
-          
-          await new Promise((resolve) => setTimeout(resolve, 300))
+    const tabs = await BrowserExtension.getTabs()
+    console.log(`🔍 Found ${tabs?.length || 0} tabs`)
 
-          const urlResult = await execAsync(`osascript -e 'get the clipboard as string'`)
-          const clipboardUrl = urlResult.stdout.trim()
-
-          if (clipboardUrl?.includes('youtube.com/watch')) {
-            frontmostUrl = clipboardUrl
-          }
-        } catch {
-          // AppleScript method failed for URL extraction, but we know it's a supported browser
-          // Fall back to browser extension API only for this supported browser
-        }
-      }
-    } catch (error) {
-      // If we can't determine the frontmost app at all, this is a system issue
-      // Only in this case do we fall back to browser extension
-      if (error instanceof Error && error.message.startsWith('UNSUPPORTED_BROWSER:')) {
-        // Re-throw unsupported browser errors - don't fall back
-        throw error
-      }
-      // For other errors (like can't run AppleScript), continue to fallback
+    if (!tabs || tabs.length === 0) {
+      throw new Error('Could not access browser tabs. Please ensure Raycast has permission to access your browser.')
     }
 
-    // If we got a YouTube URL from the frontmost browser, try to enhance it with tab info
-    if (frontmostUrl) {
+    // Find active YouTube tab
+    const youtubeTab = tabs.find((tab) => tab.active && tab.url?.includes('youtube.com/watch'))
+    
+    if (!youtubeTab) {
+      throw new Error('No active YouTube video tab found. Please open a YouTube video and make sure it\'s the active tab.')
+    }
+
+    return {
+      url: youtubeTab.url,
+      tabId: youtubeTab.id,
+      title: youtubeTab.title,
+    }
+  } catch (error) {
+    console.log(`❌ Browser Extension API failed: ${error}`)
+    throw error
+  }
+}
+
+/**
+ * Extract video metadata using Browser Extension API
+ */
+async function extractVideoMetadata(tabId: number, url: string): Promise<Partial<VideoInfo>> {
+  try {
+    console.log(`🔍 Extracting metadata from tab ${tabId}...`)
+    
+    // Extract video ID from URL
+    const urlObj = new URL(url)
+    const videoId = urlObj.searchParams.get('v')
+    
+    if (!videoId) {
+      throw new Error('Could not extract video ID from URL')
+    }
+    
+    // Get HTML content for regex-based extraction
+    const htmlContent = await BrowserExtension.getContent({
+      tabId: tabId,
+      format: 'html'
+    })
+    
+    // Extract title using multiple methods
+    let title = 'YouTube Video'
+    
+    // Method 1: Try to get title from page title
+    const titleMatch = htmlContent.match(/<title>([^<]+)<\/title>/)
+    if (titleMatch) {
+      title = titleMatch[1].replace(' - YouTube', '').trim()
+    }
+    
+    // Method 2: Try to get title from meta property
+    const ogTitleMatch = htmlContent.match(/<meta property="og:title" content="([^"]+)"/)
+    if (ogTitleMatch) {
+      title = ogTitleMatch[1]
+    }
+    
+    // Method 3: Try to get title from h1 element directly
+    try {
+      const h1Title = await BrowserExtension.getContent({
+        cssSelector: 'h1.ytd-watch-metadata yt-formatted-string, h1.title yt-formatted-string, #title h1 yt-formatted-string',
+        format: 'text',
+        tabId: tabId,
+      })
+      if (h1Title && h1Title.trim().length > 0) {
+        title = h1Title.trim()
+        console.log(`🔍 Found title via CSS selector: ${title}`)
+      }
+    } catch (error) {
+      console.log(`🔍 CSS title extraction failed: ${error}`)
+    }
+    
+    // Extract channel info using multiple methods
+    let channelName = 'Unknown Channel'
+    let channelUrl = 'https://www.youtube.com'
+    
+    // Method 1: Try to get channel name from CSS selectors (more specific to video owner)
+    const channelSelectors = [
+      // Most specific - target the video owner section
+      'ytd-video-owner-renderer ytd-channel-name a',
+      'ytd-video-owner-renderer ytd-channel-name yt-formatted-string',
+      'ytd-video-owner-renderer .ytd-channel-name a',
+      // Alternative specific selectors
+      '#owner ytd-channel-name a',
+      '#owner .ytd-channel-name a',
+      // Broader but still in owner context
+      'ytd-channel-name a',
+      '.ytd-channel-name a',
+      // Fallback
+      '#channel-name a, #channel-name yt-formatted-string'
+    ]
+    
+    for (const selector of channelSelectors) {
       try {
-        // Try to get tab info from browser extension (if available)
-        const tabs = await BrowserExtension.getTabs()
-        if (tabs && tabs.length > 0) {
-          const matchingTab = tabs.find((tab) => tab.url === frontmostUrl)
-          if (matchingTab?.id) {
-            return {
-              url: matchingTab.url,
-              tabId: matchingTab.id,
-              title: matchingTab.title,
+        console.log(`🔍 Trying channel selector: ${selector}`)
+        const channelElement = await BrowserExtension.getContent({
+          cssSelector: selector,
+          format: 'text',
+          tabId: tabId,
+        })
+        
+        if (channelElement && channelElement.trim().length > 0 && channelElement.trim().length < 100) {
+          channelName = channelElement.trim()
+          console.log(`✅ Found channel name via CSS: "${channelName}" using selector: ${selector}`)
+          break
+        } else if (channelElement) {
+          console.log(`🔍 Found but rejected channel text (too long/short): "${channelElement.substring(0, 50)}..." using selector: ${selector}`)
+        }
+      } catch (error) {
+        console.log(`❌ Channel selector ${selector} failed: ${error}`)
+        continue
+      }
+    }
+    
+    // Method 2: Try to get channel URL from CSS selectors (more specific)
+    const channelUrlSelectors = [
+      'ytd-video-owner-renderer ytd-channel-name a',
+      'ytd-video-owner-renderer .ytd-channel-name a',
+      '#owner ytd-channel-name a',
+      'ytd-channel-name a',
+      '.ytd-channel-name a'
+    ]
+    
+    for (const urlSelector of channelUrlSelectors) {
+      try {
+        console.log(`🔍 Trying channel URL selector: ${urlSelector}`)
+        const channelLinkHTML = await BrowserExtension.getContent({
+          cssSelector: urlSelector,
+          format: 'html',
+          tabId: tabId,
+        })
+        
+        if (channelLinkHTML) {
+          const hrefMatch = channelLinkHTML.match(/href="([^"]+)"/)
+          if (hrefMatch) {
+            let extractedUrl = hrefMatch[1]
+            if (extractedUrl.startsWith('/')) {
+              extractedUrl = `https://www.youtube.com${extractedUrl}`
+            }
+            // Validate that this looks like a proper channel URL
+            if (extractedUrl.includes('/@') || extractedUrl.includes('/channel/') || extractedUrl.includes('/c/')) {
+              channelUrl = extractedUrl
+              console.log(`✅ Found channel URL via CSS: "${channelUrl}" using selector: ${urlSelector}`)
+              break
+            } else {
+              console.log(`🔍 Found URL but doesn't look like channel: "${extractedUrl}" using selector: ${urlSelector}`)
             }
           }
         }
-      } catch {
-        // Browser extension not available or failed, that's okay
-      }
-
-      // Return the URL from AppleScript even without tab ID (web scraping will still work)
-      return {
-        url: frontmostUrl,
-        tabId: undefined, // No tab ID available, but web scraping doesn't need it
-        title: undefined,
+      } catch (error) {
+        console.log(`❌ Channel URL selector ${urlSelector} failed: ${error}`)
+        continue
       }
     }
-
-    // Fallback: Only use browser extension if we have a supported frontmost browser but couldn't get URL
-    // If frontmostApp is set and is a supported browser, try browser extension as last resort
-    if (frontmostApp) {
-      const knownBrowsers = ['Google Chrome', 'Chrome', 'Arc', 'Safari']
-      const isSupportedBrowser = knownBrowsers.some(browser => frontmostApp.includes(browser))
-      
-      if (isSupportedBrowser) {
-        try {
-          const tabs = await BrowserExtension.getTabs()
-
-          if (!tabs || tabs.length === 0) {
-            throw new Error(
-              'Could not access browser tabs. Please ensure Raycast has permission to access your browser.',
-            )
-          }
-
-          const activeTab = tabs.find((tab) => tab.active && tab.url?.includes('youtube.com/watch'))
-
-          if (!activeTab) {
-            throw new Error(
-              'No active YouTube video tab found. Please open a YouTube video and try again.',
-            )
-          }
-
-          return {
-            url: activeTab.url,
-            tabId: activeTab.id,
-            title: activeTab.title,
-          }
-        } catch {
-          // Browser extension also failed
-          throw new Error(
-            'No active YouTube video found. Please open a YouTube video in Chrome, Arc, or Safari and try again. This extension currently supports Chrome, Arc, and Safari.',
-          )
-        }
-      } else {
-        // We know frontmost app but it's not supported - this should have been caught earlier
-        throw new Error(`UNSUPPORTED_BROWSER:${frontmostApp}`)
+    
+    // Method 3: Fallback to regex-based extraction from HTML
+    if (channelName === 'Unknown Channel') {
+      const channelMatch = htmlContent.match(/"ownerChannelName":"([^"]+)"/)
+      if (channelMatch) {
+        channelName = decodeHTMLEntities(channelMatch[1])
+        console.log(`✅ Found channel name via regex: ${channelName}`)
       }
     }
-
-    // If we get here, we couldn't determine the frontmost app at all
-    throw new Error(
-      'Could not determine the frontmost application. Please ensure you have Chrome, Arc, or Safari as the frontmost window with a YouTube video open.',
-    )
-  } catch (error) {
-    throw error
-  }
-}
-
-/**
- * Extracts video information from the active YouTube tab
- */
-async function extractVideoInfo(): Promise<VideoInfo> {
-  try {
-    // Get the frontmost YouTube tab with better selection logic
-    const activeTab = await getFrontmostYouTubeTab()
-
-    if (!activeTab) {
-      throw new Error(
-        'No YouTube tab found. Please ensure you have a YouTube video open in Chrome, Arc, or Safari as the frontmost window.',
-      )
+    
+    if (channelUrl === 'https://www.youtube.com') {
+      const channelIdMatch = htmlContent.match(/"channelId":"([^"]+)"/)
+      if (channelIdMatch) {
+        channelUrl = `https://www.youtube.com/channel/${channelIdMatch[1]}`
+        console.log(`✅ Found channel URL via regex: ${channelUrl}`)
+      }
     }
-
-    // Extract the video ID from URL
-    const urlObj = new URL(activeTab.url)
-    const videoId = urlObj.searchParams.get('v')
-
-    if (!videoId) {
-      throw new Error('Could not extract video ID from the URL.')
-    }
-
-    // Use web scraping for all metadata including duration
+    
+    // Extract description
+    let description = 'Description not available'
+    
+    // Method 1: Try CSS selector for description
     try {
-      const webScrapingResult = await extractChannelViaWebScraping(activeTab.url)
-      if (webScrapingResult) {
-        // Use all data from web scraping for consistency and reliability
-        const baseTitle = webScrapingResult.title
-        // Format title with duration if available
-        const title = webScrapingResult.duration
-          ? `${baseTitle} [${webScrapingResult.duration}]`
-          : baseTitle
-        const channelName = webScrapingResult.channelName
-        const channelUrl = webScrapingResult.channelUrl
-        const description = webScrapingResult.description
-
-        // Include duration in result if available
-        const result = {
-          title: decodeHTMLEntities(title.trim()),
-          channelName: channelName,
-          channelUrl: channelUrl,
-          url: `https://www.youtube.com/watch?v=${videoId}`,
-          videoId: videoId,
-          description: description,
-          duration: webScrapingResult.duration,
-        }
-
-        return result
-      }
-    } catch {
-      // Web scraping failed, continue to fallback
-    }
-
-    // Final fallback result (only reached if web scraping failed)
-    const fallbackTitle = activeTab.title || 'YouTube Video'
-    const result = {
-      title: decodeHTMLEntities(fallbackTitle.trim()),
-      channelName: 'Unknown Channel',
-      channelUrl: 'https://www.youtube.com',
-      url: `https://www.youtube.com/watch?v=${videoId}`,
-      videoId: videoId,
-      description: 'Description not available',
-      duration: undefined, // No duration available in fallback mode
-    }
-
-    // Return complete VideoInfo
-    return result
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-    console.error('❌ Video info extraction failed:', errorMessage)
-
-    // Show a persistent error toast with more details
-    await showToast({
-      style: Toast.Style.Failure,
-      title: 'Failed to extract video information',
-      message: errorMessage,
-    })
-    throw error
-  }
-}
-
-/**
- * Validates transcript quality to ensure it's substantial enough to be useful
- */
-function validateTranscriptQuality(transcript: string): boolean {
-  if (!transcript || transcript.trim().length === 0) {
-    return false
-  }
-
-  // Check if transcript is too short (likely incomplete)
-  const minLength = 50 // Minimum 50 characters for a meaningful transcript
-  if (transcript.trim().length < minLength) {
-    return false
-  }
-
-  // Check if transcript contains meaningful words (not just punctuation/numbers)
-  const wordCount = transcript
-    .trim()
-    .split(/\s+/)
-    .filter((word) => /[a-zA-Z]/.test(word)).length
-  if (wordCount < 10) {
-    return false
-  }
-
-  // Check for common error patterns
-  const errorPatterns = [
-    /transcript\s+not\s+available/i,
-    /no\s+captions\s+available/i,
-    /transcript\s+disabled/i,
-    /automatic\s+captions\s+not\s+available/i,
-  ]
-
-  for (const pattern of errorPatterns) {
-    if (pattern.test(transcript)) {
-      return false
-    }
-  }
-
-  return true
-}
-
-/**
- * Extracts the transcript from a YouTube video with retry logic
- */
-async function extractTranscript(videoId: string): Promise<string> {
-  const maxRetries = 3
-  const baseDelay = 2000 // 2 seconds
-
-  for (let attempt = 0; attempt < maxRetries; attempt += 1) {
-    try {
-      // Fetch transcript using the youtube-transcript library
-      const transcriptData = await YoutubeTranscript.fetchTranscript(videoId, {
-        // Add timeout and other options to make it more reliable
-        lang: 'en', // Try English first
+      const cssDescription = await BrowserExtension.getContent({
+        cssSelector: 'ytd-expandable-video-description-body-renderer, .ytd-expandable-video-description-body-renderer, #description',
+        format: 'text',
+        tabId: tabId,
       })
-
-      if (!transcriptData || transcriptData.length === 0) {
-        throw new Error('No transcript data returned from API')
+      
+      if (cssDescription && cssDescription.trim().length > 10) {
+        description = cssDescription.trim()
+        console.log(`✅ Found description via CSS (${description.length} chars)`)
       }
-
-      // Format the transcript segments - create clean, continuous text
-      let formattedTranscript = ''
-      let lastTime = -1
-      const paragraphBreakThreshold = 10 // Increased threshold for cleaner paragraph breaks
-
-      for (const segment of transcriptData) {
-        // Check if we need a paragraph break (if there's a significant time gap)
-        const { offset, text } = segment
-        const currentTime = Math.floor(offset)
-
-        if (lastTime !== -1 && currentTime - lastTime > paragraphBreakThreshold) {
-          // Use a consistent paragraph separator that we can easily handle later
-          formattedTranscript += ' [PARAGRAPH_BREAK] '
-        } else if (formattedTranscript) {
-          formattedTranscript += ' '
-        }
-
-        // Add the text - strip any hashtags and clean up
-        const cleanedText = decodeHTMLEntities(text)
-          .replace(/#\w+\b/g, '')
-          .replace(/\s+/g, ' ') // Normalize whitespace
-          .trim()
-        if (cleanedText) {
-          formattedTranscript += cleanedText
-        }
-        lastTime = currentTime
-      }
-
-      // Clean up the final transcript and convert paragraph breaks to double spaces
-      const finalTranscript = formattedTranscript
-        .replace(/\s*\[PARAGRAPH_BREAK\]\s*/g, '  ') // Convert to double spaces for paragraph separation
-        .replace(/\s+/g, ' ') // Normalize all whitespace to single spaces
-        .trim()
-
-      if (!finalTranscript) {
-        throw new Error('Transcript was empty after processing')
-      }
-
-      // Validate transcript quality
-      if (!validateTranscriptQuality(finalTranscript)) {
-        throw new Error(
-          'Transcript quality validation failed - transcript may be incomplete or invalid',
-        )
-      }
-
-      return finalTranscript
     } catch (error) {
-      const isLastAttempt = attempt === maxRetries - 1
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-
-      if (isLastAttempt) {
-        // On the final attempt, throw a more specific error
-        if (
-          errorMessage.includes('Transcript is disabled') ||
-          errorMessage.includes('No transcript available')
-        ) {
-          throw new Error(
-            'No transcript available for this video (transcripts may be disabled by the creator)',
-          )
-        } else if (
-          errorMessage.includes('Video unavailable') ||
-          errorMessage.includes('Private video')
-        ) {
-          throw new Error('Cannot access transcript: video may be private or unavailable')
-        } else if (errorMessage.includes('quality validation failed')) {
-          throw new Error('Transcript found but appears incomplete or invalid')
-        } else {
-          throw new Error(
-            `Could not extract transcript after ${maxRetries} attempts: ${errorMessage}`,
-          )
-        }
-      }
-
-      // Wait before retrying, with exponential backoff
-      const delay = baseDelay * Math.pow(1.5, attempt)
-      await new Promise((resolve) => setTimeout(resolve, delay))
+      console.log(`❌ CSS description extraction failed: ${error}`)
     }
+    
+    // Method 2: Fallback to regex
+    if (description === 'Description not available') {
+      const descMatch = htmlContent.match(/"description":"([^"]+)"/)
+      if (descMatch) {
+        description = decodeHTMLEntities(descMatch[1])
+        console.log(`✅ Found description via regex (${description.length} chars)`)
+      }
+    }
+    
+    return {
+      title: decodeHTMLEntities(title),
+      channelName,
+      channelUrl,
+      url: `https://www.youtube.com/watch?v=${videoId}`,
+      videoId,
+      description
+    }
+  } catch (error) {
+    console.log(`❌ Metadata extraction failed: ${error}`)
+    throw error
   }
-
-  // This should never be reached due to the throw in the last attempt
-  throw new Error('Transcript extraction failed unexpectedly')
 }
 
 /**
- * Try to extract transcript with multiple language fallbacks
+ * Extract transcript using Browser Extension API
  */
-async function extractTranscriptWithLanguageFallbacks(videoId: string): Promise<string> {
-  const languageCodes = ['en', 'en-US', 'en-GB', 'auto', undefined] // Try various language codes
-
-  for (const lang of languageCodes) {
+async function extractTranscript(tabId: number): Promise<string | null> {
+  try {
+    console.log(`🔍 Extracting transcript from tab ${tabId}...`)
+    
+    // First, check if transcript panel is visible or needs to be opened
+    let needsTranscriptButton = false
     try {
-      const options = lang ? { lang } : {}
-      const transcriptData = await YoutubeTranscript.fetchTranscript(videoId, options)
-
-      if (transcriptData && transcriptData.length > 0) {
-        // Process the transcript data with the same clean formatting as the main function
-        let formattedTranscript = ''
-        let lastTime = -1
-        const paragraphBreakThreshold = 10 // Consistent with main function
-
-        for (const segment of transcriptData) {
-          const { offset, text } = segment
-          const currentTime = Math.floor(offset)
-
-          if (lastTime !== -1 && currentTime - lastTime > paragraphBreakThreshold) {
-            formattedTranscript += ' [PARAGRAPH_BREAK] '
-          } else if (formattedTranscript) {
-            formattedTranscript += ' '
-          }
-
-          const cleanedText = decodeHTMLEntities(text)
-            .replace(/#\w+\b/g, '')
-            .replace(/\s+/g, ' ')
-            .trim()
-          if (cleanedText) {
-            formattedTranscript += cleanedText
-          }
-          lastTime = currentTime
-        }
-
-        // Apply the same final cleaning as the main function
-        const result = formattedTranscript
-          .replace(/\s*\[PARAGRAPH_BREAK\]\s*/g, '  ')
-          .replace(/\s+/g, ' ')
-          .trim()
-
-        if (result) {
-          return result
-        }
+      // Check if transcript panel exists but is not expanded
+      const transcriptButton = await BrowserExtension.getContent({
+        cssSelector: 'button[aria-label*="transcript" i], button[aria-label*="Show transcript" i]',
+        format: 'text',
+        tabId: tabId,
+      })
+      
+      if (transcriptButton && transcriptButton.includes('Show transcript')) {
+        console.log('🔍 Transcript panel not expanded, but transcript button found')
+        needsTranscriptButton = true
       }
-    } catch {
-      // Continue to next language
+    } catch (error) {
+      console.log(`🔍 Could not check transcript button: ${error}`)
     }
+    
+    // Try different selectors for transcript content - prioritize container selectors that get all segments
+    const transcriptSelectors = [
+      // Container selectors that should capture all transcript segments
+      'ytd-transcript-segment-list-renderer',
+      'ytd-transcript-search-panel-renderer',
+      'ytd-transcript-renderer #content',
+      '#segments-container',
+      // Alternative container approaches
+      'div[id="segments-container"]',
+      'ytd-transcript-segment-list-renderer #segments-container',
+      // Fallback individual selectors (may only get first segment)
+      'yt-formatted-string.segment-text.style-scope.ytd-transcript-segment-renderer',
+      'ytd-transcript-segment-renderer yt-formatted-string.segment-text',
+      '.segment-text',
+      'yt-formatted-string.segment-text'
+    ]
+    
+    for (const selector of transcriptSelectors) {
+      try {
+        console.log(`🔍 Trying selector: ${selector}`)
+        const transcriptText = await BrowserExtension.getContent({
+          cssSelector: selector,
+          format: 'text',
+          tabId: tabId,
+        })
+        
+        if (transcriptText && transcriptText.trim().length > 50) {
+          console.log(`✅ Found transcript with ${selector} (${transcriptText.length} chars)`)
+          return transcriptText.trim()
+        } else if (transcriptText && transcriptText.trim().length > 0) {
+          console.log(`🔍 Found short content with ${selector}: "${transcriptText.substring(0, 100)}..."`)
+        }
+      } catch (error) {
+        console.log(`❌ Selector ${selector} failed: ${error}`)
+        continue
+      }
+    }
+    
+    // If no individual segments found, try alternative container selectors
+    const containerSelectors = [
+      'ytd-transcript-renderer',
+      'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]',
+      '[target-id="engagement-panel-searchable-transcript"] ytd-transcript-renderer',
+      'ytd-engagement-panel-section-list-renderer[visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"]'
+    ]
+    
+    for (const containerSelector of containerSelectors) {
+      try {
+        console.log(`🔍 Trying container selector: ${containerSelector}`)
+        const fullTranscript = await BrowserExtension.getContent({
+          cssSelector: containerSelector,
+          format: 'text',
+          tabId: tabId,
+        })
+        
+        if (fullTranscript && fullTranscript.trim().length > 100) {
+          console.log(`✅ Found transcript via container (${fullTranscript.length} chars)`)
+          return fullTranscript.trim()
+        } else if (fullTranscript && fullTranscript.trim().length > 0) {
+          console.log(`🔍 Found short content with container ${containerSelector}: "${fullTranscript.substring(0, 100)}..."`)
+        }
+      } catch (error) {
+        console.log(`❌ Container selector ${containerSelector} failed: ${error}`)
+        continue
+      }
+    }
+    
+    console.log('❌ No transcript found with any selector')
+    
+    // If we found a transcript button that needs to be clicked, throw a specific error
+    if (needsTranscriptButton) {
+      throw new Error('TRANSCRIPT_BUTTON_NEEDED')
+    }
+    
+    return null
+  } catch (error) {
+    console.log(`❌ Transcript extraction failed: ${error}`)
+    
+    // Re-throw specific errors
+    if (error instanceof Error && error.message === 'TRANSCRIPT_BUTTON_NEEDED') {
+      throw error
+    }
+    
+    return null
   }
-
-  throw new Error('No transcript available in any supported language')
 }
 
 /**
- * Safely format transcript content for Tana field to prevent it from being split into separate nodes
+ * Safely format transcript content for Tana field
  */
 function formatTranscriptForTanaField(transcript: string): string {
-  return (
-    transcript
-      // Remove hashtags to prevent them from becoming Tana supertags
-      .replace(/#\w+\b/g, '')
-      // Replace all types of line breaks with spaces
-      .replace(/\r\n/g, ' ') // Windows line endings
-      .replace(/\r/g, ' ') // Mac line endings
-      .replace(/\n/g, ' ') // Unix line endings
-      // Replace multiple spaces with single space
-      .replace(/\s+/g, ' ')
-      // Remove any characters that might interfere with Tana parsing
-      .replace(/::+/g, ':') // Multiple colons could interfere with field syntax
-      .replace(/^\s+|\s+$/g, '') // Trim leading/trailing whitespace
-      // Escape any remaining special characters that might cause issues
-      .replace(/\t/g, ' ') // Replace tabs with spaces
-      .trim()
-  )
+  return transcript
+    .replace(/#\w+\b/g, '') // Remove hashtags
+    .replace(/\r\n/g, ' ')   // Replace line breaks with spaces
+    .replace(/\r/g, ' ')
+    .replace(/\n/g, ' ')
+    .replace(/\s+/g, ' ')    // Multiple spaces to single space
+    .replace(/::+/g, ':')    // Multiple colons
+    .replace(/\t/g, ' ')     // Tabs to spaces
+    .trim()
 }
 
 /**
- * Formats YouTube video information for Tana in Markdown format
- * that can be processed by our existing Tana converter
+ * Format video info for Tana in Markdown format
  */
 function formatForTanaMarkdown(videoInfo: VideoInfo): string {
-  // Create a Markdown representation that our tana-converter can process
   let markdown = `# ${videoInfo.title} #video\n`
   markdown += `URL::${videoInfo.url}\n`
   markdown += `Channel URL::${videoInfo.channelUrl}\n`
   markdown += `Author::${videoInfo.channelName}\n`
 
-  // Add transcript as a field that will be processed into a nested structure
-  // Use the safe formatting function to prevent transcript from being split into separate nodes
   if (videoInfo.transcript) {
     const safeTranscript = formatTranscriptForTanaField(videoInfo.transcript)
     markdown += `Transcript::${safeTranscript}\n`
   }
 
-  // Keep the entire description in the Description field (don't split into separate nodes)
   const safeDescription = formatTranscriptForTanaField(videoInfo.description)
   markdown += `Description::${safeDescription}\n`
 
@@ -551,61 +414,48 @@ function formatForTanaMarkdown(videoInfo: VideoInfo): string {
 }
 
 /**
- * Format duration from seconds to human-readable format (MM:SS or HH:MM:SS)
- * @param seconds Duration in seconds
- * @returns Formatted duration string
+ * Main command entry point
  */
-function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const remainingSeconds = seconds % 60
-
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
-  } else {
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
-  }
-}
-
-// Main command entry point
 export default async function Command() {
   try {
-    // Show HUD to indicate processing has started
     await showToast({
       style: Toast.Style.Animated,
       title: 'Processing YouTube Video',
     })
 
-    // Extract video information from the active tab
-    const videoInfo = await extractVideoInfo()
+    // Get YouTube tab
+    const youtubeTab = await getYouTubeTab()
+    if (!youtubeTab) {
+      throw new Error('No YouTube tab found')
+    }
 
-    // Try to extract transcript with multiple strategies
-    let transcriptSuccess = false
-
+    // Extract video metadata
+    const metadata = await extractVideoMetadata(youtubeTab.tabId, youtubeTab.url)
+    
+    // Try to extract transcript
+    let transcript: string | null = null
+    let transcriptButtonNeeded = false
+    
     try {
-      // First try the improved extraction with retry logic
-      const transcript = await extractTranscript(videoInfo.videoId)
-      videoInfo.transcript = transcript
-      transcriptSuccess = true
+      transcript = await extractTranscript(youtubeTab.tabId)
     } catch (transcriptError) {
-      try {
-        // Fallback to language-specific extraction
-        const transcript = await extractTranscriptWithLanguageFallbacks(videoInfo.videoId)
-        videoInfo.transcript = transcript
-        transcriptSuccess = true
-      } catch (fallbackError) {
-        // Show a toast but continue with video info only
-        const primaryError =
-          transcriptError instanceof Error ? transcriptError.message : 'Unknown error'
-        const fallbackErrorMsg =
-          fallbackError instanceof Error ? fallbackError.message : 'Unknown error'
-
-        await showToast({
-          style: Toast.Style.Failure,
-          title: 'Transcript Extraction Failed',
-          message: `Primary: ${primaryError}. Fallback: ${fallbackErrorMsg}`,
-        })
+      if (transcriptError instanceof Error && transcriptError.message === 'TRANSCRIPT_BUTTON_NEEDED') {
+        transcriptButtonNeeded = true
+        console.log('🔍 Transcript button needs to be clicked first')
+      } else {
+        console.log(`❌ Transcript extraction error: ${transcriptError}`)
       }
+    }
+    
+    // Combine all info
+    const videoInfo: VideoInfo = {
+      title: metadata.title || 'YouTube Video',
+      channelName: metadata.channelName || 'Unknown Channel',
+      channelUrl: metadata.channelUrl || 'https://www.youtube.com',
+      url: metadata.url || youtubeTab.url,
+      videoId: metadata.videoId || '',
+      description: metadata.description || 'Description not available',
+      transcript: transcript || undefined
     }
 
     // Format and copy to clipboard
@@ -613,389 +463,39 @@ export default async function Command() {
     const tanaFormat = convertToTana(markdownFormat)
     await Clipboard.copy(tanaFormat)
 
-    // Create success message based on transcript availability
-    const baseMessage = transcriptSuccess
-      ? 'YouTube video info and transcript copied to clipboard in Tana format'
-      : 'YouTube video info copied to clipboard in Tana format (no transcript available)'
-
-    // Open Tana automatically like other commands
-    try {
-      await execAsync('open tana://')
-      await showHUD(`${baseMessage}. Opening Tana... ✨`)
-    } catch (error) {
-      console.error('Error opening Tana:', error)
-      await showHUD(`${baseMessage} (but couldn't open Tana) ✨`)
-    }
-  } catch (error) {
-    await showUserFriendlyError(error)
-  }
-}
-
-/**
- * Clean and decode HTML entities from extracted text
- * @param text Raw extracted text
- * @param options Cleaning options
- * @returns Cleaned text
- */
-function cleanExtractedText(
-  text: string,
-  options: {
-    removeHashtags?: boolean
-    preserveNewlines?: boolean
-    maxLength?: number
-  } = {},
-): string {
-  let cleaned = text
-    .replace(/\\u0026/g, '&')
-    .replace(/\\"/g, '"')
-    .replace(/\\\\/g, '\\')
-
-  if (options.preserveNewlines) {
-    cleaned = cleaned.replace(/\\n/g, '\n')
-  } else {
-    cleaned = cleaned.replace(/\\n/g, ' ')
-  }
-
-  cleaned = cleaned.replace(/\\t/g, ' ')
-
-  if (options.removeHashtags) {
-    // Remove hashtags to prevent them from becoming Tana supertags
-    cleaned = cleaned.replace(/#\w+\b/g, '')
-  }
-
-  // Clean up any double spaces
-  cleaned = cleaned.replace(/\s+/g, ' ').trim()
-
-  return cleaned
-}
-
-/**
- * Extract video title from HTML content
- * @param html HTML content from YouTube page
- * @returns Extracted and cleaned title
- */
-function extractTitleFromHtml(html: string): string {
-  const titlePatterns = [
-    /"title":"([^"]+)"/,
-    /"videoDetails":[^}]*"title":"([^"]+)"/,
-    /<title>([^<]+)<\/title>/,
-    /"headline":"([^"]+)"/,
-    /"name":"([^"]+)","description"/,
-  ]
-
-  for (const pattern of titlePatterns) {
-    const match = html.match(pattern)
-    if (match) {
-      const [, extractedTitle] = match
-      if (extractedTitle) {
-        const cleanedTitle = cleanExtractedText(extractedTitle)
-          .replace(/ - YouTube$/, '')
-          .replace(/^\(\d+\)\s*/, '') // Remove notification count
-
-        if (cleanedTitle && cleanedTitle.length > 0 && cleanedTitle.length < 300) {
-          return cleanedTitle
-        }
-      }
-    }
-  }
-
-  return 'YouTube Video'
-}
-
-/**
- * Extract channel information from HTML content
- * @param html HTML content from YouTube page
- * @returns Object containing channel name and URL
- */
-function extractChannelFromHtml(html: string): { name: string; url: string } {
-  const channelNamePatterns = [
-    /"ownerChannelName":"([^"]+)"/,
-    /"author":"([^"]+)"/,
-    /"channelName":"([^"]+)"/,
-    /,"name":"([^"]+)","url":"[^"]*\/@[^"]+"/,
-    /,"name":"([^"]+)","url":"[^"]*\/channel\/[^"]+"/,
-  ]
-
-  const channelUrlPatterns = [
-    /"ownerChannelName":"[^"]+","channelId":"([^"]+)"/,
-    /"externalChannelId":"([^"]+)"/,
-    /,"canonicalChannelUrl":"([^"]+)"/,
-    /href="(\/channel\/[^"]+)"/,
-    /href="(\/@[^"]+)"/,
-  ]
-
-  let channelName = 'Unknown Channel'
-  let channelUrl = 'https://www.youtube.com'
-
-  // Extract channel name
-  for (const pattern of channelNamePatterns) {
-    const match = html.match(pattern)
-    if (match) {
-      const [, extractedName] = match
-      if (extractedName) {
-        const cleanedName = cleanExtractedText(extractedName)
-
-        if (cleanedName && cleanedName.length > 0 && cleanedName.length < 100) {
-          channelName = cleanedName
-          break
-        }
-      }
-    }
-  }
-
-  // Extract channel URL
-  for (const pattern of channelUrlPatterns) {
-    const match = html.match(pattern)
-    if (match) {
-      const [, extractedUrl] = match
-      if (extractedUrl) {
-        let cleanedUrl = extractedUrl.trim()
-
-        // Handle different URL formats
-        if (cleanedUrl.startsWith('/channel/') || cleanedUrl.startsWith('/@')) {
-          cleanedUrl = `https://www.youtube.com${cleanedUrl}`
-        } else if (cleanedUrl.startsWith('UC') && cleanedUrl.length === 24) {
-          // This is a channel ID
-          cleanedUrl = `https://www.youtube.com/channel/${cleanedUrl}`
-        } else if (!cleanedUrl.startsWith('http')) {
-          continue // Skip invalid URLs
-        }
-
-        channelUrl = cleanedUrl
-        break
-      }
-    }
-  }
-
-  // Additional fallback: try to find channel handle in meta tags
-  if (channelName === 'Unknown Channel') {
-    const metaPatterns = [
-      /<meta property="og:url" content="[^"]*\/@([^"/]+)"/,
-      /<link rel="canonical" href="[^"]*\/@([^"/]+)"/,
-    ]
-
-    for (const pattern of metaPatterns) {
-      const match = html.match(pattern)
-      if (match) {
-        const [, handle] = match
-        if (handle) {
-          channelName = `@${handle}`
-          channelUrl = `https://www.youtube.com/@${handle}`
-          break
-        }
-      }
-    }
-  }
-
-  return { name: channelName, url: channelUrl }
-}
-
-/**
- * Extract video description from HTML content
- * @param html HTML content from YouTube page
- * @returns Extracted and cleaned description
- */
-function extractDescriptionFromHtml(html: string): string {
-  const descriptionPatterns = [
-    /"description":"([^"]+)"/,
-    /"shortDescription":"([^"]+)"/,
-    /"attributedDescription":{"content":"([^"]+)"/,
-    /"videoDetails":[^}]*"shortDescription":"([^"]+)"/,
-  ]
-
-  for (const pattern of descriptionPatterns) {
-    const match = html.match(pattern)
-    if (match) {
-      const [, extractedDescription] = match
-      if (extractedDescription) {
-        const cleanedDescription = cleanExtractedText(extractedDescription, {
-          removeHashtags: true,
-          preserveNewlines: true,
+    // Show success message with appropriate guidance
+    let message: string
+    if (transcript) {
+      message = 'YouTube video info and transcript copied to clipboard'
+      await showHUD(`${message} ✨`)
+    } else {
+      message = 'YouTube video info copied to clipboard'
+      
+      // Show specific guidance based on what we found
+      if (transcriptButtonNeeded) {
+        await showToast({
+          style: Toast.Style.Failure,
+          title: 'Transcript Available',
+          message: 'Click "Show transcript" below the YouTube video, then run this command again to include the transcript.',
         })
-
-        if (
-          cleanedDescription &&
-          cleanedDescription.length > 10 &&
-          cleanedDescription.length < 5000
-        ) {
-          return cleanedDescription
-        }
+      } else {
+        await showToast({
+          style: Toast.Style.Failure,
+          title: 'No Transcript Found',
+          message: 'This video may not have captions/transcripts available.',
+        })
       }
-    }
-  }
-
-  return 'Description not available'
-}
-
-/**
- * Extract video duration from HTML content
- * @param html HTML content from YouTube page
- * @returns Formatted duration string or undefined if not found
- */
-function extractDurationFromHtml(html: string): string | undefined {
-  const durationPatterns = [
-    /"lengthSeconds":"(\d+)"/,
-    /"videoDetails":[^}]*"lengthSeconds":"(\d+)"/,
-    /<meta property="video:duration" content="(\d+)"/,
-    /"duration":"PT(\d+)S"/,
-    /"duration":"PT(\d+M\d+S)"/,
-    /"duration":"PT(\d+H\d+M\d+S)"/,
-  ]
-
-  for (const pattern of durationPatterns) {
-    const match = html.match(pattern)
-    if (match) {
-      const [, durationValue] = match
-      if (durationValue) {
-        // Handle different duration formats
-        if (/^\d+$/.test(durationValue)) {
-          // Duration in seconds
-          const seconds = parseInt(durationValue, 10)
-          if (seconds > 0 && seconds < 86400) {
-            // Reasonable range (0-24 hours)
-            return formatDuration(seconds)
-          }
-        } else if (/^\d+M\d+S$/.test(durationValue)) {
-          // Format like "5M30S"
-          const minutesMatch = durationValue.match(/(\d+)M/)
-          const secondsMatch = durationValue.match(/(\d+)S/)
-          if (minutesMatch && secondsMatch) {
-            const [, minutes] = minutesMatch
-            const [, seconds] = secondsMatch
-            const totalSeconds = parseInt(minutes, 10) * 60 + parseInt(seconds, 10)
-            return formatDuration(totalSeconds)
-          }
-        } else if (/^\d+H\d+M\d+S$/.test(durationValue)) {
-          // Format like "1H5M30S"
-          const hoursMatch = durationValue.match(/(\d+)H/)
-          const minutesMatch = durationValue.match(/(\d+)M/)
-          const secondsMatch = durationValue.match(/(\d+)S/)
-          if (hoursMatch && minutesMatch && secondsMatch) {
-            const [, hours] = hoursMatch
-            const [, minutes] = minutesMatch
-            const [, seconds] = secondsMatch
-            const totalSeconds =
-              parseInt(hours, 10) * 3600 + parseInt(minutes, 10) * 60 + parseInt(seconds, 10)
-            return formatDuration(totalSeconds)
-          }
-        }
-      }
-    }
-  }
-
-  return undefined
-}
-
-async function extractChannelViaWebScraping(videoUrl: string): Promise<{
-  title: string
-  channelName: string
-  channelUrl: string
-  description: string
-  duration?: string
-} | null> {
-  try {
-    // Use execFile instead of shell execution to prevent command injection
-    // Pass arguments separately instead of interpolating into command string
-    const userAgent =
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-
-    const htmlResult = await execFileAsync(
-      'curl',
-      [
-        '-s', // Silent mode
-        '-L', // Follow redirects
-        '-H',
-        `User-Agent: ${userAgent}`, // Set user agent header
-        videoUrl, // URL as argument (not interpolated into shell command)
-      ],
-      {
-        maxBuffer: 1024 * 1024 * 10, // 10MB buffer to handle large pages
-        timeout: 30000, // 30 second timeout
-      },
-    )
-    const html = htmlResult.stdout
-
-    if (!html || html.length < 1000) {
-      throw new Error('Failed to fetch page HTML or content too short')
+      
+      await showHUD(`${message} ✨`)
     }
 
-    // Extract video information using helper functions
-    const title = extractTitleFromHtml(html)
-    const { name: channelName, url: channelUrl } = extractChannelFromHtml(html)
-    const description = extractDescriptionFromHtml(html)
-    const duration = extractDurationFromHtml(html)
-
-    // Return all extracted data
-    return {
-      title,
-      channelName,
-      channelUrl,
-      description,
-      duration,
-    }
-  } catch {
-    return null
-  }
-}
-
-/**
- * Show user-friendly error messages with specific solutions
- */
-async function showUserFriendlyError(error: unknown): Promise<void> {
-  const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-  
-  // Check for specific error patterns and show helpful messages
-  // Check for browser support issues first (more specific than generic YouTube errors)
-  if (errorMessage.startsWith('UNSUPPORTED_BROWSER:')) {
-    const browserName = errorMessage.replace('UNSUPPORTED_BROWSER:', '')
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    
     await showToast({
       style: Toast.Style.Failure,
-      title: '🌐 Unsupported Browser',
-      message: `${browserName} is not supported. Please use Chrome, Arc, or Safari instead.`,
-    })
-  } else if (errorMessage.includes('Chrome only') || errorMessage.includes('Chrome and Arc only') || errorMessage.includes('Chrome, Arc, and Safari')) {
-    await showToast({
-      style: Toast.Style.Failure,
-      title: '🌐 Supported Browser Required',
-      message: 'This feature only works with Chrome, Arc, or Safari. Please switch to a supported browser.',
-    })
-  } else if (errorMessage.includes('Could not access browser tabs')) {
-    await showToast({
-      style: Toast.Style.Failure,
-      title: '🔗 Browser Access Issue',
-      message: 'Could not access browser tabs. Please ensure Raycast has permission to access your browser.',
-    })
-  } else if (errorMessage.includes('No YouTube tab found') || errorMessage.includes('No active YouTube video found')) {
-    await showToast({
-      style: Toast.Style.Failure,
-      title: '📹 No YouTube Video Found',
-      message: 'Open a YouTube video in Chrome, Arc, or Safari and make sure it\'s the active tab',
-    })
-  } else if (errorMessage.includes('Could not extract video ID')) {
-    await showToast({
-      style: Toast.Style.Failure,
-      title: '🔗 Invalid YouTube URL',
-      message: 'Make sure you\'re on a YouTube video page (youtube.com/watch?v=...)',
-    })
-  } else if (errorMessage.includes('No transcript available') || errorMessage.includes('Transcript is disabled')) {
-    await showToast({
-      style: Toast.Style.Failure,
-      title: '📄 No Transcript Available',
-      message: 'This video doesn\'t have captions/transcripts available',
-    })
-  } else if (errorMessage.includes('frontmost browser window')) {
-    await showToast({
-      style: Toast.Style.Failure,
-      title: '🖥️ Supported Browser Not Active',
-      message: 'Make sure Chrome, Arc, or Safari is the frontmost window with a YouTube video open',
-    })
-  } else {
-    // Generic error fallback
-    await showToast({
-      style: Toast.Style.Failure,
-      title: '❌ Something Went Wrong',
-      message: errorMessage.length > 100 ? errorMessage.substring(0, 100) + '...' : errorMessage,
+      title: 'Failed to process YouTube video',
+      message: errorMessage,
     })
   }
 }
-
