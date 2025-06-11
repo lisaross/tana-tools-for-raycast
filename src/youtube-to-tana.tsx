@@ -1,5 +1,9 @@
 import { Clipboard, showHUD, BrowserExtension, Toast, showToast } from '@raycast/api'
 import { convertToTana } from './utils/tana-converter'
+import { exec } from 'child_process'
+import { promisify } from 'util'
+
+const execAsync = promisify(exec)
 
 /**
  * YouTube to Tana Converter
@@ -759,16 +763,33 @@ export default async function Command() {
     const tanaFormat = convertToTana(markdownFormat)
     await Clipboard.copy(tanaFormat)
 
-    // Show success message
-    if (transcript) {
-      await showHUD('YouTube video info and transcript copied to clipboard ✨')
-    } else {
-      await showHUD('YouTube video info copied to clipboard ✨')
-      await showToast({
-        style: Toast.Style.Failure,
-        title: 'No Transcript Found',
-        message: 'This video may not have captions/transcripts available.',
-      })
+    // Open Tana
+    try {
+      await execAsync('open tana://')
+      // Show success message
+      if (transcript) {
+        await showHUD('YouTube video info and transcript copied to clipboard. Opening Tana... ✨')
+      } else {
+        await showHUD('YouTube video info copied to clipboard. Opening Tana... ✨')
+        await showToast({
+          style: Toast.Style.Failure,
+          title: 'No Transcript Found',
+          message: 'This video may not have captions/transcripts available.',
+        })
+      }
+    } catch (error) {
+      console.error('Error opening Tana:', error)
+      // Show success message but note Tana couldn't be opened
+      if (transcript) {
+        await showHUD('YouTube video info and transcript copied to clipboard (but couldn\'t open Tana) ✨')
+      } else {
+        await showHUD('YouTube video info copied to clipboard (but couldn\'t open Tana) ✨')
+        await showToast({
+          style: Toast.Style.Failure,
+          title: 'No Transcript Found',
+          message: 'This video may not have captions/transcripts available.',
+        })
+      }
     }
 
   } catch (error) {
