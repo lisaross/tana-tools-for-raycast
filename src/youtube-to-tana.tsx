@@ -6,6 +6,10 @@ import { convertToTana } from './utils/tana-converter'
  *
  * Simplified version that uses only the Raycast Browser Extension API
  * to extract YouTube video metadata and transcripts.
+ * 
+ * SAFARI REQUIREMENTS:
+ * 1. Safari Settings > Advanced > Show features for web developers ✓
+ * 2. Safari Settings > Developer > Allow JavaScript from Apple Events ✓
  */
 
 /**
@@ -42,13 +46,58 @@ function decodeHTMLEntities(text: string): string {
 }
 
 /**
+ * Timeout wrapper for Browser Extension API calls to prevent hanging
+ */
+async function withTimeout<T>(
+  promise: Promise<T>, 
+  timeoutMs: number = 10000, 
+  operation: string = 'operation'
+): Promise<T> {
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`${operation} timed out after ${timeoutMs}ms. This may be a Safari compatibility issue. Please ensure Safari Developer settings are enabled.`))
+    }, timeoutMs)
+  })
+
+  return Promise.race([promise, timeoutPromise])
+}
+
+/**
+ * Detect if we're running in Safari based on error patterns
+ */
+function isSafariAccessError(error: unknown): boolean {
+  return error instanceof Error && 
+         (error.message.includes('Access to this page is restricted') || 
+          error.message.includes('code: -32603'))
+}
+
+/**
+ * Handle Safari-specific errors with helpful guidance
+ */
+function handleSafariError(operation: string): Error {
+  return new Error(`Safari Access Restricted for ${operation}. 
+
+SAFARI SETUP REQUIRED:
+1. Safari Settings → Advanced → ✓ "Show features for web developers"
+2. Safari Settings → Developer → ✓ "Allow JavaScript from Apple Events"
+3. Reload the YouTube page and try again
+4. If still failing, try switching to Arc or Chrome
+
+This is a Safari security restriction that doesn't affect Arc or Chrome.`)
+}
+
+/**
  * Get YouTube tab using Browser Extension API
  */
 async function getYouTubeTab(): Promise<{ url: string; tabId: number; title?: string } | null> {
   try {
     console.log('🔍 Getting YouTube tab via Browser Extension API...')
     
-    const tabs = await BrowserExtension.getTabs()
+    const tabs = await withTimeout(
+      BrowserExtension.getTabs(),
+      8000,
+      'Getting browser tabs'
+    )
     console.log(`🔍 Found ${tabs?.length || 0} tabs`)
 
     if (!tabs || tabs.length === 0) {
@@ -69,6 +118,12 @@ async function getYouTubeTab(): Promise<{ url: string; tabId: number; title?: st
     }
   } catch (error) {
     console.log(`❌ Browser Extension API failed: ${error}`)
+    
+    // Handle Safari-specific access restrictions
+    if (isSafariAccessError(error)) {
+      throw handleSafariError('browser tab access')
+    }
+    
     throw error
   }
 }
@@ -76,7 +131,7 @@ async function getYouTubeTab(): Promise<{ url: string; tabId: number; title?: st
 /**
  * Extract video metadata using Browser Extension API
  */
-async function extractVideoMetadata(tabId: number, url: string): Promise<Partial<VideoInfo>> {
+async function extractVideoMetadata(tabId: number, url: string, tabTitle?: string): Promise<Partial<VideoInfo>> {
   try {
     console.log(`🔍 Extracting metadata from tab ${tabId}...`)
     
@@ -89,39 +144,67 @@ async function extractVideoMetadata(tabId: number, url: string): Promise<Partial
     }
     
     // Get HTML content for regex-based extraction
-    const htmlContent = await BrowserExtension.getContent({
-      tabId: tabId,
-      format: 'html'
-    })
+    const htmlContent = await withTimeout(
+      BrowserExtension.getContent({
+        tabId: tabId,
+        format: 'html'
+      }),
+      10000,
+      'Getting page HTML content'
+    )
     
     // Extract title using multiple methods
     let title = 'YouTube Video'
     
-    // Method 1: Try to get title from page title
-    const titleMatch = htmlContent.match(/<title>([^<]+)<\/title>/)
-    if (titleMatch) {
-      title = titleMatch[1].replace(' - YouTube', '').trim()
+    // Method 1: Use tab title (most reliable, works in Safari)
+    if (tabTitle && tabTitle.trim().length > 0) {
+      title = tabTitle
+        .replace(' - YouTube', '')
+        .replace(' – YouTube', '')
+        .replace(/^\(\d+\)\s*/, '')  // Remove notification count like "(63) " at start
+        .replace(/\s*\(\d+\)$/, '')  // Remove notification count like " (63)" at end
+        .trim()
+      console.log(`✅ Using tab title: "${title}"`)
     }
     
-    // Method 2: Try to get title from meta property
-    const ogTitleMatch = htmlContent.match(/<meta property="og:title" content="([^"]+)"/)
-    if (ogTitleMatch) {
-      title = ogTitleMatch[1]
-    }
-    
-    // Method 3: Try to get title from h1 element directly
-    try {
-      const h1Title = await BrowserExtension.getContent({
-        cssSelector: 'h1.ytd-watch-metadata yt-formatted-string, h1.title yt-formatted-string, #title h1 yt-formatted-string',
-        format: 'text',
-        tabId: tabId,
-      })
-      if (h1Title && h1Title.trim().length > 0) {
-        title = h1Title.trim()
-        console.log(`🔍 Found title via CSS selector: ${title}`)
+    // Method 2: Fallback to HTML title tag if tab title not available
+    if (title === 'YouTube Video' || title === tabTitle) {
+      const titleMatch = htmlContent.match(/<title>([^<]+)<\/title>/)
+      if (titleMatch) {
+        title = titleMatch[1].replace(' - YouTube', '').replace(' – YouTube', '').trim()
+        console.log(`✅ Found title from HTML: "${title}"`)
       }
-    } catch (error) {
-      console.log(`🔍 CSS title extraction failed: ${error}`)
+    }
+    
+    // Method 3: Try meta property as fallback
+    if (title === 'YouTube Video') {
+      const ogTitleMatch = htmlContent.match(/<meta property="og:title" content="([^"]+)"/)
+      if (ogTitleMatch) {
+        title = ogTitleMatch[1]
+        console.log(`✅ Found title from meta: "${title}"`)
+      }
+    }
+    
+    // Method 4: Final fallback to CSS title extraction (only if still default)
+    if (title === 'YouTube Video') {
+      console.log(`🔍 Trying CSS title extraction as final fallback...`)
+      try {
+        const h1Title = await withTimeout(
+          BrowserExtension.getContent({
+            cssSelector: 'h1.ytd-watch-metadata yt-formatted-string, #title h1, h1.title',
+            format: 'text',
+            tabId: tabId,
+          }),
+          3000,
+          'Getting title via CSS selector (fallback)'
+        )
+        if (h1Title && h1Title.trim().length > 0 && h1Title.trim().length < 200) {
+          title = h1Title.trim()
+          console.log(`✅ Found title via CSS fallback: "${title}"`)
+        }
+      } catch (error) {
+        console.log(`❌ CSS title fallback failed: ${error}`)
+      }
     }
     
     // Extract channel info using multiple methods
@@ -147,11 +230,15 @@ async function extractVideoMetadata(tabId: number, url: string): Promise<Partial
     for (const selector of channelSelectors) {
       try {
         console.log(`🔍 Trying channel selector: ${selector}`)
-        const channelElement = await BrowserExtension.getContent({
-          cssSelector: selector,
-          format: 'text',
-          tabId: tabId,
-        })
+        const channelElement = await withTimeout(
+          BrowserExtension.getContent({
+            cssSelector: selector,
+            format: 'text',
+            tabId: tabId,
+          }),
+          5000,
+          `Getting channel name via selector: ${selector}`
+        )
         
         if (channelElement && channelElement.trim().length > 0 && channelElement.trim().length < 100) {
           channelName = channelElement.trim()
@@ -178,11 +265,15 @@ async function extractVideoMetadata(tabId: number, url: string): Promise<Partial
     for (const urlSelector of channelUrlSelectors) {
       try {
         console.log(`🔍 Trying channel URL selector: ${urlSelector}`)
-        const channelLinkHTML = await BrowserExtension.getContent({
-          cssSelector: urlSelector,
-          format: 'html',
-          tabId: tabId,
-        })
+        const channelLinkHTML = await withTimeout(
+          BrowserExtension.getContent({
+            cssSelector: urlSelector,
+            format: 'html',
+            tabId: tabId,
+          }),
+          5000,
+          `Getting channel URL via selector: ${urlSelector}`
+        )
         
         if (channelLinkHTML) {
           const hrefMatch = channelLinkHTML.match(/href="([^"]+)"/)
@@ -224,23 +315,153 @@ async function extractVideoMetadata(tabId: number, url: string): Promise<Partial
       }
     }
     
+    // Extract duration
+    let duration: string | undefined
+    
+    // Method 1: Try CSS selectors for duration
+    const durationSelectors = [
+      // Player duration display
+      '.ytp-time-duration',
+      '.ytp-bound-time-right',
+      // Video info duration
+      'span.ytd-thumbnail-overlay-time-status-renderer',
+      '.ytd-thumbnail-overlay-time-status-renderer #text',
+      // Alternative selectors
+      '[class*="time-status"] #text',
+      '.badge-shape-wiz__text',
+      'ytd-thumbnail-overlay-time-status-renderer .badge-shape-wiz__text'
+    ]
+    
+    for (const selector of durationSelectors) {
+      try {
+        console.log(`🔍 Trying duration selector: ${selector}`)
+        const durationText = await withTimeout(
+          BrowserExtension.getContent({
+            cssSelector: selector,
+            format: 'text',
+            tabId: tabId,
+          }),
+          3000,
+          `Getting duration via CSS selector: ${selector}`
+        )
+        
+        if (durationText && durationText.trim().match(/^\d+:\d+/)) {
+          duration = durationText.trim()
+          console.log(`✅ Found duration via CSS: "${duration}" using selector: ${selector}`)
+          break
+        }
+      } catch (error) {
+        console.log(`❌ Duration selector ${selector} failed: ${error}`)
+        continue
+      }
+    }
+    
+    // Method 2: Try to extract from meta tags or JSON-LD
+    if (!duration) {
+      console.log('🔍 Trying duration regex patterns in HTML...')
+      
+      // Try multiple duration patterns
+      const durationPatterns = [
+        /"duration":"PT(\d+H)?(\d+M)?(\d+S)"/,
+        /"lengthSeconds":"(\d+)"/,
+        /"approxDurationMs":"(\d+)"/,
+        /PT(\d+H)?(\d+M)?(\d+S)/
+      ]
+      
+      for (const pattern of durationPatterns) {
+        const match = htmlContent.match(pattern)
+        if (match) {
+          console.log(`🔍 Found duration match:`, match)
+          
+          if (pattern.source.includes('lengthSeconds')) {
+            // Convert seconds to MM:SS or H:MM:SS format
+            const totalSeconds = parseInt(match[1])
+            const hours = Math.floor(totalSeconds / 3600)
+            const minutes = Math.floor((totalSeconds % 3600) / 60)
+            const seconds = totalSeconds % 60
+            
+            if (hours > 0) {
+              duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+            } else {
+              duration = `${minutes}:${seconds.toString().padStart(2, '0')}`
+            }
+          } else if (pattern.source.includes('approxDurationMs')) {
+            // Convert milliseconds to MM:SS or H:MM:SS format
+            const totalSeconds = Math.floor(parseInt(match[1]) / 1000)
+            const hours = Math.floor(totalSeconds / 3600)
+            const minutes = Math.floor((totalSeconds % 3600) / 60)
+            const seconds = totalSeconds % 60
+            
+            if (hours > 0) {
+              duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+            } else {
+              duration = `${minutes}:${seconds.toString().padStart(2, '0')}`
+            }
+          } else {
+            // PT format
+            const hours = match[1] ? parseInt(match[1].replace('H', '')) : 0
+            const minutes = match[2] ? parseInt(match[2].replace('M', '')) : 0
+            const seconds = match[3] ? parseInt(match[3].replace('S', '')) : 0
+            
+            if (hours > 0) {
+              duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+            } else {
+              duration = `${minutes}:${seconds.toString().padStart(2, '0')}`
+            }
+          }
+          
+          console.log(`✅ Found duration via regex: "${duration}"`)
+          break
+        }
+      }
+      
+      if (!duration) {
+        console.log('❌ No duration found in HTML content')
+      }
+    }
+
     // Extract description
     let description = 'Description not available'
     
-    // Method 1: Try CSS selector for description
-    try {
-      const cssDescription = await BrowserExtension.getContent({
-        cssSelector: 'ytd-expandable-video-description-body-renderer, .ytd-expandable-video-description-body-renderer, #description',
-        format: 'text',
-        tabId: tabId,
-      })
-      
-      if (cssDescription && cssDescription.trim().length > 10) {
-        description = cssDescription.trim()
-        console.log(`✅ Found description via CSS (${description.length} chars)`)
+    // Method 1: Try CSS selector for description (with Safari-specific selectors)
+    const descriptionSelectors = [
+      // Chrome/Arc selectors
+      'ytd-expandable-video-description-body-renderer',
+      '.ytd-expandable-video-description-body-renderer', 
+      '#description',
+      // Safari-specific selectors
+      '[class*="expandable-video-description-body"]',
+      'ytd-expandable-video-description-body-renderer .content',
+      '#description-inline-expander',
+      '#meta-contents #description',
+      // Broader fallbacks
+      '[id*="description"]',
+      '.description',
+      'ytd-video-secondary-info-renderer #description'
+    ]
+    
+    for (const selector of descriptionSelectors) {
+      try {
+        console.log(`🔍 Trying description selector: ${selector}`)
+        const cssDescription = await withTimeout(
+          BrowserExtension.getContent({
+            cssSelector: selector,
+            format: 'text',
+            tabId: tabId,
+          }),
+          3000,
+          `Getting description via CSS selector: ${selector}`
+        )
+        
+        if (cssDescription && cssDescription.trim().length > 10) {
+          description = cssDescription.trim()
+          console.log(`✅ Found description via CSS (${description.length} chars) using selector: ${selector}`)
+          break
+        }
+      } catch (error) {
+        console.log(`❌ Description selector ${selector} failed: ${error}`)
+        continue
       }
-    } catch (error) {
-      console.log(`❌ CSS description extraction failed: ${error}`)
     }
     
     // Method 2: Fallback to regex
@@ -258,10 +479,17 @@ async function extractVideoMetadata(tabId: number, url: string): Promise<Partial
       channelUrl,
       url: `https://www.youtube.com/watch?v=${videoId}`,
       videoId,
-      description
+      description,
+      duration
     }
   } catch (error) {
     console.log(`❌ Metadata extraction failed: ${error}`)
+    
+    // Handle Safari-specific access restrictions
+    if (isSafariAccessError(error)) {
+      throw handleSafariError('page content access')
+    }
+    
     throw error
   }
 }
@@ -277,11 +505,15 @@ async function extractTranscript(tabId: number): Promise<string | null> {
     let needsTranscriptButton = false
     try {
       // Check if transcript panel exists but is not expanded
-      const transcriptButton = await BrowserExtension.getContent({
-        cssSelector: 'button[aria-label*="transcript" i], button[aria-label*="Show transcript" i]',
-        format: 'text',
-        tabId: tabId,
-      })
+      const transcriptButton = await withTimeout(
+        BrowserExtension.getContent({
+          cssSelector: 'button[aria-label*="transcript" i], button[aria-label*="Show transcript" i]',
+          format: 'text',
+          tabId: tabId,
+        }),
+        3000,
+        'Checking for transcript button'
+      )
       
       if (transcriptButton && transcriptButton.includes('Show transcript')) {
         console.log('🔍 Transcript panel not expanded, but transcript button found')
@@ -311,11 +543,15 @@ async function extractTranscript(tabId: number): Promise<string | null> {
     for (const selector of transcriptSelectors) {
       try {
         console.log(`🔍 Trying selector: ${selector}`)
-        const transcriptText = await BrowserExtension.getContent({
-          cssSelector: selector,
-          format: 'text',
-          tabId: tabId,
-        })
+        const transcriptText = await withTimeout(
+          BrowserExtension.getContent({
+            cssSelector: selector,
+            format: 'text',
+            tabId: tabId,
+          }),
+          8000,
+          `Getting transcript via selector: ${selector}`
+        )
         
         if (transcriptText && transcriptText.trim().length > 50) {
           console.log(`✅ Found transcript with ${selector} (${transcriptText.length} chars)`)
@@ -340,11 +576,15 @@ async function extractTranscript(tabId: number): Promise<string | null> {
     for (const containerSelector of containerSelectors) {
       try {
         console.log(`🔍 Trying container selector: ${containerSelector}`)
-        const fullTranscript = await BrowserExtension.getContent({
-          cssSelector: containerSelector,
-          format: 'text',
-          tabId: tabId,
-        })
+        const fullTranscript = await withTimeout(
+          BrowserExtension.getContent({
+            cssSelector: containerSelector,
+            format: 'text',
+            tabId: tabId,
+          }),
+          8000,
+          `Getting transcript via container: ${containerSelector}`
+        )
         
         if (fullTranscript && fullTranscript.trim().length > 100) {
           console.log(`✅ Found transcript via container (${fullTranscript.length} chars)`)
@@ -374,6 +614,12 @@ async function extractTranscript(tabId: number): Promise<string | null> {
       throw error
     }
     
+    // Handle Safari-specific access restrictions for transcript
+    if (isSafariAccessError(error)) {
+      console.log('🔍 Safari access restriction detected for transcript - continuing without transcript')
+      return null // Don't throw for transcript, just continue without it
+    }
+    
     return null
   }
 }
@@ -399,10 +645,20 @@ function formatTranscriptForTanaField(transcript: string): string {
  * Format video info for Tana in Markdown format
  */
 function formatForTanaMarkdown(videoInfo: VideoInfo): string {
-  let markdown = `# ${videoInfo.title} #video\n`
+  const titleWithDuration = videoInfo.duration ? 
+    `${videoInfo.title} (${videoInfo.duration})` : 
+    videoInfo.title
+    
+  console.log(`🔍 Formatting title: "${titleWithDuration}" (original: "${videoInfo.title}", duration: "${videoInfo.duration}")`)
+    
+  let markdown = `# ${titleWithDuration} #video\n`
   markdown += `URL::${videoInfo.url}\n`
   markdown += `Channel URL::${videoInfo.channelUrl}\n`
   markdown += `Author::${videoInfo.channelName}\n`
+  
+  if (videoInfo.duration) {
+    markdown += `Duration::${videoInfo.duration}\n`
+  }
 
   if (videoInfo.transcript) {
     const safeTranscript = formatTranscriptForTanaField(videoInfo.transcript)
@@ -413,6 +669,31 @@ function formatForTanaMarkdown(videoInfo: VideoInfo): string {
   markdown += `Description::${safeDescription}\n`
 
   return markdown
+}
+
+/**
+ * Extract basic video info from tab data (Safari fallback)
+ */
+function extractFromTabData(url: string, tabTitle?: string): Partial<VideoInfo> {
+  const urlObj = new URL(url)
+  const videoId = urlObj.searchParams.get('v') || ''
+  
+  // Extract title from tab title (YouTube adds " - YouTube" to titles)
+  let title = 'YouTube Video'
+  if (tabTitle && tabTitle.includes(' - YouTube')) {
+    title = tabTitle.replace(' - YouTube', '').trim()
+  } else if (tabTitle && tabTitle.length > 0) {
+    title = tabTitle.trim()
+  }
+  
+  return {
+    title: decodeHTMLEntities(title),
+    url: `https://www.youtube.com/watch?v=${videoId}`,
+    videoId,
+    channelName: 'Unknown Channel',
+    channelUrl: 'https://www.youtube.com',
+    description: 'Description not available (Safari content access restricted)'
+  }
 }
 
 /**
@@ -457,7 +738,7 @@ export default async function Command() {
     }
 
     // Extract video metadata
-    const metadata = await extractVideoMetadata(youtubeTab.tabId, youtubeTab.url)
+    const metadata = await extractVideoMetadata(youtubeTab.tabId, youtubeTab.url, youtubeTab.title)
     
     // Combine all info
     const videoInfo: VideoInfo = {
@@ -467,8 +748,11 @@ export default async function Command() {
       url: metadata.url || youtubeTab.url,
       videoId: metadata.videoId || '',
       description: metadata.description || 'Description not available',
-      transcript: transcript || undefined
+      transcript: transcript || undefined,
+      duration: metadata.duration
     }
+    
+    console.log(`🔍 Final video info - Title: "${videoInfo.title}", Duration: "${videoInfo.duration}"`)
 
     // Format and copy to clipboard
     const markdownFormat = formatForTanaMarkdown(videoInfo)
@@ -490,10 +774,19 @@ export default async function Command() {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
     
-    await showToast({
-      style: Toast.Style.Failure,
-      title: 'Failed to process YouTube video',
-      message: errorMessage,
-    })
+    // Show specific Safari error messages or general error
+    if (errorMessage.includes('Safari Access Restricted')) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: 'Safari Access Restricted',
+        message: 'Please check Safari settings and reload the page. Works fine in Arc/Chrome.',
+      })
+    } else {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: 'Failed to process YouTube video',
+        message: errorMessage,
+      })
+    }
   }
 }
