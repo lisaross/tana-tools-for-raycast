@@ -8,12 +8,26 @@ const execAsync = promisify(exec)
 /**
  * YouTube to Tana Converter
  *
- * Simplified version that uses only the Raycast Browser Extension API
- * to extract YouTube video metadata and transcripts.
+ * Uses the Raycast Browser Extension API to extract YouTube video metadata and transcripts.
+ * Automatically opens Tana after copying the formatted content to the clipboard.
  * 
- * SAFARI REQUIREMENTS:
- * 1. Safari Settings > Advanced > Show features for web developers ✓
- * 2. Safari Settings > Developer > Allow JavaScript from Apple Events ✓
+ * REQUIREMENTS:
+ * 1. Open a YouTube video in your browser (Arc, Chrome, or Safari)
+ * 2. Make sure the YouTube tab is active
+ * 3. For transcripts: Click "Show transcript" below the video if available
+ * 
+ * BROWSER COMPATIBILITY:
+ * - Arc/Chrome: Full support, all features work seamlessly
+ * - Safari: Requires additional setup for full functionality:
+ *   • Safari Settings → Advanced → ✓ "Show features for web developers"
+ *   • Safari Settings → Developer → ✓ "Allow JavaScript from Apple Events"
+ *   • Reload the YouTube page after enabling these settings
+ * 
+ * FEATURES:
+ * - Extracts video title, channel name, duration, description
+ * - Captures transcript if available (auto-generated or manual captions)
+ * - Formats everything for Tana with proper structure and tags
+ * - Automatically opens Tana application after copying to clipboard
  */
 
 /**
