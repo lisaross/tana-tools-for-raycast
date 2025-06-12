@@ -2,6 +2,7 @@
  * Transcript processing functionality for tana-converter
  */
 import { CONSTANTS } from './types'
+import { chunkTranscriptContent, generateTranscriptOutput } from './transcript-chunker'
 
 /**
  * Detects if a line contains a YouTube transcript in the format (MM:SS)
@@ -315,7 +316,6 @@ export function chunkTranscript(
     return [content]
   }
 
-  const chunks: string[] = []
   const headerLine = '%%tana%%'
 
   // Check if this is a single line of content (for transcripts)
@@ -333,15 +333,9 @@ export function chunkTranscript(
     }
     combinedTranscript = combinedTranscript.trim()
 
-    // Chunk the content into maxChunkSize pieces
-    for (let i = 0; i < combinedTranscript.length; i += maxChunkSize - 10) {
-      // -10 to account for header and bullet
-      const chunkEnd = Math.min(i + maxChunkSize - 10, combinedTranscript.length)
-      const chunk = combinedTranscript.substring(i, chunkEnd)
-      chunks.push(`${headerLine}\n- ${chunk}`)
-    }
-
-    return chunks
+    // Use the new chunking utilities
+    const chunks = chunkTranscriptContent(combinedTranscript, maxChunkSize)
+    return chunks.map(chunk => `${headerLine}\n- ${chunk}`)
   }
 
   // Handle multi-line content with line-by-line approach
@@ -349,6 +343,8 @@ export function chunkTranscript(
   const lines = content.split('\n').filter((line) => line.trim() !== headerLine)
   let currentChunk: string[] = []
   let currentSize = 0
+
+  const chunks: string[] = []
 
   // Process each line to create chunks
   for (let i = 0; i < lines.length; i += 1) {

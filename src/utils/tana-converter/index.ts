@@ -14,6 +14,11 @@ import {
   processLimitlessPendantTranscriptToSingleLine,
   processLimitlessAppTranscriptToSingleLine,
 } from './transcript-processor'
+import { 
+  chunkTranscriptContent, 
+  generateTranscriptOutput, 
+  generateHierarchicalTranscriptOutput 
+} from './transcript-chunker'
 
 /**
  * Convert markdown to Tana format
@@ -59,29 +64,9 @@ export function convertToTana(inputText: string | undefined | null): string {
       ? processLimitlessPendantTranscriptToSingleLine(processedInputText)
       : processLimitlessAppTranscriptToSingleLine(processedInputText)
 
-    // Calculate number of chunks needed
-    const maxContentSize = CONSTANTS.MAX_TRANSCRIPT_CHUNK_SIZE - 10 // Account for header and formatting
-    const totalChunks = Math.ceil(singleLineTranscript.length / maxContentSize)
-
-    // Start with the Tana header for the first chunk only
-    let result = '%%tana%%\n'
-
-    // Create each chunk
-    for (let i = 0; i < totalChunks; i += 1) {
-      const start = i * maxContentSize
-      const end = Math.min(start + maxContentSize, singleLineTranscript.length)
-      const chunkContent = singleLineTranscript.substring(start, end)
-
-      // For the first chunk, we already added the header
-      if (i === 0) {
-        result += `- ${chunkContent}`
-      } else {
-        // For subsequent chunks, just continue without repeating the header
-        result += `\n- ${chunkContent}`
-      }
-    }
-
-    return result
+    // Use the chunking utility functions
+    const chunks = chunkTranscriptContent(singleLineTranscript)
+    return generateTranscriptOutput(chunks)
   }
 
   // Handle YouTube transcript separately to maintain hierarchy
@@ -107,9 +92,8 @@ export function convertToTana(inputText: string | undefined | null): string {
 
     // If we have a transcript, process it
     if (transcriptIdx >= 0 && transcriptContent) {
-      // Process transcript content for chunking
-      const maxContentSize = CONSTANTS.MAX_TRANSCRIPT_CHUNK_SIZE - 10
-      const totalChunks = Math.ceil(transcriptContent.length / maxContentSize)
+      // Use the chunking utility functions
+      const chunks = chunkTranscriptContent(transcriptContent)
 
       // Start building output
       let output = '%%tana%%\n'
@@ -170,22 +154,12 @@ export function convertToTana(inputText: string | undefined | null): string {
 
         // If this is where the transcript should go (right after the line that would be its parent)
         if (i === (hierarchicalLines[transcriptIdx].parent || 0)) {
-          // Determine transcript indentation (should be one level deeper than its parent)
-          const transcriptIndent = '  '.repeat((indentLevel || 0) + 1)
+          // Determine transcript indentation levels
+          const transcriptIndent = (indentLevel || 0) + 1
+          const chunkIndent = (indentLevel || 0) + 2
 
-          // Add the transcript field with no content - it will be a parent node for chunks
-          output += `${transcriptIndent}- Transcript::\n`
-
-          // Add transcript content as indented list items under the Transcript field
-          const transcriptChunkIndent = '  '.repeat((indentLevel || 0) + 2)
-
-          // For each chunk, add as a separate list item under the Transcript field
-          for (let j = 0; j < totalChunks; j += 1) {
-            const start = j * maxContentSize
-            const end = Math.min(start + maxContentSize, transcriptContent.length)
-            const chunk = transcriptContent.substring(start, end)
-            output += `${transcriptChunkIndent}- ${chunk}\n`
-          }
+          // Generate hierarchical transcript output
+          output += generateHierarchicalTranscriptOutput(chunks, transcriptIndent, chunkIndent)
         }
       }
 
