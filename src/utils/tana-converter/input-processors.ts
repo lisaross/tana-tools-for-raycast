@@ -1,7 +1,7 @@
 /**
  * Strategy pattern for processing different input types in tana-converter
  */
-import { Line } from './types'
+import { Line, CONSTANTS } from './types'
 import { parseLine, splitMultipleBullets, buildHierarchy } from './line-parser'
 import { convertDates } from './date-formatter'
 import { convertFields, processInlineFormatting } from './formatters'
@@ -52,18 +52,18 @@ function preprocessInput(inputText: string): string {
  */
 function calculateIndentationLevels(hierarchicalLines: Line[]): Map<number, number> {
   const indentLevels = new Map<number, number>()
-  indentLevels.set(-1, 0) // Root level
+  indentLevels.set(CONSTANTS.ROOT_INDENT_LEVEL, CONSTANTS.BASE_INDENT_LEVEL) // Root level
 
   for (let i = 0; i < hierarchicalLines.length; i += 1) {
     const line = hierarchicalLines[i]
     if (!line.content.trim()) continue
 
     if (line.isHeader) {
-      indentLevels.set(i, 0)
+      indentLevels.set(i, CONSTANTS.BASE_INDENT_LEVEL)
     } else {
-      const parentIdx = line.parent !== undefined ? line.parent : -1
-      const parentIndent = indentLevels.get(parentIdx) || 0
-      indentLevels.set(i, parentIndent + 1)
+      const parentIdx = line.parent !== undefined ? line.parent : CONSTANTS.ROOT_INDENT_LEVEL
+      const parentIndent = indentLevels.get(parentIdx) || CONSTANTS.BASE_INDENT_LEVEL
+      indentLevels.set(i, parentIndent + CONSTANTS.INDENT_LEVEL_INCREMENT)
     }
   }
 
@@ -178,10 +178,10 @@ export class YouTubeTranscriptProcessor implements InputProcessor {
         output += `${indent}- ${processedContent}\n`
 
         // If this is where the transcript should go (right after the line that would be its parent)
-        if (i === (hierarchicalLines[transcriptIdx].parent || 0)) {
+        if (i === (hierarchicalLines[transcriptIdx].parent || CONSTANTS.BASE_INDENT_LEVEL)) {
           // Determine transcript indentation levels
-          const transcriptIndent = (indentLevel || 0) + 1
-          const chunkIndent = (indentLevel || 0) + 2
+          const transcriptIndent = (indentLevel || CONSTANTS.BASE_INDENT_LEVEL) + CONSTANTS.INDENT_LEVEL_INCREMENT
+          const chunkIndent = (indentLevel || CONSTANTS.BASE_INDENT_LEVEL) + CONSTANTS.INDENT_LEVEL_INCREMENT + CONSTANTS.TRANSCRIPT_CHUNK_INDENT_INCREMENT
 
           // Generate hierarchical transcript output
           output += generateHierarchicalTranscriptOutput(chunks, transcriptIndent, chunkIndent)

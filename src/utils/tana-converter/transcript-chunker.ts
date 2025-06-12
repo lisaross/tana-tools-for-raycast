@@ -2,7 +2,7 @@
  * Transcript chunking utility functions for tana-converter
  * Provides reusable functions for chunking large transcript content
  */
-import { CONSTANTS } from './types'
+import { CONSTANTS, VALIDATORS } from './types'
 
 /**
  * Chunk transcript content into smaller pieces
@@ -11,7 +11,11 @@ import { CONSTANTS } from './types'
  * @returns Array of content chunks (without Tana headers)
  */
 export function chunkTranscriptContent(content: string, maxSize: number = CONSTANTS.MAX_TRANSCRIPT_CHUNK_SIZE): string[] {
-  const maxContentSize = maxSize - 10 // Account for header and formatting overhead
+  // Validate input parameters
+  VALIDATORS.validateChunkSize(maxSize)
+  VALIDATORS.validateBufferSize(CONSTANTS.TRANSCRIPT_HEADER_BUFFER, maxSize)
+  
+  const maxContentSize = maxSize - CONSTANTS.TRANSCRIPT_HEADER_BUFFER
   
   if (content.length <= maxContentSize) {
     return [content]
@@ -32,10 +36,10 @@ export function chunkTranscriptContent(content: string, maxSize: number = CONSTA
 /**
  * Generate Tana-formatted transcript output from chunks
  * @param chunks Array of transcript content chunks
- * @param indentLevel Number of indentation levels (0 = root level)
+ * @param indentLevel Number of indentation levels (defaults to base level)
  * @returns Formatted Tana output string
  */
-export function generateTranscriptOutput(chunks: string[], indentLevel: number = 0): string {
+export function generateTranscriptOutput(chunks: string[], indentLevel: number = CONSTANTS.BASE_INDENT_LEVEL): string {
   if (chunks.length === 0) {
     return '%%tana%%\n'
   }

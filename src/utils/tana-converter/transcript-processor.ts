@@ -1,7 +1,7 @@
 /**
  * Transcript processing functionality for tana-converter
  */
-import { CONSTANTS } from './types'
+import { CONSTANTS, VALIDATORS } from './types'
 import { chunkTranscriptContent, generateTranscriptOutput } from './transcript-chunker'
 
 /**
@@ -127,7 +127,7 @@ export function isLimitlessPendantTranscription(text: string): boolean {
     }
 
     // If we found multiple matching lines, it's likely a Limitless Pendant transcription
-    if (pendantFormatCount >= 3) {
+    if (pendantFormatCount >= CONSTANTS.MIN_PENDANT_FORMAT_LINES) {
       return true
     }
   }
@@ -169,7 +169,7 @@ export function isNewTranscriptionFormat(text: string): boolean {
   }
 
   // If we have multiple speakers and timestamps, it's likely this format
-  return speakerCount >= 2 && timestampCount >= 2
+  return speakerCount >= CONSTANTS.MIN_TRANSCRIPTION_FORMAT_INDICATORS && timestampCount >= CONSTANTS.MIN_TRANSCRIPTION_FORMAT_INDICATORS
 }
 
 /**
