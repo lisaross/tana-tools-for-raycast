@@ -38,21 +38,22 @@ export interface InputProcessor {
 
 /**
  * Shared preprocessing for all input types
+ * Refactored to use pure functional approach instead of forEach with side effects
  */
 function preprocessInput(inputText: string): string {
-  const processedLines: string[] = []
-  inputText.split('\n').forEach((line) => {
-    // First check if this line contains multiple bullet points
-    const bulletLines = splitMultipleBullets(line)
-
-    // For each bullet line, check if it has YouTube timestamps
-    bulletLines.forEach((bulletLine) => {
-      const segments = processYouTubeTranscriptTimestamps(bulletLine)
-      processedLines.push(...segments)
+  // Pure functional approach: transform each line to segments, then flatten
+  return inputText
+    .split('\n')
+    .flatMap(line => {
+      // Split line into bullet lines
+      const bulletLines = splitMultipleBullets(line)
+      
+      // Transform each bullet line to segments and flatten
+      return bulletLines.flatMap(bulletLine => 
+        processYouTubeTranscriptTimestamps(bulletLine)
+      )
     })
-  })
-
-  return processedLines.join('\n')
+    .join('\n')
 }
 
 /**

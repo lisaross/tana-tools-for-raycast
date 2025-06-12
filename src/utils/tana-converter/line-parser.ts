@@ -106,25 +106,24 @@ export function splitMultipleBullets(line: string): string[] {
         },
       )
 
-      // For each section, extract its bullets
-      for (const section of sectionBoundaries) {
-        // Add the section header
-        results.push(`${leadingWhitespace}\t${section.text}`)
-
+      // Pure functional approach: transform sections to results and flatten
+      const sectionResults = sectionBoundaries.flatMap(section => {
+        // Start with section header
+        const sectionLines = [`${leadingWhitespace}\t${section.text}`]
+        
         // Get the content for this section
         const sectionContent = content.substring(section.start, section.end)
-
-        // Find all bullets in this section
-        const bulletMatches = Array.from(sectionContent.matchAll(/[▪-]\s+([^\t▪-]+)/g))
-
-        // Add each bullet with proper indentation
-        for (const bulletMatch of bulletMatches) {
-          const [, bulletText] = bulletMatch
-          if (bulletText && bulletText.trim()) {
-            results.push(`${leadingWhitespace}\t\t▪\t${bulletText.trim()}`)
-          }
-        }
-      }
+        
+        // Find all bullets in this section and transform to formatted lines
+        const bulletLines = Array.from(sectionContent.matchAll(/[▪-]\s+([^\t▪-]+)/g))
+          .map(bulletMatch => bulletMatch[1])
+          .filter(bulletText => bulletText && bulletText.trim())
+          .map(bulletText => `${leadingWhitespace}\t\t▪\t${bulletText.trim()}`)
+        
+        return [...sectionLines, ...bulletLines]
+      })
+      
+      results.push(...sectionResults)
 
       if (results.length > 0) {
         return results
