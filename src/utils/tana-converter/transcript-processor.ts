@@ -185,7 +185,7 @@ export function processLimitlessAppTranscriptToSingleLine(text: string): string 
   const lines = text.split('\n')
   const combinedContent: string[] = []
   let currentSpeaker = ''
-  let contentBuffer = ''
+  let contentParts: string[] = []
 
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i].trim()
@@ -194,9 +194,9 @@ export function processLimitlessAppTranscriptToSingleLine(text: string): string 
     // Check if this is a speaker line (followed by empty line)
     if (i < lines.length - 1 && !lines[i + 1].trim()) {
       // If we have accumulated content, add it to the combined content
-      if (currentSpeaker && contentBuffer) {
-        combinedContent.push(`${currentSpeaker}: ${contentBuffer.trim()}`)
-        contentBuffer = ''
+      if (currentSpeaker && contentParts.length > 0) {
+        combinedContent.push(`${currentSpeaker}: ${contentParts.join(' ')}`)
+        contentParts = []
       }
 
       currentSpeaker = line
@@ -212,17 +212,13 @@ export function processLimitlessAppTranscriptToSingleLine(text: string): string 
       continue
     }
 
-    // Accumulate content text
-    if (contentBuffer) {
-      contentBuffer += ` ${line}`
-    } else {
-      contentBuffer = line
-    }
+    // Accumulate content text using array for better performance
+    contentParts.push(line)
   }
 
   // Add any remaining content
-  if (currentSpeaker && contentBuffer) {
-    combinedContent.push(`${currentSpeaker}: ${contentBuffer.trim()}`)
+  if (currentSpeaker && contentParts.length > 0) {
+    combinedContent.push(`${currentSpeaker}: ${contentParts.join(' ')}`)
   }
 
   // Join all entries into a single line
@@ -324,14 +320,15 @@ export function chunkTranscript(
     // Extract the content without the header
     const contentWithoutHeader = content.replace(headerLine, '').trim()
 
-    // Create a combined transcript and split into chunks
-    let combinedTranscript = ''
+    // Create a combined transcript using array for better performance
+    const transcriptParts: string[] = []
     for (const line of contentWithoutHeader.split('\n')) {
-      if (line.trim()) {
-        combinedTranscript += `${line.trim()} `
+      const trimmedLine = line.trim()
+      if (trimmedLine) {
+        transcriptParts.push(trimmedLine)
       }
     }
-    combinedTranscript = combinedTranscript.trim()
+    const combinedTranscript = transcriptParts.join(' ')
 
     // Use the new chunking utilities
     const chunks = chunkTranscriptContent(combinedTranscript, maxChunkSize)

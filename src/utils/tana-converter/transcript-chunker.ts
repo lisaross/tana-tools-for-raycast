@@ -4,6 +4,7 @@
  */
 import { CONSTANTS, VALIDATORS } from './types'
 import { ChunkingError, ErrorUtils, InvalidInputError } from './errors'
+import { StringBuilder, StringUtils } from './string-builder'
 
 /**
  * Chunk transcript content into smaller pieces
@@ -109,8 +110,8 @@ export function generateTranscriptOutput(chunks: string[], indentLevel: number =
       return '%%tana%%\n'
     }
 
-    let result = '%%tana%%\n'
-    const indent = '  '.repeat(indentLevel)
+    // Use StringBuilder for efficient string construction
+    const builder = StringBuilder.withTanaHeader()
 
     // Generate output for each chunk
     for (let i = 0; i < chunks.length; i += 1) {
@@ -124,16 +125,19 @@ export function generateTranscriptOutput(chunks: string[], indentLevel: number =
         })
       }
       
+      // Add chunk content with proper indentation
       if (i === 0) {
-        // First chunk
-        result += `${indent}- ${chunkContent}`
+        // First chunk without extra newline
+        builder.addLine(chunkContent, indentLevel)
       } else {
-        // Subsequent chunks
-        result += `\n${indent}- ${chunkContent}`
+        // Subsequent chunks 
+        builder.addLine(chunkContent, indentLevel)
       }
     }
 
-    if (result === '%%tana%%\n') {
+    const result = builder.toString()
+    
+    if (result === '%%tana%%') {
       throw new ChunkingError('Generated empty output after processing chunks', {
         chunkCount: chunks.length,
         indentLevel
@@ -201,10 +205,11 @@ export function generateHierarchicalTranscriptOutput(
       return ''
     }
 
-    const transcriptIndentStr = '  '.repeat(transcriptIndent)
-    const chunkIndentStr = '  '.repeat(chunkIndent)
+    // Use array-based building for better performance
+    const outputLines: string[] = []
     
-    let result = `${transcriptIndentStr}- Transcript::\n`
+    // Add the transcript header line
+    outputLines.push(`${'  '.repeat(transcriptIndent)}- Transcript::`)
     
     // Add each chunk as a nested item under the Transcript field
     for (let i = 0; i < chunks.length; i += 1) {
@@ -225,10 +230,12 @@ export function generateHierarchicalTranscriptOutput(
         })
       }
       
-      result += `${chunkIndentStr}- ${chunk}\n`
+      // Build chunk line with template literal
+      outputLines.push(`${'  '.repeat(chunkIndent)}- ${chunk}`)
     }
 
-    return result
+    // Join all lines with newlines and add final newline
+    return outputLines.join('\n') + '\n'
 
   } catch (error) {
     if (error instanceof InvalidInputError || error instanceof ChunkingError) {

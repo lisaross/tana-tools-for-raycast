@@ -22,6 +22,7 @@ import {
   ErrorUtils,
   InvalidInputError 
 } from './errors'
+import { StringBuilder, StringUtils } from './string-builder'
 
 /**
  * Interface for input processing strategies
@@ -292,8 +293,8 @@ export class YouTubeTranscriptProcessor implements InputProcessor {
           { processorType: 'YouTube', step: 'chunking', transcriptLength: transcriptContent.length }
         )
 
-        // Start building output
-        let output = '%%tana%%\n'
+        // Use StringBuilder for efficient output construction
+        const builder = StringBuilder.withTanaHeader()
 
         // Calculate indentation levels
         const indentLevels = ErrorUtils.safeExecuteSync(
@@ -311,7 +312,6 @@ export class YouTubeTranscriptProcessor implements InputProcessor {
           if (!content) continue
 
           const indentLevel = indentLevels.get(i) || 0
-          const indent = '  '.repeat(indentLevel)
 
           // Process line content
           const processedContent = ErrorUtils.safeExecuteSync(
@@ -320,8 +320,8 @@ export class YouTubeTranscriptProcessor implements InputProcessor {
             { processorType: 'YouTube', step: 'lineContentProcessing', lineIndex: i }
           )
 
-          // Add the line to output with proper Tana formatting
-          output += `${indent}- ${processedContent}\n`
+          // Add the line with proper Tana formatting
+          builder.addLine(processedContent, indentLevel)
 
           // If this is where the transcript should go (right after the line that would be its parent)
           if (i === (hierarchicalLines[transcriptIdx].parent || CONSTANTS.BASE_INDENT_LEVEL)) {
@@ -335,11 +335,11 @@ export class YouTubeTranscriptProcessor implements InputProcessor {
               HierarchyBuildingError,
               { processorType: 'YouTube', step: 'hierarchicalTranscriptOutput', chunkCount: chunks.length }
             )
-            output += hierarchicalOutput
+            builder.addRaw(hierarchicalOutput.trimEnd()) // Remove trailing newline to avoid double newlines
           }
         }
 
-        return output
+        return builder.toString()
       }
 
       // If no transcript found, fall back to standard processing
@@ -399,8 +399,8 @@ export class StandardMarkdownProcessor implements InputProcessor {
         { processorType: 'StandardMarkdown', step: 'hierarchyBuilding', lineCount: lines.length }
       )
 
-      // Generate output
-      let output = '%%tana%%\n'
+      // Use StringBuilder for efficient output construction
+      const builder = StringBuilder.withTanaHeader()
 
       // Calculate the indentation level for each line
       const indentLevels = ErrorUtils.safeExecuteSync(
@@ -417,7 +417,6 @@ export class StandardMarkdownProcessor implements InputProcessor {
         if (!content) continue
 
         const indentLevel = indentLevels.get(i) || 0
-        const indent = '  '.repeat(indentLevel)
 
         // Process line content
         const processedContent = ErrorUtils.safeExecuteSync(
@@ -426,10 +425,11 @@ export class StandardMarkdownProcessor implements InputProcessor {
           { processorType: 'StandardMarkdown', step: 'lineContentProcessing', lineIndex: i }
         )
 
-        output += `${indent}- ${processedContent}\n`
+        // Add line with proper indentation
+        builder.addLine(processedContent, indentLevel)
       }
 
-      return output
+      return builder.toString()
 
     } catch (error) {
       if (error instanceof FieldFormattingError || 
