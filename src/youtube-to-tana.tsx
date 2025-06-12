@@ -71,13 +71,17 @@ async function withTimeout<T>(
   timeoutMs: number = 10000, 
   operation: string = 'operation'
 ): Promise<T> {
+  let timeoutId: NodeJS.Timeout
+  
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => {
+    timeoutId = setTimeout(() => {
       reject(new Error(`${operation} timed out after ${timeoutMs}ms. This may be a Safari compatibility issue. Please ensure Safari Developer settings are enabled.`))
     }, timeoutMs)
   })
 
-  return Promise.race([promise, timeoutPromise])
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timeoutId)
+  })
 }
 
 /**
@@ -784,12 +788,7 @@ export default async function Command() {
       if (transcript) {
         await showHUD('YouTube video info and transcript copied to clipboard. Opening Tana... ✨')
       } else {
-        await showHUD('YouTube video info copied to clipboard. Opening Tana... ✨')
-        await showToast({
-          style: Toast.Style.Failure,
-          title: 'No Transcript Found',
-          message: 'This video may not have captions/transcripts available.',
-        })
+        await showHUD('YouTube video info copied to clipboard (no transcript available). Opening Tana... ✨')
       }
     } catch (error) {
       console.error('Error opening Tana:', error)
@@ -797,12 +796,7 @@ export default async function Command() {
       if (transcript) {
         await showHUD('YouTube video info and transcript copied to clipboard (but couldn\'t open Tana) ✨')
       } else {
-        await showHUD('YouTube video info copied to clipboard (but couldn\'t open Tana) ✨')
-        await showToast({
-          style: Toast.Style.Failure,
-          title: 'No Transcript Found',
-          message: 'This video may not have captions/transcripts available.',
-        })
+        await showHUD('YouTube video info copied to clipboard (no transcript available, couldn\'t open Tana) ✨')
       }
     }
 
