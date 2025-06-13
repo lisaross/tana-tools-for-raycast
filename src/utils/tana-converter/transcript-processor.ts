@@ -294,8 +294,8 @@ export function chunkTranscript(
     const combinedTranscript = transcriptParts.join(' ')
 
     // Use the new chunking utilities
-    const chunks = chunkTranscriptContent(combinedTranscript, maxChunkSize)
-    return chunks.map(chunk => `${headerLine}\n- ${chunk}`)
+    const chunks = chunkTranscriptContent(combinedTranscript)
+    return chunks.map(chunk => `${headerLine}\n- ${chunk.content}`)
   }
 
   // Handle multi-line content with line-by-line approach

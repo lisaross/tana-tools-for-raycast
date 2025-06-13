@@ -1,7 +1,7 @@
 /**
  * Line parsing module for tana-converter
  */
-import { Line } from './types'
+import { Line, TypeCheckers, VALIDATORS } from './types'
 
 /**
  * Parse a line to determine its structure
@@ -9,10 +9,17 @@ import { Line } from './types'
  * @returns Line object with parsed structure information
  */
 export function parseLine(line: string): Line {
+  // Input validation with type guard
+  if (typeof line !== 'string') {
+    throw new Error(`parseLine expects string input, received: ${typeof line}`)
+  }
+
   const raw = line
 
   // Calculate indent level based on spaces and tabs
-  const [, spaces = ''] = line.match(/^(\s*)/) || []
+  const match = line.match(/^(\s*)/)
+  const spaces = match?.[1] ?? ''
+  
   // Consider tabs as 2 spaces for indentation purposes
   const tabAdjustedSpaces = line.slice(0, spaces.length).replace(/\t/g, '  ').length
   const indent = Math.floor(tabAdjustedSpaces / 2)
@@ -20,20 +27,21 @@ export function parseLine(line: string): Line {
   // Get content without indentation
   const content = line.slice(spaces.length).trimEnd()
 
-  // Detect if it's a header
-  const isHeader = content.startsWith('#')
+  // Detect if it's a header with null-safe regex check
+  const isHeader = TypeCheckers.isNonEmptyString(content) && content.startsWith('#')
 
   // Detect if it's a code block
-  const isCodeBlock = content.startsWith('```')
+  const isCodeBlock = TypeCheckers.isNonEmptyString(content) && content.startsWith('```')
 
-  // Detect if it's a bullet point
-  const isBulletPoint = /^[-*+•▪]\s+/.test(content)
+  // Detect if it's a bullet point with safe regex testing
+  const isBulletPoint = TypeCheckers.isNonEmptyString(content) && /^[-*+•▪]\s+/.test(content)
 
   // Detect if it's a numbered list item
-  const isNumberedList = /^\d+\.\s+/.test(content)
+  const isNumberedList = TypeCheckers.isNonEmptyString(content) && /^\d+\.\s+/.test(content)
 
   // Detect if it's a list item (bullet point, numbered, or lettered)
-  const isListItem = isBulletPoint || isNumberedList || /^[a-z]\.\s+/i.test(content)
+  const isListItem = isBulletPoint || isNumberedList || 
+    (TypeCheckers.isNonEmptyString(content) && /^[a-z]\.\s+/i.test(content))
 
   return {
     content,
@@ -56,17 +64,24 @@ export function parseLine(line: string): Line {
  * @returns Array of separated lines
  */
 export function splitMultipleBullets(line: string): string[] {
+  // Input validation with type guard
+  if (typeof line !== 'string') {
+    throw new Error(`splitMultipleBullets expects string input, received: ${typeof line}`)
+  }
+
   // Skip standard cases where there are no multiple bullets or tabs
   if (!line.includes('\t▪') && !line.includes('\t-') && !line.match(/\t\d+\./)) {
     return [line]
   }
 
   // Get the leading whitespace to preserve indentation
-  const [, leadingWhitespace = ''] = line.match(/^(\s*)/) || []
+  const match = line.match(/^(\s*)/)
+  const leadingWhitespace = match?.[1] ?? ''
   const content = line.slice(leadingWhitespace.length)
 
   // Detect if this line contains multiple section headers with numbers (like "1.", "2.")
-  const containsMultipleSections = (content.match(/\d+\.\s+/g) || []).length > 1
+  const sectionMatches = content.match(/\d+\.\s+/g)
+  const containsMultipleSections = sectionMatches ? sectionMatches.length > 1 : false
 
   // Detect if this line contains bullet points
   const containsBullets = content.includes('▪') || content.includes('-')
@@ -75,26 +90,28 @@ export function splitMultipleBullets(line: string): string[] {
   if (containsMultipleSections && containsBullets) {
     const results: string[] = []
 
-    // Extract all numbered sections using regex
+    // Extract all numbered sections using regex with null checks
     const sectionMatches = Array.from(content.matchAll(/(\d+\.\s+[^▪\d\t]+)/g))
 
     if (sectionMatches && sectionMatches.length > 0) {
-      const sections: { index: number; text: string; number: number }[] = sectionMatches.map(
-        (match) => {
-          const [, matchedText] = match
+      const sections: Array<{ index: number; text: string; number: number }> = sectionMatches
+        .map((match) => {
+          const matchedText = match[1]
+          if (!matchedText) return null
+          
           return {
-            index: match.index || 0,
+            index: match.index ?? 0,
             text: matchedText.trim(),
             number: parseInt(matchedText, 10),
           }
-        },
-      )
+        })
+        .filter((section): section is NonNullable<typeof section> => section !== null)
 
       // Sort sections by their position in the text
       sections.sort((a, b) => a.index - b.index)
 
       // Find the boundaries of each section in the original content
-      const sectionBoundaries: { start: number; end: number; text: string }[] = sections.map(
+      const sectionBoundaries: Array<{ start: number; end: number; text: string }> = sections.map(
         (section, idx) => {
           const start = section.index
           const end = idx < sections.length - 1 ? sections[idx + 1].index : content.length
@@ -111,13 +128,16 @@ export function splitMultipleBullets(line: string): string[] {
         // Start with section header
         const sectionLines = [`${leadingWhitespace}\t${section.text}`]
         
-        // Get the content for this section
+        // Get the content for this section with safe substring
         const sectionContent = content.substring(section.start, section.end)
         
         // Find all bullets in this section and transform to formatted lines
-        const bulletLines = Array.from(sectionContent.matchAll(/[▪-]\s+([^\t▪-]+)/g))
+        const bulletMatches = Array.from(sectionContent.matchAll(/[▪-]\s+([^\t▪-]+)/g))
+        const bulletLines = bulletMatches
           .map(bulletMatch => bulletMatch[1])
-          .filter(bulletText => bulletText && bulletText.trim())
+          .filter((bulletText): bulletText is string => 
+            typeof bulletText === 'string' && bulletText.trim().length > 0
+          )
           .map(bulletText => `${leadingWhitespace}\t\t▪\t${bulletText.trim()}`)
         
         return [...sectionLines, ...bulletLines]
@@ -146,7 +166,7 @@ export function splitMultipleBullets(line: string): string[] {
         // Add bullet marker for other parts
         return `${leadingWhitespace}\t▪ ${part.trim()}`
       })
-      .filter((line) => line.trim())
+      .filter((line) => TypeCheckers.isNonEmptyString(line.trim()))
   }
 
   // Generic approach for tab-separated content
@@ -169,7 +189,7 @@ export function splitMultipleBullets(line: string): string[] {
 
       return `${leadingWhitespace}${trimmed}`
     })
-    .filter((line) => line.trim())
+    .filter((line) => TypeCheckers.isNonEmptyString(line.trim()))
 }
 
 /**
@@ -178,7 +198,15 @@ export function splitMultipleBullets(line: string): string[] {
  * @returns Lines with parent relationships established
  */
 export function buildHierarchy(lines: Line[]): Line[] {
+  // Input validation with type guard
+  if (!Array.isArray(lines)) {
+    throw new Error(`buildHierarchy expects array input, received: ${typeof lines}`)
+  }
+
   if (lines.length === 0) return lines
+
+  // Validate that all elements are valid Line objects
+  VALIDATORS.validateHierarchicalLines(lines)
 
   const result = [...lines]
   const headerStack: number[] = [] // Stack to track header hierarchy
@@ -188,21 +216,36 @@ export function buildHierarchy(lines: Line[]): Line[] {
   // First pass - process headers and build initial hierarchy
   for (let i = 0; i < result.length; i += 1) {
     const line = result[i]
+    
+    // Null check with optional chaining
+    if (!line?.content) continue
+    
     const content = line.content.trim()
+    if (!TypeCheckers.isNonEmptyString(content)) continue
 
-    if (!content) continue
-
-    // Handle headers
+    // Handle headers with safe regex matching
     if (line.isHeader) {
-      const [, headerMarkers = ''] = content.match(/^(#+)/) || []
+      const headerMatch = content.match(/^(#+)/)
+      const headerMarkers = headerMatch?.[1] ?? ''
       const level = headerMarkers.length
 
       // Pop headers from stack until we find appropriate parent level
       while (
         headerStack.length > 0 &&
-        result[headerStack[headerStack.length - 1]].content.match(/^#+/)!.length >= level
+        result[headerStack[headerStack.length - 1]]?.content
       ) {
-        headerStack.pop()
+        const stackTopIndex = headerStack[headerStack.length - 1]
+        const stackTopLine = result[stackTopIndex]
+        if (!stackTopLine?.content) break
+        
+        const stackTopMatch = stackTopLine.content.match(/^#+/)
+        const stackTopLevel = stackTopMatch?.[0]?.length ?? 0
+        
+        if (stackTopLevel >= level) {
+          headerStack.pop()
+        } else {
+          break
+        }
       }
 
       // Set parent to last header in stack or root
@@ -232,12 +275,21 @@ export function buildHierarchy(lines: Line[]): Line[] {
       // If this bullet point is indented more than the numbered list, it's a child of the numbered list
       if (
         currentNumberedList >= 0 &&
+        result[currentNumberedList] &&
+        typeof line.originalIndent === 'number' &&
+        typeof result[currentNumberedList].originalIndent === 'number' &&
         line.originalIndent > result[currentNumberedList].originalIndent
       ) {
         line.parent = currentNumberedList
       }
       // Otherwise, find the appropriate parent based on indentation
-      else if (lastLineIdx >= 0 && line.originalIndent > result[lastLineIdx].originalIndent) {
+      else if (
+        lastLineIdx >= 0 && 
+        result[lastLineIdx] &&
+        typeof line.originalIndent === 'number' &&
+        typeof result[lastLineIdx].originalIndent === 'number' &&
+        line.originalIndent > result[lastLineIdx].originalIndent
+      ) {
         line.parent = lastLineIdx
       }
       // If no appropriate parent found, use the last header
@@ -250,7 +302,13 @@ export function buildHierarchy(lines: Line[]): Line[] {
       }
     }
     // Regular content
-    else if (lastLineIdx >= 0 && line.originalIndent > result[lastLineIdx].originalIndent) {
+    else if (
+      lastLineIdx >= 0 && 
+      result[lastLineIdx] &&
+      typeof line.originalIndent === 'number' &&
+      typeof result[lastLineIdx].originalIndent === 'number' &&
+      line.originalIndent > result[lastLineIdx].originalIndent
+    ) {
       line.parent = lastLineIdx
     } else if (headerStack.length > 0) {
       line.parent = headerStack[headerStack.length - 1]

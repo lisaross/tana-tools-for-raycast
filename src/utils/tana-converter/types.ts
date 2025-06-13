@@ -28,6 +28,139 @@ export interface Line {
 }
 
 /**
+ * Type guard to check if an object is a valid Line
+ */
+export function isValidLine(obj: unknown): obj is Line {
+  if (typeof obj !== 'object' || obj === null) {
+    return false
+  }
+  
+  const line = obj as Record<string, unknown>
+  
+  return (
+    typeof line.content === 'string' &&
+    typeof line.indent === 'number' &&
+    typeof line.raw === 'string' &&
+    typeof line.isHeader === 'boolean' &&
+    typeof line.isCodeBlock === 'boolean' &&
+    typeof line.isListItem === 'boolean' &&
+    typeof line.isNumberedList === 'boolean' &&
+    typeof line.isBulletPoint === 'boolean' &&
+    typeof line.originalIndent === 'number' &&
+    (line.parent === undefined || typeof line.parent === 'number')
+  )
+}
+
+/**
+ * Type guard to check if an array contains only valid Line objects
+ */
+export function isValidLineArray(arr: unknown): arr is Line[] {
+  return Array.isArray(arr) && arr.every(isValidLine)
+}
+
+/**
+ * Type guard for checking transcript format patterns
+ */
+export const TranscriptFormatCheckers = {
+  /**
+   * Check if text contains YouTube transcript markers
+   */
+  isYouTubeTranscript(text: unknown): text is string {
+    return typeof text === 'string' && /\bTranscript:(?::|\s|\n)/i.test(text)
+  },
+
+  /**
+   * Check if text contains Limitless Pendant format markers
+   */
+  isLimitlessPendantFormat(text: unknown): text is string {
+    return typeof text === 'string' && /^>\s*\[(.*?)\]\(#startMs=\d+&endMs=\d+\):/.test(text)
+  },
+
+  /**
+   * Check if text contains new transcription format markers (speaker names + timestamps)
+   */
+  isNewTranscriptionFormat(text: unknown): text is string {
+    if (typeof text !== 'string') return false
+    
+    const lines = text.split('\n')
+    const speakerPattern = /^\s*[A-Z][a-zA-Z\s]*\s*$/
+    const timestampPattern = /(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/
+    
+    let speakerCount = 0
+    let timestampCount = 0
+    
+    for (const line of lines) {
+      if (speakerPattern.test(line.trim())) speakerCount++
+      if (timestampPattern.test(line.trim())) timestampCount++
+    }
+    
+    return speakerCount >= 2 && timestampCount >= 2
+  },
+
+  /**
+   * Check if text contains YouTube timestamp format
+   */
+  hasYouTubeTimestamps(text: unknown): text is string {
+    return typeof text === 'string' && /\((\d{1,2}:\d{2}(?::\d{2})?)\)/.test(text)
+  }
+} as const
+
+/**
+ * Runtime type checking utilities
+ */
+export const TypeCheckers = {
+  /**
+   * Check if value is a non-empty string
+   */
+  isNonEmptyString(value: unknown): value is string {
+    return typeof value === 'string' && value.trim().length > 0
+  },
+
+  /**
+   * Check if value is a non-negative number
+   */
+  isNonNegativeNumber(value: unknown): value is number {
+    return typeof value === 'number' && !isNaN(value) && value >= 0
+  },
+
+  /**
+   * Check if value is a positive number
+   */
+  isPositiveNumber(value: unknown): value is number {
+    return typeof value === 'number' && !isNaN(value) && value > 0
+  },
+
+  /**
+   * Check if value is a non-empty array
+   */
+  isNonEmptyArray<T>(value: unknown): value is T[] {
+    return Array.isArray(value) && value.length > 0
+  },
+
+  /**
+   * Check if value is a valid indent level (non-negative integer)
+   */
+  isValidIndentLevel(value: unknown): value is number {
+    return typeof value === 'number' && Number.isInteger(value) && value >= 0
+  },
+
+  /**
+   * Check if object has required string properties
+   */
+  hasRequiredStringProperties<T extends Record<string, unknown>>(
+    obj: unknown,
+    properties: string[]
+  ): obj is T {
+    if (typeof obj !== 'object' || obj === null) {
+      return false
+    }
+
+    const record = obj as Record<string, unknown>
+    return properties.every(prop => typeof record[prop] === 'string')
+  }
+} as const
+
+/**
  * Date information parsed from text
  */
 export interface ParsedDate {
@@ -120,52 +253,97 @@ export const CONSTANTS = {
 } as const
 
 /**
- * Validation functions for constants
+ * Validation functions for input parameters
  */
 export const VALIDATORS = {
   /**
-   * Validates that buffer sizes are reasonable
-   * @param bufferSize The buffer size to validate
-   * @param maxSize The maximum chunk size
-   * @throws Error if buffer size is invalid
+   * Validate chunk size parameter
+   * @param size The chunk size to validate
+   * @throws {Error} If size is invalid
    */
-  validateBufferSize(bufferSize: number, maxSize: number): void {
-    if (bufferSize < 0) {
-      throw new Error('Buffer size cannot be negative')
+  validateChunkSize(size: unknown): void {
+    if (!TypeCheckers.isPositiveNumber(size)) {
+      throw new Error(`Invalid chunk size: ${size}. Must be a positive number.`)
     }
-    if (bufferSize >= maxSize) {
-      throw new Error(`Buffer size (${bufferSize}) must be less than max chunk size (${maxSize})`)
-    }
-    if (bufferSize > maxSize * 0.5) {
-      throw new Error(`Buffer size (${bufferSize}) is too large relative to max chunk size (${maxSize})`)
+    
+    if (size > 50000) {
+      throw new Error(`Chunk size too large: ${size}. Maximum allowed is 50000 characters.`)
     }
   },
-  
+
   /**
-   * Validates chunk size parameters
-   * @param chunkSize The chunk size to validate
-   * @throws Error if chunk size is invalid
+   * Validate buffer size parameter
+   * @param buffer The buffer size to validate
+   * @param maxSize The maximum size to compare against
+   * @throws {Error} If buffer size is invalid
    */
-  validateChunkSize(chunkSize: number): void {
-    if (chunkSize <= 0) {
-      throw new Error('Chunk size must be positive')
+  validateBufferSize(buffer: unknown, maxSize: unknown): void {
+    if (!TypeCheckers.isNonNegativeNumber(buffer)) {
+      throw new Error(`Invalid buffer size: ${buffer}. Must be a non-negative number.`)
     }
-    if (chunkSize < 100) {
-      throw new Error('Chunk size too small, minimum 100 characters required')
+    
+    if (!TypeCheckers.isPositiveNumber(maxSize)) {
+      throw new Error(`Invalid max size: ${maxSize}. Must be a positive number.`)
     }
-    if (chunkSize > 50000) {
-      throw new Error('Chunk size too large, maximum 50000 characters allowed')
+    
+    if (buffer >= maxSize) {
+      throw new Error(`Buffer size (${buffer}) must be smaller than max size (${maxSize}).`)
     }
   },
-  
+
   /**
-   * Validates week number range
-   * @param weekNumber The week number to validate
-   * @throws Error if week number is invalid
+   * Validate indent level parameter
+   * @param level The indent level to validate
+   * @throws {Error} If level is invalid
    */
-  validateWeekNumber(weekNumber: number): void {
-    if (weekNumber < CONSTANTS.MIN_WEEK_NUMBER || weekNumber > CONSTANTS.MAX_WEEK_NUMBER) {
-      throw new Error(`Week number must be between ${CONSTANTS.MIN_WEEK_NUMBER} and ${CONSTANTS.MAX_WEEK_NUMBER}`)
+  validateIndentLevel(level: unknown): void {
+    if (!TypeCheckers.isValidIndentLevel(level)) {
+      throw new Error(`Invalid indent level: ${level}. Must be a non-negative integer.`)
+    }
+    
+    if (level > 20) {
+      throw new Error(`Indent level too deep: ${level}. Maximum allowed is 20 levels.`)
+    }
+  },
+
+  /**
+   * Validate that hierarchical lines array is valid
+   * @param lines The lines array to validate
+   * @throws {Error} If lines array is invalid
+   */
+  validateHierarchicalLines(lines: unknown): void {
+    if (!Array.isArray(lines)) {
+      throw new Error(`Expected array of lines, got: ${typeof lines}`)
+    }
+    
+    if (!isValidLineArray(lines)) {
+      throw new Error('Invalid hierarchical lines: array contains invalid Line objects')
+    }
+  },
+
+  /**
+   * Validate string content parameter
+   * @param content The content to validate
+   * @param paramName The parameter name for error messages
+   * @throws {Error} If content is invalid
+   */
+  validateStringContent(content: unknown, paramName: string = 'content'): void {
+    if (typeof content !== 'string') {
+      throw new Error(`${paramName} must be a string, got: ${typeof content}`)
+    }
+  },
+
+  /**
+   * Validate non-empty string content parameter
+   * @param content The content to validate
+   * @param paramName The parameter name for error messages
+   * @throws {Error} If content is invalid
+   */
+  validateNonEmptyStringContent(content: unknown, paramName: string = 'content'): void {
+    this.validateStringContent(content, paramName)
+    
+    if (typeof content === 'string' && content.trim().length === 0) {
+      throw new Error(`${paramName} cannot be empty or whitespace-only`)
     }
   }
 } as const

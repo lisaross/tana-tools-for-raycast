@@ -1,7 +1,7 @@
 /**
  * Strategy pattern for processing different input types in tana-converter
  */
-import { Line, CONSTANTS } from './types'
+import { Line, CONSTANTS, isValidLineArray, TypeCheckers, VALIDATORS, TranscriptFormatCheckers } from './types'
 import { parseLine, splitMultipleBullets, buildHierarchy } from './line-parser'
 import { convertDates } from './date-formatter'
 import { convertFields, processInlineFormatting } from './formatters'
@@ -37,19 +37,52 @@ export interface InputProcessor {
 }
 
 /**
+ * Safe property access helper for error contexts
+ */
+function getSafeLength(value: unknown): number {
+  try {
+    return typeof value === 'string' || Array.isArray(value) ? (value as any).length : 0
+  } catch {
+    return 0
+  }
+}
+
+/**
+ * Safe string operation helper for error contexts
+ */
+function getSafePreview(value: unknown): string {
+  try {
+    if (typeof value === 'string') {
+      return value.length > 100 ? value.substring(0, 100) + '...' : value
+    }
+    return String(value).substring(0, 100)
+  } catch {
+    return 'Unable to preview'
+  }
+}
+
+/**
  * Shared preprocessing for all input types
  * Refactored to use pure functional approach instead of forEach with side effects
  */
 function preprocessInput(inputText: string): string {
+  // Validate input with type guard
+  if (!TypeCheckers.isNonEmptyString(inputText)) {
+    throw new InvalidInputError('Input text must be a non-empty string', {
+      inputType: typeof inputText,
+      inputLength: getSafeLength(inputText)
+    })
+  }
+
   // Pure functional approach: transform each line to segments, then flatten
   return inputText
     .split('\n')
-    .flatMap(line => {
-      // Split line into bullet lines
+    .flatMap((line: string) => {
+      // Split line into bullet lines with null check
       const bulletLines = splitMultipleBullets(line)
       
       // Transform each bullet line to segments and flatten
-      return bulletLines.flatMap(bulletLine => 
+      return bulletLines.flatMap((bulletLine: string) => 
         processYouTubeTranscriptTimestamps(bulletLine)
       )
     })
@@ -57,21 +90,52 @@ function preprocessInput(inputText: string): string {
 }
 
 /**
- * Shared logic for calculating indentation levels
+ * Shared logic for calculating indentation levels with comprehensive validation
  */
 function calculateIndentationLevels(hierarchicalLines: Line[]): Map<number, number> {
+  // Validate input with custom type guard
+  if (!isValidLineArray(hierarchicalLines)) {
+    throw new HierarchyBuildingError('Invalid hierarchical lines array', {
+      linesType: typeof hierarchicalLines,
+      isArray: Array.isArray(hierarchicalLines),
+      length: getSafeLength(hierarchicalLines)
+    })
+  }
+
   const indentLevels = new Map<number, number>()
   indentLevels.set(CONSTANTS.ROOT_INDENT_LEVEL, CONSTANTS.BASE_INDENT_LEVEL) // Root level
 
   for (let i = 0; i < hierarchicalLines.length; i += 1) {
     const line = hierarchicalLines[i]
-    if (!line.content.trim()) continue
+    
+    // Null check with optional chaining and type guard
+    if (!line?.content?.trim()) continue
+
+    // Type assertion with validation
+    if (typeof line.content !== 'string') {
+      throw new HierarchyBuildingError(`Line content must be string at index ${i}`, {
+        lineIndex: i,
+        contentType: typeof line.content,
+        lineData: line
+      })
+    }
 
     if (line.isHeader) {
       indentLevels.set(i, CONSTANTS.BASE_INDENT_LEVEL)
     } else {
       const parentIdx = line.parent !== undefined ? line.parent : CONSTANTS.ROOT_INDENT_LEVEL
-      const parentIndent = indentLevels.get(parentIdx) || CONSTANTS.BASE_INDENT_LEVEL
+      const parentIndent = indentLevels.get(parentIdx) ?? CONSTANTS.BASE_INDENT_LEVEL
+      
+      // Validate parent indent is a valid number
+      if (!TypeCheckers.isValidIndentLevel(parentIndent)) {
+        throw new HierarchyBuildingError(`Invalid parent indent level at index ${i}`, {
+          lineIndex: i,
+          parentIndex: parentIdx,
+          parentIndent,
+          parentIndentType: typeof parentIndent
+        })
+      }
+      
       indentLevels.set(i, parentIndent + CONSTANTS.INDENT_LEVEL_INCREMENT)
     }
   }
@@ -80,14 +144,29 @@ function calculateIndentationLevels(hierarchicalLines: Line[]): Map<number, numb
 }
 
 /**
- * Shared logic for processing line content
+ * Shared logic for processing line content with type safety
  */
 function processLineContent(content: string, isHeader: boolean): string {
+  // Validate inputs with type guards
+  if (!TypeCheckers.isNonEmptyString(content)) {
+    throw new FieldFormattingError('Content must be a non-empty string', {
+      contentType: typeof content,
+      content: String(content)
+    })
+  }
+
+  if (typeof isHeader !== 'boolean') {
+    throw new FieldFormattingError('isHeader must be a boolean', {
+      isHeaderType: typeof isHeader,
+      isHeader: String(isHeader)
+    })
+  }
+
   let processedContent = content
 
   if (isHeader) {
     const match = content.match(/^(#{1,6})\s+(.+)$/)
-    if (match) {
+    if (match?.[2]) {
       const [, , headerContent] = match
       processedContent = headerContent
     }
@@ -98,7 +177,7 @@ function processLineContent(content: string, isHeader: boolean): string {
       .replace(/^\d+\.\s+/, '')
       .replace(/^[a-z]\.\s+/i, '')
 
-    // Process other formatting
+    // Process other formatting with safe execution
     processedContent = convertFields(processedContent)
     processedContent = convertDates(processedContent)
     processedContent = processInlineFormatting(processedContent)
@@ -108,48 +187,102 @@ function processLineContent(content: string, isHeader: boolean): string {
 }
 
 /**
+ * Type guard to validate transcript index and content
+ */
+function validateTranscriptData(
+  transcriptIdx: number, 
+  transcriptContent: string, 
+  hierarchicalLines: Line[]
+): void {
+  if (!TypeCheckers.isValidIndentLevel(transcriptIdx) || transcriptIdx < 0) {
+    throw new TranscriptProcessingError('Invalid transcript index', {
+      transcriptIdx,
+      transcriptIdxType: typeof transcriptIdx
+    })
+  }
+
+  if (!TypeCheckers.isNonEmptyString(transcriptContent)) {
+    throw new TranscriptProcessingError('Transcript content must be a non-empty string', {
+      transcriptContentType: typeof transcriptContent,
+      transcriptContentLength: getSafeLength(transcriptContent)
+    })
+  }
+
+  if (transcriptIdx >= hierarchicalLines.length) {
+    throw new TranscriptProcessingError('Transcript index out of bounds', {
+      transcriptIdx,
+      hierarchicalLinesLength: hierarchicalLines.length
+    })
+  }
+}
+
+/**
  * Processor for Limitless Pendant transcriptions
  */
 export class PendantTranscriptProcessor implements InputProcessor {
   process(input: string): string {
     try {
-      // Input validation
-      ErrorUtils.validateNotEmpty(input, 'input')
-
-      // Preprocess input
-      const processedInputText = ErrorUtils.safeExecuteSync(
-        () => preprocessInput(input),
-        TranscriptProcessingError,
-        { processorType: 'PendantTranscript', step: 'preprocessing' }
-      )
-
-      // Process transcript to single line
-      const singleLineTranscript = ErrorUtils.safeExecuteSync(
-        () => processLimitlessPendantTranscriptToSingleLine(processedInputText),
-        TranscriptProcessingError,
-        { processorType: 'PendantTranscript', step: 'singleLineProcessing' }
-      )
-
-      if (!singleLineTranscript || singleLineTranscript.trim().length === 0) {
-        throw new TranscriptProcessingError('Processed transcript is empty', {
-          processorType: 'PendantTranscript',
-          originalLength: input.length,
-          processedLength: processedInputText.length
+      // Input validation with type guard
+      if (!TypeCheckers.isNonEmptyString(input)) {
+        throw new InvalidInputError('Input must be a non-empty string', {
+          inputType: typeof input,
+          inputLength: getSafeLength(input)
         })
       }
 
-      // Chunk transcript content
+      // Additional format validation
+      if (!TranscriptFormatCheckers.isLimitlessPendantFormat(input)) {
+        throw new TranscriptProcessingError('Input does not match Limitless Pendant format', {
+          processorType: 'LimitlessPendant',
+          inputPreview: getSafePreview(input)
+        })
+      }
+
+      // Preprocess input with error handling
+      const processedInputText = ErrorUtils.safeExecuteSync(
+        () => preprocessInput(input),
+        TranscriptProcessingError,
+        { processorType: 'LimitlessPendant', step: 'preprocessing' }
+      )
+
+      // Process transcript to single line with validation
+      const singleLineTranscript = ErrorUtils.safeExecuteSync(
+        () => processLimitlessPendantTranscriptToSingleLine(processedInputText),
+        TranscriptProcessingError,
+        { processorType: 'LimitlessPendant', step: 'singleLineProcessing' }
+      )
+
+      // Validate processed transcript
+      if (!TypeCheckers.isNonEmptyString(singleLineTranscript)) {
+        throw new TranscriptProcessingError('Processed transcript is empty or invalid', {
+          processorType: 'LimitlessPendant',
+          originalLength: getSafeLength(input),
+          processedLength: getSafeLength(processedInputText),
+          singleLineType: typeof singleLineTranscript
+        })
+      }
+
+      // Chunk transcript content with validation
       const chunks = ErrorUtils.safeExecuteSync(
         () => chunkTranscriptContent(singleLineTranscript),
         TranscriptProcessingError,
-        { processorType: 'PendantTranscript', step: 'chunking', transcriptLength: singleLineTranscript.length }
+        { processorType: 'LimitlessPendant', step: 'chunking', transcriptLength: getSafeLength(singleLineTranscript) }
       )
 
-      // Generate output
+      // Validate chunks array
+      if (!TypeCheckers.isNonEmptyArray(chunks)) {
+        throw new TranscriptProcessingError('Failed to generate transcript chunks', {
+          processorType: 'LimitlessPendant',
+          chunksType: typeof chunks,
+          chunksLength: getSafeLength(chunks)
+        })
+      }
+
+      // Generate output with validation
       return ErrorUtils.safeExecuteSync(
         () => generateTranscriptOutput(chunks),
         TranscriptProcessingError,
-        { processorType: 'PendantTranscript', step: 'outputGeneration', chunkCount: chunks.length }
+        { processorType: 'LimitlessPendant', step: 'outputGeneration', chunkCount: chunks.length }
       )
 
     } catch (error) {
@@ -158,10 +291,10 @@ export class PendantTranscriptProcessor implements InputProcessor {
       }
 
       throw new TranscriptProcessingError(
-        `Pendant transcript processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Limitless Pendant transcript processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         {
-          processorType: 'PendantTranscript',
-          inputLength: input?.length,
+          processorType: 'LimitlessPendant',
+          inputLength: getSafeLength(input),
           originalError: error instanceof Error ? error.name : 'Unknown'
         }
       )
@@ -175,39 +308,63 @@ export class PendantTranscriptProcessor implements InputProcessor {
 export class LimitlessAppTranscriptProcessor implements InputProcessor {
   process(input: string): string {
     try {
-      // Input validation
-      ErrorUtils.validateNotEmpty(input, 'input')
+      // Input validation with type guard
+      if (!TypeCheckers.isNonEmptyString(input)) {
+        throw new InvalidInputError('Input must be a non-empty string', {
+          inputType: typeof input,
+          inputLength: getSafeLength(input)
+        })
+      }
 
-      // Preprocess input
+      // Additional format validation
+      if (!TranscriptFormatCheckers.isNewTranscriptionFormat(input)) {
+        throw new TranscriptProcessingError('Input does not match new transcription format', {
+          processorType: 'LimitlessApp',
+          inputPreview: getSafePreview(input)
+        })
+      }
+
+      // Preprocess input with error handling
       const processedInputText = ErrorUtils.safeExecuteSync(
         () => preprocessInput(input),
         TranscriptProcessingError,
         { processorType: 'LimitlessApp', step: 'preprocessing' }
       )
 
-      // Process transcript to single line
+      // Process transcript to single line with validation
       const singleLineTranscript = ErrorUtils.safeExecuteSync(
         () => processLimitlessAppTranscriptToSingleLine(processedInputText),
         TranscriptProcessingError,
         { processorType: 'LimitlessApp', step: 'singleLineProcessing' }
       )
 
-      if (!singleLineTranscript || singleLineTranscript.trim().length === 0) {
-        throw new TranscriptProcessingError('Processed transcript is empty', {
+      // Validate processed transcript
+      if (!TypeCheckers.isNonEmptyString(singleLineTranscript)) {
+        throw new TranscriptProcessingError('Processed transcript is empty or invalid', {
           processorType: 'LimitlessApp',
-          originalLength: input.length,
-          processedLength: processedInputText.length
+          originalLength: getSafeLength(input),
+          processedLength: getSafeLength(processedInputText),
+          singleLineType: typeof singleLineTranscript
         })
       }
 
-      // Chunk transcript content
+      // Chunk transcript content with validation
       const chunks = ErrorUtils.safeExecuteSync(
         () => chunkTranscriptContent(singleLineTranscript),
         TranscriptProcessingError,
-        { processorType: 'LimitlessApp', step: 'chunking', transcriptLength: singleLineTranscript.length }
+        { processorType: 'LimitlessApp', step: 'chunking', transcriptLength: getSafeLength(singleLineTranscript) }
       )
 
-      // Generate output
+      // Validate chunks array
+      if (!TypeCheckers.isNonEmptyArray(chunks)) {
+        throw new TranscriptProcessingError('Failed to generate transcript chunks', {
+          processorType: 'LimitlessApp',
+          chunksType: typeof chunks,
+          chunksLength: getSafeLength(chunks)
+        })
+      }
+
+      // Generate output with validation
       return ErrorUtils.safeExecuteSync(
         () => generateTranscriptOutput(chunks),
         TranscriptProcessingError,
@@ -223,7 +380,7 @@ export class LimitlessAppTranscriptProcessor implements InputProcessor {
         `Limitless App transcript processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         {
           processorType: 'LimitlessApp',
-          inputLength: input?.length,
+          inputLength: getSafeLength(input),
           originalError: error instanceof Error ? error.name : 'Unknown'
         }
       )
@@ -237,39 +394,71 @@ export class LimitlessAppTranscriptProcessor implements InputProcessor {
 export class YouTubeTranscriptProcessor implements InputProcessor {
   process(input: string): string {
     try {
-      // Input validation
-      ErrorUtils.validateNotEmpty(input, 'input')
+      // Input validation with type guard
+      if (!TypeCheckers.isNonEmptyString(input)) {
+        throw new InvalidInputError('Input must be a non-empty string', {
+          inputType: typeof input,
+          inputLength: getSafeLength(input)
+        })
+      }
 
-      // Preprocess input
+      // Optional format validation for YouTube
+      if (!TranscriptFormatCheckers.isYouTubeTranscript(input)) {
+        // Fall back to standard processing if not YouTube format
+        return new StandardMarkdownProcessor().process(input)
+      }
+
+      // Preprocess input with error handling
       const processedInputText = ErrorUtils.safeExecuteSync(
         () => preprocessInput(input),
         TranscriptProcessingError,
         { processorType: 'YouTube', step: 'preprocessing' }
       )
 
-      // Parse lines
+      // Parse lines with validation
       const lines = ErrorUtils.safeExecuteSync(
-        () => processedInputText.split('\n').map((line) => parseLine(line)),
+        () => processedInputText.split('\n').map((line: string) => parseLine(line)),
         HierarchyBuildingError,
         { processorType: 'YouTube', step: 'lineParsing', lineCount: processedInputText.split('\n').length }
       )
 
-      // Build hierarchy
+      // Validate parsed lines
+      if (!isValidLineArray(lines)) {
+        throw new HierarchyBuildingError('Failed to parse lines into valid Line objects', {
+          processorType: 'YouTube',
+          linesCount: getSafeLength(lines),
+          linesType: typeof lines
+        })
+      }
+
+      // Build hierarchy with validation
       const hierarchicalLines = ErrorUtils.safeExecuteSync(
         () => buildHierarchy(lines),
         HierarchyBuildingError,
         { processorType: 'YouTube', step: 'hierarchyBuilding', lineCount: lines.length }
       )
 
-      // Find the transcript line
+      // Validate hierarchical lines
+      if (!isValidLineArray(hierarchicalLines)) {
+        throw new HierarchyBuildingError('Failed to build valid hierarchical structure', {
+          processorType: 'YouTube',
+          hierarchicalLinesCount: getSafeLength(hierarchicalLines),
+          hierarchicalLinesType: typeof hierarchicalLines
+        })
+      }
+
+      // Find the transcript line with null checks
       let transcriptIdx = -1
       let transcriptContent = ''
 
       for (let i = 0; i < hierarchicalLines.length; i += 1) {
-        if (hierarchicalLines[i].content.match(/^Transcript::/)) {
+        const line = hierarchicalLines[i]
+        
+        // Safe property access with optional chaining and type checks
+        if (line?.content && typeof line.content === 'string' && line.content.match(/^Transcript::/)) {
           transcriptIdx = i
           // Extract the transcript content and strip hashtags
-          const rawTranscriptContent = hierarchicalLines[i].content
+          const rawTranscriptContent = line.content
             .replace(/^Transcript::/, '')
             .trim()
           transcriptContent = rawTranscriptContent.replace(/#\w+\b/g, '').trim()
@@ -277,27 +466,31 @@ export class YouTubeTranscriptProcessor implements InputProcessor {
         }
       }
 
-      // If we have a transcript, process it
-      if (transcriptIdx >= 0 && transcriptContent) {
-        if (transcriptContent.trim().length === 0) {
-          throw new TranscriptProcessingError('YouTube transcript content is empty after processing', {
-            processorType: 'YouTube',
-            transcriptIndex: transcriptIdx,
-            originalLength: input.length
-          })
-        }
+      // If we have a transcript, process it with comprehensive validation
+      if (transcriptIdx >= 0 && TypeCheckers.isNonEmptyString(transcriptContent)) {
+        // Validate transcript data
+        validateTranscriptData(transcriptIdx, transcriptContent, hierarchicalLines)
 
-        // Use the chunking utility functions
+        // Use the chunking utility functions with validation
         const chunks = ErrorUtils.safeExecuteSync(
           () => chunkTranscriptContent(transcriptContent),
           TranscriptProcessingError,
           { processorType: 'YouTube', step: 'chunking', transcriptLength: transcriptContent.length }
         )
 
+        // Validate chunks
+        if (!TypeCheckers.isNonEmptyArray(chunks)) {
+          throw new TranscriptProcessingError('Failed to generate transcript chunks', {
+            processorType: 'YouTube',
+            chunksType: typeof chunks,
+            chunksLength: getSafeLength(chunks)
+          })
+        }
+
         // Use StringBuilder for efficient output construction
         const builder = StringBuilder.withTanaHeader()
 
-        // Calculate indentation levels
+        // Calculate indentation levels with validation
         const indentLevels = ErrorUtils.safeExecuteSync(
           () => calculateIndentationLevels(hierarchicalLines),
           HierarchyBuildingError,
@@ -309,12 +502,25 @@ export class YouTubeTranscriptProcessor implements InputProcessor {
           if (i === transcriptIdx) continue // Skip the transcript line, we'll handle it specially
 
           const line = hierarchicalLines[i]
+          
+          // Safe property access with null checks
+          if (!line?.content) continue
+          
           const content = line.content.trim()
-          if (!content) continue
+          if (!TypeCheckers.isNonEmptyString(content)) continue
 
-          const indentLevel = indentLevels.get(i) || 0
+          const indentLevel = indentLevels.get(i) ?? 0
 
-          // Process line content
+          // Validate indent level
+          if (!TypeCheckers.isValidIndentLevel(indentLevel)) {
+            throw new HierarchyBuildingError(`Invalid indent level at line ${i}`, {
+              lineIndex: i,
+              indentLevel,
+              indentLevelType: typeof indentLevel
+            })
+          }
+
+          // Process line content with validation
           const processedContent = ErrorUtils.safeExecuteSync(
             () => processLineContent(content, line.isHeader),
             FieldFormattingError,
@@ -325,18 +531,27 @@ export class YouTubeTranscriptProcessor implements InputProcessor {
           builder.addLine(processedContent, indentLevel)
 
           // If this is where the transcript should go (right after the line that would be its parent)
-          if (i === (hierarchicalLines[transcriptIdx].parent || CONSTANTS.BASE_INDENT_LEVEL)) {
-            // Determine transcript indentation levels
-            const transcriptIndent = (indentLevel || CONSTANTS.BASE_INDENT_LEVEL) + CONSTANTS.INDENT_LEVEL_INCREMENT
-            const chunkIndent = (indentLevel || CONSTANTS.BASE_INDENT_LEVEL) + CONSTANTS.INDENT_LEVEL_INCREMENT + CONSTANTS.TRANSCRIPT_CHUNK_INDENT_INCREMENT
+          const transcriptParent = hierarchicalLines[transcriptIdx]?.parent ?? CONSTANTS.BASE_INDENT_LEVEL
+          if (i === transcriptParent) {
+            // Determine transcript indentation levels with validation
+            const transcriptIndent = (indentLevel ?? CONSTANTS.BASE_INDENT_LEVEL) + CONSTANTS.INDENT_LEVEL_INCREMENT
+            const chunkIndent = (indentLevel ?? CONSTANTS.BASE_INDENT_LEVEL) + CONSTANTS.INDENT_LEVEL_INCREMENT + CONSTANTS.TRANSCRIPT_CHUNK_INDENT_INCREMENT
 
-            // Generate hierarchical transcript output
+            // Validate indentation levels
+            VALIDATORS.validateIndentLevel(transcriptIndent)
+            VALIDATORS.validateIndentLevel(chunkIndent)
+
+            // Generate hierarchical transcript output with validation
             const hierarchicalOutput = ErrorUtils.safeExecuteSync(
               () => generateHierarchicalTranscriptOutput(chunks, transcriptIndent, chunkIndent),
               HierarchyBuildingError,
               { processorType: 'YouTube', step: 'hierarchicalTranscriptOutput', chunkCount: chunks.length }
             )
-            builder.addRaw(hierarchicalOutput.trimEnd()) // Remove trailing newline to avoid double newlines
+            
+            // Validate output before adding
+            if (typeof hierarchicalOutput === 'string' && hierarchicalOutput.trim()) {
+              builder.addRaw(hierarchicalOutput.trimEnd()) // Remove trailing newline to avoid double newlines
+            }
           }
         }
 
@@ -362,7 +577,7 @@ export class YouTubeTranscriptProcessor implements InputProcessor {
         `YouTube transcript processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         {
           processorType: 'YouTube',
-          inputLength: input?.length,
+          inputLength: getSafeLength(input),
           originalError: error instanceof Error ? error.name : 'Unknown'
         }
       )
@@ -376,34 +591,57 @@ export class YouTubeTranscriptProcessor implements InputProcessor {
 export class StandardMarkdownProcessor implements InputProcessor {
   process(input: string): string {
     try {
-      // Input validation
-      ErrorUtils.validateNotEmpty(input, 'input')
+      // Input validation with type guard
+      if (!TypeCheckers.isNonEmptyString(input)) {
+        throw new InvalidInputError('Input must be a non-empty string', {
+          inputType: typeof input,
+          inputLength: getSafeLength(input)
+        })
+      }
 
-      // Preprocess input
+      // Preprocess input with error handling
       const processedInputText = ErrorUtils.safeExecuteSync(
         () => preprocessInput(input),
         FieldFormattingError,
         { processorType: 'StandardMarkdown', step: 'preprocessing' }
       )
       
-      // Split into lines and parse
+      // Split into lines and parse with validation
       const lines = ErrorUtils.safeExecuteSync(
-        () => processedInputText.split('\n').map((line) => parseLine(line)),
+        () => processedInputText.split('\n').map((line: string) => parseLine(line)),
         HierarchyBuildingError,
         { processorType: 'StandardMarkdown', step: 'lineParsing', lineCount: processedInputText.split('\n').length }
       )
 
-      // Build hierarchy
+      // Validate parsed lines
+      if (!isValidLineArray(lines)) {
+        throw new HierarchyBuildingError('Failed to parse lines into valid Line objects', {
+          processorType: 'StandardMarkdown',
+          linesCount: getSafeLength(lines),
+          linesType: typeof lines
+        })
+      }
+
+      // Build hierarchy with validation
       const hierarchicalLines = ErrorUtils.safeExecuteSync(
         () => buildHierarchy(lines),
         HierarchyBuildingError,
         { processorType: 'StandardMarkdown', step: 'hierarchyBuilding', lineCount: lines.length }
       )
 
+      // Validate hierarchical lines
+      if (!isValidLineArray(hierarchicalLines)) {
+        throw new HierarchyBuildingError('Failed to build valid hierarchical structure', {
+          processorType: 'StandardMarkdown',
+          hierarchicalLinesCount: getSafeLength(hierarchicalLines),
+          hierarchicalLinesType: typeof hierarchicalLines
+        })
+      }
+
       // Use StringBuilder for efficient output construction
       const builder = StringBuilder.withTanaHeader()
 
-      // Calculate the indentation level for each line
+      // Calculate the indentation level for each line with validation
       const indentLevels = ErrorUtils.safeExecuteSync(
         () => calculateIndentationLevels(hierarchicalLines),
         HierarchyBuildingError,
@@ -413,13 +651,25 @@ export class StandardMarkdownProcessor implements InputProcessor {
       // Generate output using the calculated indentation levels
       for (let i = 0; i < hierarchicalLines.length; i += 1) {
         const line = hierarchicalLines[i]
+        
+        // Safe property access with null checks
+        if (!line?.content) continue
+        
         const content = line.content.trim()
+        if (!TypeCheckers.isNonEmptyString(content)) continue
 
-        if (!content) continue
+        const indentLevel = indentLevels.get(i) ?? 0
 
-        const indentLevel = indentLevels.get(i) || 0
+        // Validate indent level
+        if (!TypeCheckers.isValidIndentLevel(indentLevel)) {
+          throw new HierarchyBuildingError(`Invalid indent level at line ${i}`, {
+            lineIndex: i,
+            indentLevel,
+            indentLevelType: typeof indentLevel
+          })
+        }
 
-        // Process line content
+        // Process line content with validation
         const processedContent = ErrorUtils.safeExecuteSync(
           () => processLineContent(content, line.isHeader),
           FieldFormattingError,
@@ -443,7 +693,7 @@ export class StandardMarkdownProcessor implements InputProcessor {
         `Standard markdown processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         {
           processorType: 'StandardMarkdown',
-          inputLength: input?.length,
+          inputLength: getSafeLength(input),
           originalError: error instanceof Error ? error.name : 'Unknown'
         }
       )
