@@ -193,12 +193,17 @@ export const ErrorUtils = {
    * Synchronous version of safeExecute
    */
   safeExecuteSync<T>(
-    fn: () => T,
+    fn: () => Exclude<T, Promise<unknown>>,
     errorType: new (message: string, context?: Record<string, unknown>) => TanaConverterError,
     context?: Record<string, unknown>,
-  ): T {
+  ): Exclude<T, Promise<unknown>> {
     try {
-      return fn()
+      const result = fn()
+      // Runtime guard to ensure no Promises are accidentally returned
+      if (result instanceof Promise) {
+        throw new Error('safeExecuteSync received a Promise - use safeExecute for async operations')
+      }
+      return result
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       throw new errorType(errorMessage, {

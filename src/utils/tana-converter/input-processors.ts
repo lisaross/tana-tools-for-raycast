@@ -17,11 +17,7 @@ import {
   processLimitlessPendantTranscriptToSingleLine,
   processLimitlessAppTranscriptToSingleLine,
 } from './transcript-processor'
-import {
-  chunkTranscriptContent,
-  generateTranscriptOutput,
-  generateHierarchicalTranscriptOutput,
-} from './transcript-chunker'
+import { chunkTranscriptContent, generateTranscriptOutput } from './transcript-chunker'
 import {
   TranscriptProcessingError,
   HierarchyBuildingError,
