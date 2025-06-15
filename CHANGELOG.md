@@ -1,6 +1,6 @@
 # Tana Tools for Raycast Changelog
 
-## [1.0.0] - 2056-06-01
+## [1.0.0] - 2056-06-12
 
 ### Initial Release
 
@@ -16,7 +16,7 @@ Transform text, web content, and YouTube videos into Tana Paste format directly 
 
 #### Requirements
 
-- YouTube feature requires Chrome, Arc, or Safari as frontmost browser
+- YouTube feature requires Chrome, Arc, or Safari as frontmost browser + Raycast Companion extension
 
 ---
 

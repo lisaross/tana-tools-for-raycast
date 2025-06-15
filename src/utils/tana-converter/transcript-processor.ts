@@ -2,6 +2,7 @@
  * Transcript processing functionality for tana-converter
  */
 import { CONSTANTS } from './types'
+import { chunkTranscriptContent } from './transcript-chunker'
 
 /**
  * Detects if a line contains a YouTube transcript in the format (MM:SS)
@@ -26,23 +27,16 @@ export function processYouTubeTranscriptTimestamps(text: string): string[] {
   const cleanedText = text.replace(/Transcript:\s*"/, 'Transcript: ').replace(/"$/, '')
 
   // Initialize the segments array
-  const segments: string[] = []
-
-  // Find all timestamp matches
-  const matches: RegExpExecArray[] = []
-  let match
-  while ((match = timestampRegex.exec(cleanedText)) !== null) {
-    matches.push({ ...match })
-  }
+  // Find all timestamp matches using pure functional approach
+  const matches: RegExpExecArray[] = Array.from(cleanedText.matchAll(timestampRegex))
 
   // If no matches, return the original text
   if (matches.length === 0) {
     return [text]
   }
 
-  // Process each timestamp and the text that follows it
-  for (let i = 0; i < matches.length; i += 1) {
-    const currentMatch = matches[i]
+  // Transform matches to segments using pure function
+  return matches.map((currentMatch, i) => {
     const nextMatch = i < matches.length - 1 ? matches[i + 1] : null
 
     // For the first timestamp, include the "Transcript:" label
@@ -50,17 +44,13 @@ export function processYouTubeTranscriptTimestamps(text: string): string[] {
       const startIndex = cleanedText.indexOf('Transcript:')
       const beforeTimestamp = cleanedText.substring(startIndex, currentMatch.index).trim()
       const endIndex = nextMatch ? nextMatch.index : cleanedText.length
-      const segment = `${beforeTimestamp} ${cleanedText.substring(currentMatch.index, endIndex).trim()}`
-      segments.push(segment)
+      return `${beforeTimestamp} ${cleanedText.substring(currentMatch.index, endIndex).trim()}`
     } else {
       // For subsequent timestamps
       const endIndex = nextMatch ? nextMatch.index : cleanedText.length
-      const segment = cleanedText.substring(currentMatch.index, endIndex).trim()
-      segments.push(segment)
+      return cleanedText.substring(currentMatch.index, endIndex).trim()
     }
-  }
-
-  return segments
+  })
 }
 
 /**
@@ -87,27 +77,15 @@ export function processLimitlessPendantTranscription(text: string): string {
  * @returns Single-line transcript
  */
 export function processLimitlessPendantTranscriptToSingleLine(text: string): string {
-  const lines = text.split('\n')
-  const combinedContent: string[] = []
-
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i].trim()
-    if (!line) continue
-
-    // Skip header lines (# and ##)
-    if (line.startsWith('#')) continue
-
-    // Check if this is a pendant line format
-    if (line.startsWith('>')) {
-      const processedContent = processLimitlessPendantTranscription(line)
-      if (processedContent !== line) {
-        combinedContent.push(processedContent)
-      }
-    }
-  }
-
-  // Join all entries with periods to better separate speakers
-  return combinedContent.join(' ')
+  // Pure functional approach: filter, transform, then join
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#')) // Remove empty lines and headers
+    .filter((line) => line.startsWith('>')) // Keep only pendant format lines
+    .map((line) => processLimitlessPendantTranscription(line))
+    .filter((processedContent) => processedContent !== '') // Remove any failed processing
+    .join(' ')
 }
 
 /**
@@ -116,22 +94,13 @@ export function processLimitlessPendantTranscriptToSingleLine(text: string): str
  * @returns True if the text appears to be a Limitless Pendant transcription
  */
 export function isLimitlessPendantTranscription(text: string): boolean {
-  // Check for multiple lines in the Limitless Pendant format
-  const lines = text.split('\n')
-  let pendantFormatCount = 0
+  // Pure functional approach: count matching lines directly
+  const pendantFormatCount = text
+    .split('\n')
+    .filter((line) => line.match(/^>\s*\[(.*?)\]\(#startMs=\d+&endMs=\d+\):/)).length
 
-  for (const line of lines) {
-    if (line.match(/^>\s*\[(.*?)\]\(#startMs=\d+&endMs=\d+\):/)) {
-      pendantFormatCount += 1
-    }
-
-    // If we found multiple matching lines, it's likely a Limitless Pendant transcription
-    if (pendantFormatCount >= 3) {
-      return true
-    }
-  }
-
-  return false
+  // Return true if we found enough matching lines
+  return pendantFormatCount >= CONSTANTS.MIN_PENDANT_FORMAT_LINES
 }
 
 /**
@@ -146,29 +115,30 @@ export function isLimitlessPendantTranscription(text: string): boolean {
  */
 export function isNewTranscriptionFormat(text: string): boolean {
   const lines = text.split('\n')
-  let speakerCount = 0
-  let timestampCount = 0
 
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i].trim()
-    if (!line) continue
+  // Pure functional approach: count speakers and timestamps separately
+  const speakerCount = lines
+    .map((line, i) => ({ line: line.trim(), index: i }))
+    .filter(
+      ({ line, index }) =>
+        line && // Non-empty line
+        index < lines.length - 1 && // Not the last line
+        !lines[index + 1].trim(), // Followed by empty line
+    ).length
 
-    // Check for speaker pattern (non-empty line followed by empty line)
-    if (i < lines.length - 1 && !lines[i + 1].trim()) {
-      speakerCount += 1
-    }
-    // Check for timestamp pattern (line with date/time)
-    if (
-      line.match(
+  const timestampCount = lines.filter((line) =>
+    line
+      .trim()
+      .match(
         /(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/,
-      )
-    ) {
-      timestampCount += 1
-    }
-  }
+      ),
+  ).length
 
   // If we have multiple speakers and timestamps, it's likely this format
-  return speakerCount >= 2 && timestampCount >= 2
+  return (
+    speakerCount >= CONSTANTS.MIN_TRANSCRIPTION_FORMAT_INDICATORS &&
+    timestampCount >= CONSTANTS.MIN_TRANSCRIPTION_FORMAT_INDICATORS
+  )
 }
 
 /**
@@ -184,7 +154,7 @@ export function processLimitlessAppTranscriptToSingleLine(text: string): string 
   const lines = text.split('\n')
   const combinedContent: string[] = []
   let currentSpeaker = ''
-  let contentBuffer = ''
+  let contentParts: string[] = []
 
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i].trim()
@@ -193,9 +163,9 @@ export function processLimitlessAppTranscriptToSingleLine(text: string): string 
     // Check if this is a speaker line (followed by empty line)
     if (i < lines.length - 1 && !lines[i + 1].trim()) {
       // If we have accumulated content, add it to the combined content
-      if (currentSpeaker && contentBuffer) {
-        combinedContent.push(`${currentSpeaker}: ${contentBuffer.trim()}`)
-        contentBuffer = ''
+      if (currentSpeaker && contentParts.length > 0) {
+        combinedContent.push(`${currentSpeaker}: ${contentParts.join(' ')}`)
+        contentParts = []
       }
 
       currentSpeaker = line
@@ -211,17 +181,13 @@ export function processLimitlessAppTranscriptToSingleLine(text: string): string 
       continue
     }
 
-    // Accumulate content text
-    if (contentBuffer) {
-      contentBuffer += ` ${line}`
-    } else {
-      contentBuffer = line
-    }
+    // Accumulate content text using array for better performance
+    contentParts.push(line)
   }
 
   // Add any remaining content
-  if (currentSpeaker && contentBuffer) {
-    combinedContent.push(`${currentSpeaker}: ${contentBuffer.trim()}`)
+  if (currentSpeaker && contentParts.length > 0) {
+    combinedContent.push(`${currentSpeaker}: ${contentParts.join(' ')}`)
   }
 
   // Join all entries into a single line
@@ -261,43 +227,43 @@ export function containsYouTubeTranscript(text: string): boolean {
  * @returns Single-line transcript
  */
 export function processYouTubeTranscriptToSingleLine(text: string): string {
-  const lines = text.split('\n')
-  const transcriptLines: string[] = []
-  let inTranscript = false
+  const lines = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line)
 
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i].trim()
-    if (!line) continue
+  // Find the transcript start index
+  const transcriptStartIndex = lines.findIndex((line) => line.match(/\bTranscript:(?::|\s)/i))
 
-    // Check if this is the beginning of a transcript - handle both Transcript: and Transcript::
-    if (line.match(/\bTranscript:(?::|\s)/i)) {
-      inTranscript = true
-
-      // Extract the transcript part after the "Transcript::" or "Transcript:" label
-      const transcriptPart = line.replace(/^.*?\bTranscript:(?::|\s)/, '').trim()
-      if (transcriptPart) {
-        // Strip hashtags from transcript content
-        const cleanedTranscript = transcriptPart.replace(/#\w+\b/g, '').trim()
-        transcriptLines.push(cleanedTranscript)
-      }
-      continue
-    }
-
-    // Process transcript content if we're in the transcript section
-    // and it's not another field marker
-    if (inTranscript && !line.match(/^[^:]+::/)) {
-      // Strip hashtags from transcript content
-      const cleanedLine = line.replace(/#\w+\b/g, '').trim()
-      if (cleanedLine) {
-        transcriptLines.push(cleanedLine)
-      }
-    } else if (line.match(/^[^:]+::/) && inTranscript) {
-      // If we hit another field marker, we're done with the transcript
-      inTranscript = false
-    }
+  if (transcriptStartIndex === -1) {
+    return '' // No transcript found
   }
 
-  return transcriptLines.join(' ')
+  // Find the end of transcript (next field marker after transcript start)
+  const transcriptEndIndex = lines.findIndex(
+    (line, index) => index > transcriptStartIndex && line.match(/^[^:]+::/),
+  )
+
+  // Extract transcript lines (from start to end or to the end of array)
+  const transcriptLines = lines.slice(
+    transcriptStartIndex,
+    transcriptEndIndex === -1 ? undefined : transcriptEndIndex,
+  )
+
+  // Process transcript lines using pure functional approach
+  return transcriptLines
+    .map((line, index) => {
+      if (index === 0) {
+        // First line: extract content after "Transcript:" label
+        const transcriptPart = line.replace(/^.*?\bTranscript:(?::|\s)/, '').trim()
+        return transcriptPart.replace(/#\w+\b/g, '').trim()
+      } else {
+        // Other lines: clean hashtags
+        return line.replace(/#\w+\b/g, '').trim()
+      }
+    })
+    .filter((line) => line) // Remove empty lines
+    .join(' ')
 }
 
 /**
@@ -315,7 +281,6 @@ export function chunkTranscript(
     return [content]
   }
 
-  const chunks: string[] = []
   const headerLine = '%%tana%%'
 
   // Check if this is a single line of content (for transcripts)
@@ -324,24 +289,19 @@ export function chunkTranscript(
     // Extract the content without the header
     const contentWithoutHeader = content.replace(headerLine, '').trim()
 
-    // Create a combined transcript and split into chunks
-    let combinedTranscript = ''
+    // Create a combined transcript using array for better performance
+    const transcriptParts: string[] = []
     for (const line of contentWithoutHeader.split('\n')) {
-      if (line.trim()) {
-        combinedTranscript += `${line.trim()} `
+      const trimmedLine = line.trim()
+      if (trimmedLine) {
+        transcriptParts.push(trimmedLine)
       }
     }
-    combinedTranscript = combinedTranscript.trim()
+    const combinedTranscript = transcriptParts.join(' ')
 
-    // Chunk the content into maxChunkSize pieces
-    for (let i = 0; i < combinedTranscript.length; i += maxChunkSize - 10) {
-      // -10 to account for header and bullet
-      const chunkEnd = Math.min(i + maxChunkSize - 10, combinedTranscript.length)
-      const chunk = combinedTranscript.substring(i, chunkEnd)
-      chunks.push(`${headerLine}\n- ${chunk}`)
-    }
-
-    return chunks
+    // Use the new chunking utilities
+    const chunks = chunkTranscriptContent(combinedTranscript)
+    return chunks.map((chunk) => `${headerLine}\n- ${chunk.content}`)
   }
 
   // Handle multi-line content with line-by-line approach
@@ -349,6 +309,8 @@ export function chunkTranscript(
   const lines = content.split('\n').filter((line) => line.trim() !== headerLine)
   let currentChunk: string[] = []
   let currentSize = 0
+
+  const chunks: string[] = []
 
   // Process each line to create chunks
   for (let i = 0; i < lines.length; i += 1) {
