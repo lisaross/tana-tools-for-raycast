@@ -187,7 +187,10 @@ function findBestSplitPoint(text: string, targetPosition: number): number {
  * @param transcript Complete transcript text
  * @returns Array of transcript chunks
  */
-export function chunkTranscriptContent(transcript: string): TranscriptChunk[] {
+export function chunkTranscriptContent(
+  transcript: string,
+  maxSize: number = CHUNKING_CONSTANTS.MAX_CHUNK_SIZE,
+): TranscriptChunk[] {
   // Input validation with comprehensive checks
   if (!TypeCheckers.isNonEmptyString(transcript)) {
     throw new ChunkingError('Transcript must be a non-empty string', {
@@ -199,7 +202,7 @@ export function chunkTranscriptContent(transcript: string): TranscriptChunk[] {
   const transcriptLength = transcript.length
 
   // If transcript is small enough, return as single chunk
-  if (transcriptLength <= CHUNKING_CONSTANTS.MAX_CHUNK_SIZE) {
+  if (transcriptLength <= maxSize) {
     const wordCount = countWords(transcript)
     const duration = estimateReadingDuration(wordCount)
 
@@ -220,7 +223,7 @@ export function chunkTranscriptContent(transcript: string): TranscriptChunk[] {
 
   while (currentPosition < transcriptLength) {
     // Calculate target chunk end position
-    const targetEnd = currentPosition + CHUNKING_CONSTANTS.MAX_CHUNK_SIZE
+    const targetEnd = currentPosition + maxSize
 
     // Find the best split point
     const actualEnd = findBestSplitPoint(transcript, Math.min(targetEnd, transcriptLength))
@@ -478,7 +481,7 @@ export function processSimpleTranscript(
   try {
     // Input validation is handled by the called functions
     const chunks = ErrorUtils.safeExecuteSync(
-      () => chunkTranscriptContent(content),
+      () => chunkTranscriptContent(content, maxSize),
       ChunkingError,
       { operation: 'chunkTranscriptContent', contentLength: content?.length },
     )
