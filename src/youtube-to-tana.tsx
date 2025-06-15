@@ -57,8 +57,10 @@ function decodeHTMLEntities(text: string): string {
     .replace(/&apos;/g, "'")
     .replace(/&nbsp;/g, ' ')
 
-  // Handle numeric entities like &#39;
-  decoded = decoded.replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+  // Handle numeric entities (decimal and hexadecimal)
+  decoded = decoded
+    .replace(/&#x([0-9A-Fa-f]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
 
   return decoded
 }
