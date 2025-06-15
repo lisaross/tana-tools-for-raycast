@@ -10,13 +10,9 @@ import { StringBuilder } from './string-builder'
  * Safe property access helper for transcript chunking
  */
 function getSafeLength(value: unknown): number {
-  try {
-    return typeof value === 'string' || Array.isArray(value)
-      ? (value as string | unknown[]).length
-      : 0
-  } catch {
-    return 0
-  }
+  return typeof value === 'string' || Array.isArray(value)
+    ? (value as string | unknown[]).length
+    : 0
 }
 
 /**
