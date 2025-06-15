@@ -180,6 +180,11 @@ export const ErrorUtils = {
       const result = await fn()
       return result
     } catch (error) {
+      // If the error is already a TanaConverterError, preserve it to maintain error specificity
+      if (error instanceof TanaConverterError) {
+        throw error
+      }
+
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       throw new errorType(errorMessage, {
         ...context,
@@ -205,6 +210,11 @@ export const ErrorUtils = {
       }
       return result
     } catch (error) {
+      // If the error is already a TanaConverterError, preserve it to maintain error specificity
+      if (error instanceof TanaConverterError) {
+        throw error
+      }
+
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       throw new errorType(errorMessage, {
         ...context,
