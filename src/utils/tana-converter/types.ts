@@ -339,7 +339,8 @@ export const VALIDATORS = {
   validateNonEmptyStringContent(content: unknown, paramName: string = 'content'): void {
     this.validateStringContent(content, paramName)
 
-    if (typeof content === 'string' && content.trim().length === 0) {
+    // After validating it's a string, check if it's non-empty
+    if ((content as string).trim().length === 0) {
       throw new Error(`${paramName} cannot be empty or whitespace-only`)
     }
   },
