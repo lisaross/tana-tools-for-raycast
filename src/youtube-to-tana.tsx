@@ -169,8 +169,10 @@ async function extractVideoMetadata(
 
     // Extract video ID from URL
     const urlObj = new URL(url)
-    const videoId = urlObj.searchParams.get('v')
-
+    let videoId = urlObj.searchParams.get('v')
+    if (!videoId && urlObj.hostname.includes('youtu.be')) {
+      videoId = urlObj.pathname.slice(1)
+    }
     if (!videoId) {
       throw new Error('Could not extract video ID from URL')
     }
