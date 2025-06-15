@@ -24,6 +24,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Structure
 
 This extension provides tools to convert various formats to Tana Paste format:
+
 - Command files in `src/` for Raycast commands
 - Converter implementation in `src/utils/tana-converter/`
 - Core module exports via `src/utils/tana-converter.ts`
