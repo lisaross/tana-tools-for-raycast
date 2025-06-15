@@ -87,13 +87,9 @@ export const TranscriptFormatCheckers = {
     const timestampPattern =
       /(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/
 
-    let speakerCount = 0
-    let timestampCount = 0
-
-    for (const line of lines) {
-      if (speakerPattern.test(line.trim())) speakerCount++
-      if (timestampPattern.test(line.trim())) timestampCount++
-    }
+    // Pure functional approach: count speakers and timestamps separately
+    const speakerCount = lines.filter((line) => speakerPattern.test(line.trim())).length
+    const timestampCount = lines.filter((line) => timestampPattern.test(line.trim())).length
 
     return speakerCount >= 2 && timestampCount >= 2
   },
