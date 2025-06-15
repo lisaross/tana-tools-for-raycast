@@ -186,13 +186,19 @@ export function convertFields(text: string): string {
     // If we have a simple "Key: Value" format with a short value, it's more likely to be a field
     if (prefix && key.split(' ').length <= CONSTANTS.MAX_FIELD_KEY_WORDS) {
       // Simple values are likely fields
-      if (value.split(' ').length <= CONSTANTS.MAX_SHORT_FIELD_VALUE_WORDS && !value.match(/[;,():"']/)) {
+      if (
+        value.split(' ').length <= CONSTANTS.MAX_SHORT_FIELD_VALUE_WORDS &&
+        !value.match(/[;,():"']/)
+      ) {
         return false // Not regular text, it's a field
       }
 
       // Check for uppercase first letter in key - often indicates a field
       const [firstChar] = key
-      if (firstChar === firstChar.toUpperCase() && value.split(' ').length <= CONSTANTS.MAX_CAPITALIZED_FIELD_VALUE_WORDS) {
+      if (
+        firstChar === firstChar.toUpperCase() &&
+        value.split(' ').length <= CONSTANTS.MAX_CAPITALIZED_FIELD_VALUE_WORDS
+      ) {
         return false // Not regular text, it's a field
       }
     }

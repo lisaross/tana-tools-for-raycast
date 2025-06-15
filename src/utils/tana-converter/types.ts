@@ -34,9 +34,9 @@ export function isValidLine(obj: unknown): obj is Line {
   if (typeof obj !== 'object' || obj === null) {
     return false
   }
-  
+
   const line = obj as Record<string, unknown>
-  
+
   return (
     typeof line.content === 'string' &&
     typeof line.indent === 'number' &&
@@ -81,19 +81,20 @@ export const TranscriptFormatCheckers = {
    */
   isNewTranscriptionFormat(text: unknown): text is string {
     if (typeof text !== 'string') return false
-    
+
     const lines = text.split('\n')
     const speakerPattern = /^\s*[A-Z][a-zA-Z\s]*\s*$/
-    const timestampPattern = /(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/
-    
+    const timestampPattern =
+      /(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/
+
     let speakerCount = 0
     let timestampCount = 0
-    
+
     for (const line of lines) {
       if (speakerPattern.test(line.trim())) speakerCount++
       if (timestampPattern.test(line.trim())) timestampCount++
     }
-    
+
     return speakerCount >= 2 && timestampCount >= 2
   },
 
@@ -102,7 +103,7 @@ export const TranscriptFormatCheckers = {
    */
   hasYouTubeTimestamps(text: unknown): text is string {
     return typeof text === 'string' && /\((\d{1,2}:\d{2}(?::\d{2})?)\)/.test(text)
-  }
+  },
 } as const
 
 /**
@@ -149,15 +150,15 @@ export const TypeCheckers = {
    */
   hasRequiredStringProperties<T extends Record<string, unknown>>(
     obj: unknown,
-    properties: string[]
+    properties: string[],
   ): obj is T {
     if (typeof obj !== 'object' || obj === null) {
       return false
     }
 
     const record = obj as Record<string, unknown>
-    return properties.every(prop => typeof record[prop] === 'string')
-  }
+    return properties.every((prop) => typeof record[prop] === 'string')
+  },
 } as const
 
 /**
@@ -179,72 +180,72 @@ export const CONSTANTS = {
    * while leaving room for formatting overhead.
    */
   MAX_TRANSCRIPT_CHUNK_SIZE: 7000,
-  
+
   /**
    * Buffer size to account for Tana formatting overhead (%%tana%% header, bullets, indentation).
    * This is subtracted from the max chunk size to ensure the final formatted content
    * doesn't exceed the limit.
    */
   TRANSCRIPT_HEADER_BUFFER: 10,
-  
+
   /**
    * Maximum number of words allowed in field keys to avoid false positives.
    * Field keys with more words are likely to be regular text, not field definitions.
    */
   MAX_FIELD_KEY_WORDS: 3,
-  
+
   /**
    * Maximum number of words in field values for short value detection.
    * Short values are more likely to be proper field values rather than descriptions.
    */
   MAX_SHORT_FIELD_VALUE_WORDS: 3,
-  
+
   /**
    * Maximum number of words in capitalized field values.
    * Capitalized values (like proper nouns) with few words are likely field values.
    */
   MAX_CAPITALIZED_FIELD_VALUE_WORDS: 5,
-  
+
   /**
    * Minimum number of Limitless Pendant format lines required for detection.
    * This prevents false positives when only a few lines match the pattern.
    */
   MIN_PENDANT_FORMAT_LINES: 3,
-  
+
   /**
    * Minimum number of speakers and timestamps required for new transcription format detection.
    * Both counts must meet this threshold to confidently identify the format.
    */
   MIN_TRANSCRIPTION_FORMAT_INDICATORS: 2,
-  
+
   /**
    * Minimum week number (1-based, ISO 8601 standard).
    */
   MIN_WEEK_NUMBER: 1,
-  
+
   /**
    * Maximum week number (ISO 8601 allows up to 53 weeks in a year).
    */
   MAX_WEEK_NUMBER: 53,
-  
+
   /**
    * Zero-based index for root level in indentation hierarchy.
    * Used as the parent index for top-level items.
    */
   ROOT_INDENT_LEVEL: -1,
-  
+
   /**
    * Base indentation level (zero-based).
    * Headers and top-level items start at this level.
    */
   BASE_INDENT_LEVEL: 0,
-  
+
   /**
    * Increment for each indentation level.
    * Each nested level adds this value to the parent's indent level.
    */
   INDENT_LEVEL_INCREMENT: 1,
-  
+
   /**
    * Increment for transcript chunk indentation relative to transcript field.
    * Chunks are indented this many levels deeper than the "Transcript::" field.
@@ -265,7 +266,7 @@ export const VALIDATORS = {
     if (!TypeCheckers.isPositiveNumber(size)) {
       throw new Error(`Invalid chunk size: ${size}. Must be a positive number.`)
     }
-    
+
     if (size > 50000) {
       throw new Error(`Chunk size too large: ${size}. Maximum allowed is 50000 characters.`)
     }
@@ -281,11 +282,11 @@ export const VALIDATORS = {
     if (!TypeCheckers.isNonNegativeNumber(buffer)) {
       throw new Error(`Invalid buffer size: ${buffer}. Must be a non-negative number.`)
     }
-    
+
     if (!TypeCheckers.isPositiveNumber(maxSize)) {
       throw new Error(`Invalid max size: ${maxSize}. Must be a positive number.`)
     }
-    
+
     if (buffer >= maxSize) {
       throw new Error(`Buffer size (${buffer}) must be smaller than max size (${maxSize}).`)
     }
@@ -300,7 +301,7 @@ export const VALIDATORS = {
     if (!TypeCheckers.isValidIndentLevel(level)) {
       throw new Error(`Invalid indent level: ${level}. Must be a non-negative integer.`)
     }
-    
+
     if (level > 20) {
       throw new Error(`Indent level too deep: ${level}. Maximum allowed is 20 levels.`)
     }
@@ -315,7 +316,7 @@ export const VALIDATORS = {
     if (!Array.isArray(lines)) {
       throw new Error(`Expected array of lines, got: ${typeof lines}`)
     }
-    
+
     if (!isValidLineArray(lines)) {
       throw new Error('Invalid hierarchical lines: array contains invalid Line objects')
     }
@@ -341,9 +342,9 @@ export const VALIDATORS = {
    */
   validateNonEmptyStringContent(content: unknown, paramName: string = 'content'): void {
     this.validateStringContent(content, paramName)
-    
+
     if (typeof content === 'string' && content.trim().length === 0) {
       throw new Error(`${paramName} cannot be empty or whitespace-only`)
     }
-  }
+  },
 } as const

@@ -1,8 +1,8 @@
 /**
  * Transcript processing functionality for tana-converter
  */
-import { CONSTANTS, VALIDATORS } from './types'
-import { chunkTranscriptContent, generateTranscriptOutput } from './transcript-chunker'
+import { CONSTANTS } from './types'
+import { chunkTranscriptContent } from './transcript-chunker'
 
 /**
  * Detects if a line contains a YouTube transcript in the format (MM:SS)
@@ -80,11 +80,11 @@ export function processLimitlessPendantTranscriptToSingleLine(text: string): str
   // Pure functional approach: filter, transform, then join
   return text
     .split('\n')
-    .map(line => line.trim())
-    .filter(line => line && !line.startsWith('#')) // Remove empty lines and headers
-    .filter(line => line.startsWith('>')) // Keep only pendant format lines
-    .map(line => processLimitlessPendantTranscription(line))
-    .filter(processedContent => processedContent !== '') // Remove any failed processing
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#')) // Remove empty lines and headers
+    .filter((line) => line.startsWith('>')) // Keep only pendant format lines
+    .map((line) => processLimitlessPendantTranscription(line))
+    .filter((processedContent) => processedContent !== '') // Remove any failed processing
     .join(' ')
 }
 
@@ -97,8 +97,7 @@ export function isLimitlessPendantTranscription(text: string): boolean {
   // Pure functional approach: count matching lines directly
   const pendantFormatCount = text
     .split('\n')
-    .filter(line => line.match(/^>\s*\[(.*?)\]\(#startMs=\d+&endMs=\d+\):/))
-    .length
+    .filter((line) => line.match(/^>\s*\[(.*?)\]\(#startMs=\d+&endMs=\d+\):/)).length
 
   // Return true if we found enough matching lines
   return pendantFormatCount >= CONSTANTS.MIN_PENDANT_FORMAT_LINES
@@ -116,26 +115,30 @@ export function isLimitlessPendantTranscription(text: string): boolean {
  */
 export function isNewTranscriptionFormat(text: string): boolean {
   const lines = text.split('\n')
-  
+
   // Pure functional approach: count speakers and timestamps separately
   const speakerCount = lines
     .map((line, i) => ({ line: line.trim(), index: i }))
-    .filter(({ line, index }) => 
-      line && // Non-empty line
-      index < lines.length - 1 && // Not the last line
-      !lines[index + 1].trim() // Followed by empty line
-    )
-    .length
+    .filter(
+      ({ line, index }) =>
+        line && // Non-empty line
+        index < lines.length - 1 && // Not the last line
+        !lines[index + 1].trim(), // Followed by empty line
+    ).length
 
-  const timestampCount = lines
-    .filter(line => line.trim().match(
-      /(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/
-    ))
-    .length
+  const timestampCount = lines.filter((line) =>
+    line
+      .trim()
+      .match(
+        /(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/,
+      ),
+  ).length
 
   // If we have multiple speakers and timestamps, it's likely this format
-  return speakerCount >= CONSTANTS.MIN_TRANSCRIPTION_FORMAT_INDICATORS && 
-         timestampCount >= CONSTANTS.MIN_TRANSCRIPTION_FORMAT_INDICATORS
+  return (
+    speakerCount >= CONSTANTS.MIN_TRANSCRIPTION_FORMAT_INDICATORS &&
+    timestampCount >= CONSTANTS.MIN_TRANSCRIPTION_FORMAT_INDICATORS
+  )
 }
 
 /**
@@ -224,26 +227,29 @@ export function containsYouTubeTranscript(text: string): boolean {
  * @returns Single-line transcript
  */
 export function processYouTubeTranscriptToSingleLine(text: string): string {
-  const lines = text.split('\n').map(line => line.trim()).filter(line => line)
-  
+  const lines = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line)
+
   // Find the transcript start index
-  const transcriptStartIndex = lines.findIndex(line => line.match(/\bTranscript:(?::|\s)/i))
-  
+  const transcriptStartIndex = lines.findIndex((line) => line.match(/\bTranscript:(?::|\s)/i))
+
   if (transcriptStartIndex === -1) {
     return '' // No transcript found
   }
-  
+
   // Find the end of transcript (next field marker after transcript start)
-  const transcriptEndIndex = lines.findIndex((line, index) => 
-    index > transcriptStartIndex && line.match(/^[^:]+::/)
+  const transcriptEndIndex = lines.findIndex(
+    (line, index) => index > transcriptStartIndex && line.match(/^[^:]+::/),
   )
-  
+
   // Extract transcript lines (from start to end or to the end of array)
   const transcriptLines = lines.slice(
-    transcriptStartIndex, 
-    transcriptEndIndex === -1 ? undefined : transcriptEndIndex
+    transcriptStartIndex,
+    transcriptEndIndex === -1 ? undefined : transcriptEndIndex,
   )
-  
+
   // Process transcript lines using pure functional approach
   return transcriptLines
     .map((line, index) => {
@@ -256,7 +262,7 @@ export function processYouTubeTranscriptToSingleLine(text: string): string {
         return line.replace(/#\w+\b/g, '').trim()
       }
     })
-    .filter(line => line) // Remove empty lines
+    .filter((line) => line) // Remove empty lines
     .join(' ')
 }
 
@@ -295,7 +301,7 @@ export function chunkTranscript(
 
     // Use the new chunking utilities
     const chunks = chunkTranscriptContent(combinedTranscript)
-    return chunks.map(chunk => `${headerLine}\n- ${chunk.content}`)
+    return chunks.map((chunk) => `${headerLine}\n- ${chunk.content}`)
   }
 
   // Handle multi-line content with line-by-line approach

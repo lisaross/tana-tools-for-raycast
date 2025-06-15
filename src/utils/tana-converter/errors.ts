@@ -15,7 +15,7 @@ export abstract class TanaConverterError extends Error {
     this.name = this.constructor.name
     this.code = code
     this.context = context
-    
+
     // Maintains proper stack trace for where our error was thrown (only available on V8)
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, this.constructor)
@@ -38,7 +38,7 @@ export abstract class TanaConverterError extends Error {
       code: this.code,
       message: this.message,
       context: this.context,
-      stack: this.stack
+      stack: this.stack,
     }
   }
 }
@@ -174,7 +174,7 @@ export const ErrorUtils = {
   async safeExecute<T>(
     fn: () => T | Promise<T>,
     errorType: new (message: string, context?: Record<string, unknown>) => TanaConverterError,
-    context?: Record<string, unknown>
+    context?: Record<string, unknown>,
   ): Promise<T> {
     try {
       const result = await fn()
@@ -184,7 +184,7 @@ export const ErrorUtils = {
       throw new errorType(errorMessage, {
         ...context,
         originalError: error instanceof Error ? error.name : 'Unknown',
-        originalStack: error instanceof Error ? error.stack : undefined
+        originalStack: error instanceof Error ? error.stack : undefined,
       })
     }
   },
@@ -195,7 +195,7 @@ export const ErrorUtils = {
   safeExecuteSync<T>(
     fn: () => T,
     errorType: new (message: string, context?: Record<string, unknown>) => TanaConverterError,
-    context?: Record<string, unknown>
+    context?: Record<string, unknown>,
   ): T {
     try {
       return fn()
@@ -204,7 +204,7 @@ export const ErrorUtils = {
       throw new errorType(errorMessage, {
         ...context,
         originalError: error instanceof Error ? error.name : 'Unknown',
-        originalStack: error instanceof Error ? error.stack : undefined
+        originalStack: error instanceof Error ? error.stack : undefined,
       })
     }
   },
@@ -243,5 +243,5 @@ export const ErrorUtils = {
       throw new InvalidInputError(`${fieldName} cannot be empty`)
     }
     return value
-  }
-} as const 
+  },
+} as const

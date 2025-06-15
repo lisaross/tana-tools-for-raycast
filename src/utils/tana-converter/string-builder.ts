@@ -132,7 +132,7 @@ export const StringUtils = {
    */
   buildTanaLines(contents: string[], indent: number = 0, prefix: string = '- '): string[] {
     const indentStr = '  '.repeat(indent)
-    return contents.map(content => `${indentStr}${prefix}${content}`)
+    return contents.map((content) => `${indentStr}${prefix}${content}`)
   },
 
   /**
@@ -155,5 +155,5 @@ export const StringUtils = {
    */
   template(template: () => string[]): string {
     return template().join('')
-  }
-} as const 
+  },
+} as const

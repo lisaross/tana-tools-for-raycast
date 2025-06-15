@@ -19,7 +19,7 @@ export function parseLine(line: string): Line {
   // Calculate indent level based on spaces and tabs
   const match = line.match(/^(\s*)/)
   const spaces = match?.[1] ?? ''
-  
+
   // Consider tabs as 2 spaces for indentation purposes
   const tabAdjustedSpaces = line.slice(0, spaces.length).replace(/\t/g, '  ').length
   const indent = Math.floor(tabAdjustedSpaces / 2)
@@ -40,7 +40,9 @@ export function parseLine(line: string): Line {
   const isNumberedList = TypeCheckers.isNonEmptyString(content) && /^\d+\.\s+/.test(content)
 
   // Detect if it's a list item (bullet point, numbered, or lettered)
-  const isListItem = isBulletPoint || isNumberedList || 
+  const isListItem =
+    isBulletPoint ||
+    isNumberedList ||
     (TypeCheckers.isNonEmptyString(content) && /^[a-z]\.\s+/i.test(content))
 
   return {
@@ -98,7 +100,7 @@ export function splitMultipleBullets(line: string): string[] {
         .map((match) => {
           const matchedText = match[1]
           if (!matchedText) return null
-          
+
           return {
             index: match.index ?? 0,
             text: matchedText.trim(),
@@ -124,25 +126,26 @@ export function splitMultipleBullets(line: string): string[] {
       )
 
       // Pure functional approach: transform sections to results and flatten
-      const sectionResults = sectionBoundaries.flatMap(section => {
+      const sectionResults = sectionBoundaries.flatMap((section) => {
         // Start with section header
         const sectionLines = [`${leadingWhitespace}\t${section.text}`]
-        
+
         // Get the content for this section with safe substring
         const sectionContent = content.substring(section.start, section.end)
-        
+
         // Find all bullets in this section and transform to formatted lines
         const bulletMatches = Array.from(sectionContent.matchAll(/[▪-]\s+([^\t▪-]+)/g))
         const bulletLines = bulletMatches
-          .map(bulletMatch => bulletMatch[1])
-          .filter((bulletText): bulletText is string => 
-            typeof bulletText === 'string' && bulletText.trim().length > 0
+          .map((bulletMatch) => bulletMatch[1])
+          .filter(
+            (bulletText): bulletText is string =>
+              typeof bulletText === 'string' && bulletText.trim().length > 0,
           )
-          .map(bulletText => `${leadingWhitespace}\t\t▪\t${bulletText.trim()}`)
-        
+          .map((bulletText) => `${leadingWhitespace}\t\t▪\t${bulletText.trim()}`)
+
         return [...sectionLines, ...bulletLines]
       })
-      
+
       results.push(...sectionResults)
 
       if (results.length > 0) {
@@ -216,10 +219,10 @@ export function buildHierarchy(lines: Line[]): Line[] {
   // First pass - process headers and build initial hierarchy
   for (let i = 0; i < result.length; i += 1) {
     const line = result[i]
-    
+
     // Null check with optional chaining
     if (!line?.content) continue
-    
+
     const content = line.content.trim()
     if (!TypeCheckers.isNonEmptyString(content)) continue
 
@@ -230,17 +233,14 @@ export function buildHierarchy(lines: Line[]): Line[] {
       const level = headerMarkers.length
 
       // Pop headers from stack until we find appropriate parent level
-      while (
-        headerStack.length > 0 &&
-        result[headerStack[headerStack.length - 1]]?.content
-      ) {
+      while (headerStack.length > 0 && result[headerStack[headerStack.length - 1]]?.content) {
         const stackTopIndex = headerStack[headerStack.length - 1]
         const stackTopLine = result[stackTopIndex]
         if (!stackTopLine?.content) break
-        
+
         const stackTopMatch = stackTopLine.content.match(/^#+/)
         const stackTopLevel = stackTopMatch?.[0]?.length ?? 0
-        
+
         if (stackTopLevel >= level) {
           headerStack.pop()
         } else {
@@ -284,7 +284,7 @@ export function buildHierarchy(lines: Line[]): Line[] {
       }
       // Otherwise, find the appropriate parent based on indentation
       else if (
-        lastLineIdx >= 0 && 
+        lastLineIdx >= 0 &&
         result[lastLineIdx] &&
         typeof line.originalIndent === 'number' &&
         typeof result[lastLineIdx].originalIndent === 'number' &&
@@ -303,7 +303,7 @@ export function buildHierarchy(lines: Line[]): Line[] {
     }
     // Regular content
     else if (
-      lastLineIdx >= 0 && 
+      lastLineIdx >= 0 &&
       result[lastLineIdx] &&
       typeof line.originalIndent === 'number' &&
       typeof result[lastLineIdx].originalIndent === 'number' &&

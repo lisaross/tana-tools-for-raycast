@@ -32,35 +32,39 @@ export class InputProcessorFactory {
       ErrorUtils.validateNotEmpty(input, 'input')
 
       // Check for Limitless Pendant transcription
-      if (ErrorUtils.safeExecuteSync(
-        () => isLimitlessPendantTranscription(input),
-        ProcessorSelectionError,
-        { processorType: 'PendantTranscript', inputLength: input.length }
-      )) {
+      if (
+        ErrorUtils.safeExecuteSync(
+          () => isLimitlessPendantTranscription(input),
+          ProcessorSelectionError,
+          { processorType: 'PendantTranscript', inputLength: input.length },
+        )
+      ) {
         return new PendantTranscriptProcessor()
       }
 
       // Check for new transcription format (Limitless App)
-      if (ErrorUtils.safeExecuteSync(
-        () => isNewTranscriptionFormat(input),
-        ProcessorSelectionError,
-        { processorType: 'LimitlessApp', inputLength: input.length }
-      )) {
+      if (
+        ErrorUtils.safeExecuteSync(() => isNewTranscriptionFormat(input), ProcessorSelectionError, {
+          processorType: 'LimitlessApp',
+          inputLength: input.length,
+        })
+      ) {
         return new LimitlessAppTranscriptProcessor()
       }
 
       // Check for YouTube transcript
-      if (ErrorUtils.safeExecuteSync(
-        () => containsYouTubeTranscript(input),
-        ProcessorSelectionError,
-        { processorType: 'YouTube', inputLength: input.length }
-      )) {
+      if (
+        ErrorUtils.safeExecuteSync(
+          () => containsYouTubeTranscript(input),
+          ProcessorSelectionError,
+          { processorType: 'YouTube', inputLength: input.length },
+        )
+      ) {
         return new YouTubeTranscriptProcessor()
       }
 
       // Default to standard markdown processing
       return new StandardMarkdownProcessor()
-
     } catch (error) {
       if (error instanceof InvalidInputError || error instanceof ProcessorSelectionError) {
         throw error
@@ -71,8 +75,8 @@ export class InputProcessorFactory {
         {
           inputLength: input?.length,
           inputPreview: input?.substring(0, 100) + (input && input.length > 100 ? '...' : ''),
-          originalError: error instanceof Error ? error.name : 'Unknown'
-        }
+          originalError: error instanceof Error ? error.name : 'Unknown',
+        },
       )
     }
   }
@@ -91,18 +95,13 @@ export function processInput(input: string): string {
   try {
     // Create and validate processor
     const processor = InputProcessorFactory.createProcessor(input)
-    
-    // Process with error handling
-    return ErrorUtils.safeExecuteSync(
-      () => processor.process(input),
-      ProcessorSelectionError,
-      { 
-        processorType: processor.constructor.name,
-        inputLength: input.length,
-        inputPreview: input.substring(0, 100) + (input.length > 100 ? '...' : '')
-      }
-    )
 
+    // Process with error handling
+    return ErrorUtils.safeExecuteSync(() => processor.process(input), ProcessorSelectionError, {
+      processorType: processor.constructor.name,
+      inputLength: input.length,
+      inputPreview: input.substring(0, 100) + (input.length > 100 ? '...' : ''),
+    })
   } catch (error) {
     // Re-throw our custom errors
     if (error instanceof InvalidInputError || error instanceof ProcessorSelectionError) {
@@ -115,8 +114,8 @@ export function processInput(input: string): string {
       {
         inputLength: input?.length,
         inputPreview: input?.substring(0, 100) + (input && input.length > 100 ? '...' : ''),
-        originalError: error instanceof Error ? error.name : 'Unknown'
-      }
+        originalError: error instanceof Error ? error.name : 'Unknown',
+      },
     )
   }
-} 
+}

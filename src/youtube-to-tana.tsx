@@ -10,19 +10,19 @@ const execAsync = promisify(exec)
  *
  * Uses the Raycast Browser Extension API to extract YouTube video metadata and transcripts.
  * Automatically opens Tana after copying the formatted content to the clipboard.
- * 
+ *
  * REQUIREMENTS:
  * 1. Open a YouTube video in your browser (Arc, Chrome, or Safari)
  * 2. Make sure the YouTube tab is active
  * 3. For transcripts: Click "Show transcript" below the video if available
- * 
+ *
  * BROWSER COMPATIBILITY:
  * - Arc/Chrome: Full support, all features work seamlessly
  * - Safari: Requires additional setup for full functionality:
  *   • Safari Settings → Advanced → ✓ "Show features for web developers"
  *   • Safari Settings → Developer → ✓ "Allow JavaScript from Apple Events"
  *   • Reload the YouTube page after enabling these settings
- * 
+ *
  * FEATURES:
  * - Extracts video title, channel name, duration, description
  * - Captures transcript if available (auto-generated or manual captions)
@@ -67,15 +67,19 @@ function decodeHTMLEntities(text: string): string {
  * Timeout wrapper for Browser Extension API calls to prevent hanging
  */
 async function withTimeout<T>(
-  promise: Promise<T>, 
-  timeoutMs: number = 10000, 
-  operation: string = 'operation'
+  promise: Promise<T>,
+  timeoutMs: number = 10000,
+  operation: string = 'operation',
 ): Promise<T> {
   let timeoutId: NodeJS.Timeout
-  
+
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
-      reject(new Error(`${operation} timed out after ${timeoutMs}ms. This may be a Safari compatibility issue. Please ensure Safari Developer settings are enabled.`))
+      reject(
+        new Error(
+          `${operation} timed out after ${timeoutMs}ms. This may be a Safari compatibility issue. Please ensure Safari Developer settings are enabled.`,
+        ),
+      )
     }, timeoutMs)
   })
 
@@ -88,9 +92,11 @@ async function withTimeout<T>(
  * Detect if we're running in Safari based on error patterns
  */
 function isSafariAccessError(error: unknown): boolean {
-  return error instanceof Error && 
-         (error.message.includes('Access to this page is restricted') || 
-          error.message.includes('code: -32603'))
+  return (
+    error instanceof Error &&
+    (error.message.includes('Access to this page is restricted') ||
+      error.message.includes('code: -32603'))
+  )
 }
 
 /**
@@ -114,23 +120,23 @@ This is a Safari security restriction that doesn't affect Arc or Chrome.`)
 async function getYouTubeTab(): Promise<{ url: string; tabId: number; title?: string } | null> {
   try {
     console.log('🔍 Getting YouTube tab via Browser Extension API...')
-    
-    const tabs = await withTimeout(
-      BrowserExtension.getTabs(),
-      8000,
-      'Getting browser tabs'
-    )
+
+    const tabs = await withTimeout(BrowserExtension.getTabs(), 8000, 'Getting browser tabs')
     console.log(`🔍 Found ${tabs?.length || 0} tabs`)
 
     if (!tabs || tabs.length === 0) {
-      throw new Error('Could not access browser tabs. Please ensure Raycast has permission to access your browser.')
+      throw new Error(
+        'Could not access browser tabs. Please ensure Raycast has permission to access your browser.',
+      )
     }
 
     // Find active YouTube tab
     const youtubeTab = tabs.find((tab) => tab.active && tab.url?.includes('youtube.com/watch'))
-    
+
     if (!youtubeTab) {
-      throw new Error('No active YouTube video tab found. Please open a YouTube video and make sure it\'s the active tab.')
+      throw new Error(
+        "No active YouTube video tab found. Please open a YouTube video and make sure it's the active tab.",
+      )
     }
 
     return {
@@ -140,12 +146,12 @@ async function getYouTubeTab(): Promise<{ url: string; tabId: number; title?: st
     }
   } catch (error) {
     console.log(`❌ Browser Extension API failed: ${error}`)
-    
+
     // Handle Safari-specific access restrictions
     if (isSafariAccessError(error)) {
       throw handleSafariError('browser tab access')
     }
-    
+
     throw error
   }
 }
@@ -153,42 +159,46 @@ async function getYouTubeTab(): Promise<{ url: string; tabId: number; title?: st
 /**
  * Extract video metadata using Browser Extension API
  */
-async function extractVideoMetadata(tabId: number, url: string, tabTitle?: string): Promise<Partial<VideoInfo>> {
+async function extractVideoMetadata(
+  tabId: number,
+  url: string,
+  tabTitle?: string,
+): Promise<Partial<VideoInfo>> {
   try {
     console.log(`🔍 Extracting metadata from tab ${tabId}...`)
-    
+
     // Extract video ID from URL
     const urlObj = new URL(url)
     const videoId = urlObj.searchParams.get('v')
-    
+
     if (!videoId) {
       throw new Error('Could not extract video ID from URL')
     }
-    
+
     // Get HTML content for regex-based extraction
     const htmlContent = await withTimeout(
       BrowserExtension.getContent({
         tabId: tabId,
-        format: 'html'
+        format: 'html',
       }),
       10000,
-      'Getting page HTML content'
+      'Getting page HTML content',
     )
-    
+
     // Extract title using multiple methods
     let title = 'YouTube Video'
-    
+
     // Method 1: Use tab title (most reliable, works in Safari)
     if (tabTitle && tabTitle.trim().length > 0) {
       title = tabTitle
         .replace(' - YouTube', '')
         .replace(' – YouTube', '')
-        .replace(/^\(\d+\)\s*/, '')  // Remove notification count like "(63) " at start
-        .replace(/\s*\(\d+\)$/, '')  // Remove notification count like " (63)" at end
+        .replace(/^\(\d+\)\s*/, '') // Remove notification count like "(63) " at start
+        .replace(/\s*\(\d+\)$/, '') // Remove notification count like " (63)" at end
         .trim()
       console.log(`✅ Using tab title: "${title}"`)
     }
-    
+
     // Method 2: Fallback to HTML title tag if tab title not available
     if (title === 'YouTube Video' || title === tabTitle) {
       const titleMatch = htmlContent.match(/<title>([^<]+)<\/title>/)
@@ -197,7 +207,7 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
         console.log(`✅ Found title from HTML: "${title}"`)
       }
     }
-    
+
     // Method 3: Try meta property as fallback
     if (title === 'YouTube Video') {
       const ogTitleMatch = htmlContent.match(/<meta property="og:title" content="([^"]+)"/)
@@ -206,7 +216,7 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
         console.log(`✅ Found title from meta: "${title}"`)
       }
     }
-    
+
     // Method 4: Final fallback to CSS title extraction (only if still default)
     if (title === 'YouTube Video') {
       console.log(`🔍 Trying CSS title extraction as final fallback...`)
@@ -218,7 +228,7 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
             tabId: tabId,
           }),
           3000,
-          'Getting title via CSS selector (fallback)'
+          'Getting title via CSS selector (fallback)',
         )
         if (h1Title && h1Title.trim().length > 0 && h1Title.trim().length < 200) {
           title = h1Title.trim()
@@ -228,11 +238,11 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
         console.log(`❌ CSS title fallback failed: ${error}`)
       }
     }
-    
+
     // Extract channel info using multiple methods
     let channelName = 'Unknown Channel'
     let channelUrl = 'https://www.youtube.com'
-    
+
     // Method 1: Try to get channel name from CSS selectors (more specific to video owner)
     const channelSelectors = [
       // Most specific - target the video owner section
@@ -246,9 +256,9 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
       'ytd-channel-name a',
       '.ytd-channel-name a',
       // Fallback
-      '#channel-name a, #channel-name yt-formatted-string'
+      '#channel-name a, #channel-name yt-formatted-string',
     ]
-    
+
     for (const selector of channelSelectors) {
       try {
         console.log(`🔍 Trying channel selector: ${selector}`)
@@ -259,31 +269,37 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
             tabId: tabId,
           }),
           5000,
-          `Getting channel name via selector: ${selector}`
+          `Getting channel name via selector: ${selector}`,
         )
-        
-        if (channelElement && channelElement.trim().length > 0 && channelElement.trim().length < 100) {
+
+        if (
+          channelElement &&
+          channelElement.trim().length > 0 &&
+          channelElement.trim().length < 100
+        ) {
           channelName = channelElement.trim()
           console.log(`✅ Found channel name via CSS: "${channelName}" using selector: ${selector}`)
           break
         } else if (channelElement) {
-          console.log(`🔍 Found but rejected channel text (too long/short): "${channelElement.substring(0, 50)}..." using selector: ${selector}`)
+          console.log(
+            `🔍 Found but rejected channel text (too long/short): "${channelElement.substring(0, 50)}..." using selector: ${selector}`,
+          )
         }
       } catch (error) {
         console.log(`❌ Channel selector ${selector} failed: ${error}`)
         continue
       }
     }
-    
+
     // Method 2: Try to get channel URL from CSS selectors (more specific)
     const channelUrlSelectors = [
       'ytd-video-owner-renderer ytd-channel-name a',
       'ytd-video-owner-renderer .ytd-channel-name a',
       '#owner ytd-channel-name a',
       'ytd-channel-name a',
-      '.ytd-channel-name a'
+      '.ytd-channel-name a',
     ]
-    
+
     for (const urlSelector of channelUrlSelectors) {
       try {
         console.log(`🔍 Trying channel URL selector: ${urlSelector}`)
@@ -294,9 +310,9 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
             tabId: tabId,
           }),
           5000,
-          `Getting channel URL via selector: ${urlSelector}`
+          `Getting channel URL via selector: ${urlSelector}`,
         )
-        
+
         if (channelLinkHTML) {
           const hrefMatch = channelLinkHTML.match(/href="([^"]+)"/)
           if (hrefMatch) {
@@ -305,12 +321,20 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
               extractedUrl = `https://www.youtube.com${extractedUrl}`
             }
             // Validate that this looks like a proper channel URL
-            if (extractedUrl.includes('/@') || extractedUrl.includes('/channel/') || extractedUrl.includes('/c/')) {
+            if (
+              extractedUrl.includes('/@') ||
+              extractedUrl.includes('/channel/') ||
+              extractedUrl.includes('/c/')
+            ) {
               channelUrl = extractedUrl
-              console.log(`✅ Found channel URL via CSS: "${channelUrl}" using selector: ${urlSelector}`)
+              console.log(
+                `✅ Found channel URL via CSS: "${channelUrl}" using selector: ${urlSelector}`,
+              )
               break
             } else {
-              console.log(`🔍 Found URL but doesn't look like channel: "${extractedUrl}" using selector: ${urlSelector}`)
+              console.log(
+                `🔍 Found URL but doesn't look like channel: "${extractedUrl}" using selector: ${urlSelector}`,
+              )
             }
           }
         }
@@ -319,7 +343,7 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
         continue
       }
     }
-    
+
     // Method 3: Fallback to regex-based extraction from HTML
     if (channelName === 'Unknown Channel') {
       const channelMatch = htmlContent.match(/"ownerChannelName":"([^"]+)"/)
@@ -328,7 +352,7 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
         console.log(`✅ Found channel name via regex: ${channelName}`)
       }
     }
-    
+
     if (channelUrl === 'https://www.youtube.com') {
       const channelIdMatch = htmlContent.match(/"channelId":"([^"]+)"/)
       if (channelIdMatch) {
@@ -336,10 +360,10 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
         console.log(`✅ Found channel URL via regex: ${channelUrl}`)
       }
     }
-    
+
     // Extract duration
     let duration: string | undefined
-    
+
     // Method 1: Try CSS selectors for duration
     const durationSelectors = [
       // Player duration display
@@ -351,9 +375,9 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
       // Alternative selectors
       '[class*="time-status"] #text',
       '.badge-shape-wiz__text',
-      'ytd-thumbnail-overlay-time-status-renderer .badge-shape-wiz__text'
+      'ytd-thumbnail-overlay-time-status-renderer .badge-shape-wiz__text',
     ]
-    
+
     for (const selector of durationSelectors) {
       try {
         console.log(`🔍 Trying duration selector: ${selector}`)
@@ -364,9 +388,9 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
             tabId: tabId,
           }),
           3000,
-          `Getting duration via CSS selector: ${selector}`
+          `Getting duration via CSS selector: ${selector}`,
         )
-        
+
         if (durationText && durationText.trim().match(/^\d+:\d+/)) {
           duration = durationText.trim()
           console.log(`✅ Found duration via CSS: "${duration}" using selector: ${selector}`)
@@ -377,31 +401,31 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
         continue
       }
     }
-    
+
     // Method 2: Try to extract from meta tags or JSON-LD
     if (!duration) {
       console.log('🔍 Trying duration regex patterns in HTML...')
-      
+
       // Try multiple duration patterns
       const durationPatterns = [
         /"duration":"PT(\d+H)?(\d+M)?(\d+S)"/,
         /"lengthSeconds":"(\d+)"/,
         /"approxDurationMs":"(\d+)"/,
-        /PT(\d+H)?(\d+M)?(\d+S)/
+        /PT(\d+H)?(\d+M)?(\d+S)/,
       ]
-      
+
       for (const pattern of durationPatterns) {
         const match = htmlContent.match(pattern)
         if (match) {
           console.log(`🔍 Found duration match:`, match)
-          
+
           if (pattern.source.includes('lengthSeconds')) {
             // Convert seconds to MM:SS or H:MM:SS format
             const totalSeconds = parseInt(match[1])
             const hours = Math.floor(totalSeconds / 3600)
             const minutes = Math.floor((totalSeconds % 3600) / 60)
             const seconds = totalSeconds % 60
-            
+
             if (hours > 0) {
               duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
             } else {
@@ -413,7 +437,7 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
             const hours = Math.floor(totalSeconds / 3600)
             const minutes = Math.floor((totalSeconds % 3600) / 60)
             const seconds = totalSeconds % 60
-            
+
             if (hours > 0) {
               duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
             } else {
@@ -424,19 +448,19 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
             const hours = match[1] ? parseInt(match[1].replace('H', '')) : 0
             const minutes = match[2] ? parseInt(match[2].replace('M', '')) : 0
             const seconds = match[3] ? parseInt(match[3].replace('S', '')) : 0
-            
+
             if (hours > 0) {
               duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
             } else {
               duration = `${minutes}:${seconds.toString().padStart(2, '0')}`
             }
           }
-          
+
           console.log(`✅ Found duration via regex: "${duration}"`)
           break
         }
       }
-      
+
       if (!duration) {
         console.log('❌ No duration found in HTML content')
       }
@@ -444,12 +468,12 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
 
     // Extract description
     let description = 'Description not available'
-    
+
     // Method 1: Try CSS selector for description (with Safari-specific selectors)
     const descriptionSelectors = [
       // Chrome/Arc selectors
       'ytd-expandable-video-description-body-renderer',
-      '.ytd-expandable-video-description-body-renderer', 
+      '.ytd-expandable-video-description-body-renderer',
       '#description',
       // Safari-specific selectors
       '[class*="expandable-video-description-body"]',
@@ -459,9 +483,9 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
       // Broader fallbacks
       '[id*="description"]',
       '.description',
-      'ytd-video-secondary-info-renderer #description'
+      'ytd-video-secondary-info-renderer #description',
     ]
-    
+
     for (const selector of descriptionSelectors) {
       try {
         console.log(`🔍 Trying description selector: ${selector}`)
@@ -472,12 +496,14 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
             tabId: tabId,
           }),
           3000,
-          `Getting description via CSS selector: ${selector}`
+          `Getting description via CSS selector: ${selector}`,
         )
-        
+
         if (cssDescription && cssDescription.trim().length > 10) {
           description = cssDescription.trim()
-          console.log(`✅ Found description via CSS (${description.length} chars) using selector: ${selector}`)
+          console.log(
+            `✅ Found description via CSS (${description.length} chars) using selector: ${selector}`,
+          )
           break
         }
       } catch (error) {
@@ -485,7 +511,7 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
         continue
       }
     }
-    
+
     // Method 2: Fallback to regex
     if (description === 'Description not available') {
       const descMatch = htmlContent.match(/"description":"([^"]+)"/)
@@ -494,7 +520,7 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
         console.log(`✅ Found description via regex (${description.length} chars)`)
       }
     }
-    
+
     return {
       title: decodeHTMLEntities(title),
       channelName,
@@ -502,16 +528,16 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
       url: `https://www.youtube.com/watch?v=${videoId}`,
       videoId,
       description,
-      duration
+      duration,
     }
   } catch (error) {
     console.log(`❌ Metadata extraction failed: ${error}`)
-    
+
     // Handle Safari-specific access restrictions
     if (isSafariAccessError(error)) {
       throw handleSafariError('page content access')
     }
-    
+
     throw error
   }
 }
@@ -522,21 +548,22 @@ async function extractVideoMetadata(tabId: number, url: string, tabTitle?: strin
 async function extractTranscript(tabId: number): Promise<string | null> {
   try {
     console.log(`🔍 Extracting transcript from tab ${tabId}...`)
-    
+
     // First, check if transcript panel is visible or needs to be opened
     let needsTranscriptButton = false
     try {
       // Check if transcript panel exists but is not expanded
       const transcriptButton = await withTimeout(
         BrowserExtension.getContent({
-          cssSelector: 'button[aria-label*="transcript" i], button[aria-label*="Show transcript" i]',
+          cssSelector:
+            'button[aria-label*="transcript" i], button[aria-label*="Show transcript" i]',
           format: 'text',
           tabId: tabId,
         }),
         3000,
-        'Checking for transcript button'
+        'Checking for transcript button',
       )
-      
+
       if (transcriptButton && transcriptButton.includes('Show transcript')) {
         console.log('🔍 Transcript panel not expanded, but transcript button found')
         needsTranscriptButton = true
@@ -544,7 +571,7 @@ async function extractTranscript(tabId: number): Promise<string | null> {
     } catch (error) {
       console.log(`🔍 Could not check transcript button: ${error}`)
     }
-    
+
     // Try different selectors for transcript content - prioritize container selectors that get all segments
     const transcriptSelectors = [
       // Container selectors that should capture all transcript segments
@@ -559,9 +586,9 @@ async function extractTranscript(tabId: number): Promise<string | null> {
       'yt-formatted-string.segment-text.style-scope.ytd-transcript-segment-renderer',
       'ytd-transcript-segment-renderer yt-formatted-string.segment-text',
       '.segment-text',
-      'yt-formatted-string.segment-text'
+      'yt-formatted-string.segment-text',
     ]
-    
+
     for (const selector of transcriptSelectors) {
       try {
         console.log(`🔍 Trying selector: ${selector}`)
@@ -572,29 +599,31 @@ async function extractTranscript(tabId: number): Promise<string | null> {
             tabId: tabId,
           }),
           8000,
-          `Getting transcript via selector: ${selector}`
+          `Getting transcript via selector: ${selector}`,
         )
-        
+
         if (transcriptText && transcriptText.trim().length > 50) {
           console.log(`✅ Found transcript with ${selector} (${transcriptText.length} chars)`)
           return transcriptText.trim()
         } else if (transcriptText && transcriptText.trim().length > 0) {
-          console.log(`🔍 Found short content with ${selector}: "${transcriptText.substring(0, 100)}..."`)
+          console.log(
+            `🔍 Found short content with ${selector}: "${transcriptText.substring(0, 100)}..."`,
+          )
         }
       } catch (error) {
         console.log(`❌ Selector ${selector} failed: ${error}`)
         continue
       }
     }
-    
+
     // If no individual segments found, try alternative container selectors
     const containerSelectors = [
       'ytd-transcript-renderer',
       'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]',
       '[target-id="engagement-panel-searchable-transcript"] ytd-transcript-renderer',
-      'ytd-engagement-panel-section-list-renderer[visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"]'
+      'ytd-engagement-panel-section-list-renderer[visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"]',
     ]
-    
+
     for (const containerSelector of containerSelectors) {
       try {
         console.log(`🔍 Trying container selector: ${containerSelector}`)
@@ -605,43 +634,47 @@ async function extractTranscript(tabId: number): Promise<string | null> {
             tabId: tabId,
           }),
           8000,
-          `Getting transcript via container: ${containerSelector}`
+          `Getting transcript via container: ${containerSelector}`,
         )
-        
+
         if (fullTranscript && fullTranscript.trim().length > 100) {
           console.log(`✅ Found transcript via container (${fullTranscript.length} chars)`)
           return fullTranscript.trim()
         } else if (fullTranscript && fullTranscript.trim().length > 0) {
-          console.log(`🔍 Found short content with container ${containerSelector}: "${fullTranscript.substring(0, 100)}..."`)
+          console.log(
+            `🔍 Found short content with container ${containerSelector}: "${fullTranscript.substring(0, 100)}..."`,
+          )
         }
       } catch (error) {
         console.log(`❌ Container selector ${containerSelector} failed: ${error}`)
         continue
       }
     }
-    
+
     console.log('❌ No transcript found with any selector')
-    
+
     // If we found a transcript button that needs to be clicked, throw a specific error
     if (needsTranscriptButton) {
       throw new Error('TRANSCRIPT_BUTTON_NEEDED')
     }
-    
+
     return null
   } catch (error) {
     console.log(`❌ Transcript extraction failed: ${error}`)
-    
+
     // Re-throw specific errors
     if (error instanceof Error && error.message === 'TRANSCRIPT_BUTTON_NEEDED') {
       throw error
     }
-    
+
     // Handle Safari-specific access restrictions for transcript
     if (isSafariAccessError(error)) {
-      console.log('🔍 Safari access restriction detected for transcript - continuing without transcript')
+      console.log(
+        '🔍 Safari access restriction detected for transcript - continuing without transcript',
+      )
       return null // Don't throw for transcript, just continue without it
     }
-    
+
     return null
   }
 }
@@ -654,12 +687,12 @@ function formatTranscriptForTanaField(transcript: string): string {
     .replace(/#\w+\b/g, '') // Remove hashtags
     .replace(/\b\d{1,2}:\d{2}\b/g, '') // Remove timestamps like 1:23, 12:34
     .replace(/\b\d{1,2}:\d{2}:\d{2}\b/g, '') // Remove timestamps like 1:23:45
-    .replace(/\r\n/g, ' ')   // Replace line breaks with spaces
+    .replace(/\r\n/g, ' ') // Replace line breaks with spaces
     .replace(/\r/g, ' ')
     .replace(/\n/g, ' ')
-    .replace(/\s+/g, ' ')    // Multiple spaces to single space
-    .replace(/::+/g, ':')    // Multiple colons
-    .replace(/\t/g, ' ')     // Tabs to spaces
+    .replace(/\s+/g, ' ') // Multiple spaces to single space
+    .replace(/::+/g, ':') // Multiple colons
+    .replace(/\t/g, ' ') // Tabs to spaces
     .trim()
 }
 
@@ -667,17 +700,19 @@ function formatTranscriptForTanaField(transcript: string): string {
  * Format video info for Tana in Markdown format
  */
 function formatForTanaMarkdown(videoInfo: VideoInfo): string {
-  const titleWithDuration = videoInfo.duration ? 
-    `${videoInfo.title} (${videoInfo.duration})` : 
-    videoInfo.title
-    
-  console.log(`🔍 Formatting title: "${titleWithDuration}" (original: "${videoInfo.title}", duration: "${videoInfo.duration}")`)
-    
+  const titleWithDuration = videoInfo.duration
+    ? `${videoInfo.title} (${videoInfo.duration})`
+    : videoInfo.title
+
+  console.log(
+    `🔍 Formatting title: "${titleWithDuration}" (original: "${videoInfo.title}", duration: "${videoInfo.duration}")`,
+  )
+
   let markdown = `# ${titleWithDuration} #video\n`
   markdown += `URL::${videoInfo.url}\n`
   markdown += `Channel URL::${videoInfo.channelUrl}\n`
   markdown += `Author::${videoInfo.channelName}\n`
-  
+
   if (videoInfo.duration) {
     markdown += `Duration::${videoInfo.duration}\n`
   }
@@ -691,31 +726,6 @@ function formatForTanaMarkdown(videoInfo: VideoInfo): string {
   markdown += `Description::${safeDescription}\n`
 
   return markdown
-}
-
-/**
- * Extract basic video info from tab data (Safari fallback)
- */
-function extractFromTabData(url: string, tabTitle?: string): Partial<VideoInfo> {
-  const urlObj = new URL(url)
-  const videoId = urlObj.searchParams.get('v') || ''
-  
-  // Extract title from tab title (YouTube adds " - YouTube" to titles)
-  let title = 'YouTube Video'
-  if (tabTitle && tabTitle.includes(' - YouTube')) {
-    title = tabTitle.replace(' - YouTube', '').trim()
-  } else if (tabTitle && tabTitle.length > 0) {
-    title = tabTitle.trim()
-  }
-  
-  return {
-    title: decodeHTMLEntities(title),
-    url: `https://www.youtube.com/watch?v=${videoId}`,
-    videoId,
-    channelName: 'Unknown Channel',
-    channelUrl: 'https://www.youtube.com',
-    description: 'Description not available (Safari content access restricted)'
-  }
 }
 
 /**
@@ -737,18 +747,21 @@ export default async function Command() {
     // Check for transcript first
     let transcript: string | null = null
     let transcriptButtonNeeded = false
-    
+
     try {
       transcript = await extractTranscript(youtubeTab.tabId)
     } catch (transcriptError) {
-      if (transcriptError instanceof Error && transcriptError.message === 'TRANSCRIPT_BUTTON_NEEDED') {
+      if (
+        transcriptError instanceof Error &&
+        transcriptError.message === 'TRANSCRIPT_BUTTON_NEEDED'
+      ) {
         transcriptButtonNeeded = true
         console.log('🔍 Transcript button needs to be clicked first')
       } else {
         console.log(`❌ Transcript extraction error: ${transcriptError}`)
       }
     }
-    
+
     // If transcript button needs to be clicked, show warning and stop
     if (transcriptButtonNeeded) {
       await showToast({
@@ -761,7 +774,7 @@ export default async function Command() {
 
     // Extract video metadata
     const metadata = await extractVideoMetadata(youtubeTab.tabId, youtubeTab.url, youtubeTab.title)
-    
+
     // Combine all info
     const videoInfo: VideoInfo = {
       title: metadata.title || 'YouTube Video',
@@ -771,10 +784,12 @@ export default async function Command() {
       videoId: metadata.videoId || '',
       description: metadata.description || 'Description not available',
       transcript: transcript || undefined,
-      duration: metadata.duration
+      duration: metadata.duration,
     }
-    
-    console.log(`🔍 Final video info - Title: "${videoInfo.title}", Duration: "${videoInfo.duration}"`)
+
+    console.log(
+      `🔍 Final video info - Title: "${videoInfo.title}", Duration: "${videoInfo.duration}"`,
+    )
 
     // Format and copy to clipboard
     const markdownFormat = formatForTanaMarkdown(videoInfo)
@@ -788,21 +803,26 @@ export default async function Command() {
       if (transcript) {
         await showHUD('YouTube video info and transcript copied to clipboard. Opening Tana... ✨')
       } else {
-        await showHUD('YouTube video info copied to clipboard (no transcript available). Opening Tana... ✨')
+        await showHUD(
+          'YouTube video info copied to clipboard (no transcript available). Opening Tana... ✨',
+        )
       }
     } catch (error) {
       console.error('Error opening Tana:', error)
       // Show success message but note Tana couldn't be opened
       if (transcript) {
-        await showHUD('YouTube video info and transcript copied to clipboard (but couldn\'t open Tana) ✨')
+        await showHUD(
+          "YouTube video info and transcript copied to clipboard (but couldn't open Tana) ✨",
+        )
       } else {
-        await showHUD('YouTube video info copied to clipboard (no transcript available, couldn\'t open Tana) ✨')
+        await showHUD(
+          "YouTube video info copied to clipboard (no transcript available, couldn't open Tana) ✨",
+        )
       }
     }
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-    
+
     // Show specific Safari error messages or general error
     if (errorMessage.includes('Safari Access Restricted')) {
       await showToast({

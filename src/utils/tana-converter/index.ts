@@ -24,9 +24,9 @@ export function convertToTana(inputText: string | undefined | null): string {
     }
 
     if (typeof inputText !== 'string') {
-      throw new InvalidInputError('Input must be a string', { 
+      throw new InvalidInputError('Input must be a string', {
         inputType: typeof inputText,
-        inputValue: String(inputText)
+        inputValue: String(inputText),
       })
     }
 
@@ -35,23 +35,19 @@ export function convertToTana(inputText: string | undefined | null): string {
     }
 
     // Additional input sanitization
-    if (inputText.length > 1000000) { // 1MB limit
+    if (inputText.length > 1000000) {
+      // 1MB limit
       throw new InvalidInputError('Input text is too large (maximum 1MB allowed)', {
         inputLength: inputText.length,
-        maxLength: 1000000
+        maxLength: 1000000,
       })
     }
 
     // Use the strategy pattern to process the input with error handling
-    return ErrorUtils.safeExecuteSync(
-      () => processInput(inputText),
-      GeneralConverterError,
-      { 
-        inputLength: inputText.length,
-        inputPreview: inputText.substring(0, 100) + (inputText.length > 100 ? '...' : '')
-      }
-    )
-
+    return ErrorUtils.safeExecuteSync(() => processInput(inputText), GeneralConverterError, {
+      inputLength: inputText.length,
+      inputPreview: inputText.substring(0, 100) + (inputText.length > 100 ? '...' : ''),
+    })
   } catch (error) {
     // Re-throw our custom errors as-is
     if (error instanceof TanaConverterError) {
@@ -65,8 +61,9 @@ export function convertToTana(inputText: string | undefined | null): string {
         originalError: error instanceof Error ? error.name : 'Unknown',
         originalMessage: error instanceof Error ? error.message : String(error),
         inputLength: inputText?.length,
-        inputPreview: inputText?.substring(0, 100) + (inputText && inputText.length > 100 ? '...' : '')
-      }
+        inputPreview:
+          inputText?.substring(0, 100) + (inputText && inputText.length > 100 ? '...' : ''),
+      },
     )
   }
 }
