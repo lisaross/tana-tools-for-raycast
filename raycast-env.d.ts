@@ -23,6 +23,8 @@ declare namespace Preferences {
   export type YoutubeToTana = ExtensionPreferences & {}
   /** Preferences accessible in the `copy-page-content-to-tana` command */
   export type CopyPageContentToTana = ExtensionPreferences & {}
+  /** Preferences accessible in the `copy-page-content-to-tana-with-selection` command */
+  export type CopyPageContentToTanaWithSelection = ExtensionPreferences & {}
 }
 
 declare namespace Arguments {
@@ -36,5 +38,7 @@ declare namespace Arguments {
   export type YoutubeToTana = {}
   /** Arguments passed to the `copy-page-content-to-tana` command */
   export type CopyPageContentToTana = {}
+  /** Arguments passed to the `copy-page-content-to-tana-with-selection` command */
+  export type CopyPageContentToTanaWithSelection = {}
 }
 

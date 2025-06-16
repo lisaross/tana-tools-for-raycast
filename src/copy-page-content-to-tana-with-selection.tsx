@@ -1,4 +1,13 @@
-import { Clipboard, BrowserExtension, Toast, showToast } from '@raycast/api'
+import {
+  Clipboard,
+  BrowserExtension,
+  Toast,
+  showToast,
+  List,
+  Action,
+  ActionPanel,
+} from '@raycast/api'
+import { useState, useEffect } from 'react'
 import { convertToTana } from './utils/tana-converter'
 import { exec } from 'child_process'
 import { promisify } from 'util'
@@ -7,22 +16,19 @@ import TurndownService from 'turndown'
 const execAsync = promisify(exec)
 
 /**
- * Enhanced Copy Page Content to Tana
+ * Enhanced Copy Page Content to Tana with Tab Selection
  *
- * Uses the Raycast Browser Extension's reader mode to extract clean content,
- * then applies comprehensive metadata extraction and proper hierarchical formatting.
- *
- * FEATURES:
- * - Leverages Raycast's built-in reader mode for intelligent content extraction
- * - Extracts rich metadata (title, description, author, URL)
- * - Converts headings to parent nodes (not Tana headings)
- * - Maintains proper content hierarchy under headings
- * - Automatically filters out ads, navigation, and other noise
+ * Provides a list of available browser tabs for selection, then extracts clean content
+ * using Raycast's reader mode and applies comprehensive metadata extraction.
  */
 
-/**
- * Page information extracted from web pages
- */
+interface BrowserTab {
+  id: number
+  title: string
+  url: string
+  active: boolean
+}
+
 interface PageInfo {
   title: string
   url: string
@@ -50,65 +56,6 @@ async function withTimeout<T>(
   return Promise.race([promise, timeoutPromise]).finally(() => {
     clearTimeout(timeoutId)
   })
-}
-
-/**
- * Get best available browser tab information with improved detection
- */
-async function getBestAvailableTab(): Promise<{
-  url: string
-  tabId: number
-  title?: string
-} | null> {
-  try {
-    console.log('🔍 Getting browser tabs via Browser Extension API...')
-
-    const tabs = await withTimeout(BrowserExtension.getTabs(), 6000, 'Getting browser tabs')
-    console.log(`🔍 Found ${tabs?.length || 0} tabs`)
-
-    if (!tabs || tabs.length === 0) {
-      throw new Error(
-        'Could not access browser tabs. Please ensure Raycast has permission to access your browser.',
-      )
-    }
-
-    // Log all tabs for debugging
-    tabs.forEach((tab, index) => {
-      console.log(
-        `🔍 Tab ${index}: ${tab.active ? '[ACTIVE]' : '[INACTIVE]'} "${tab.title}" - ${tab.url}`,
-      )
-    })
-
-    // Strategy 1: Look for active tab first
-    let selectedTab = tabs.find((tab) => tab.active)
-    if (selectedTab) {
-      console.log(`✅ Using active tab: "${selectedTab.title}"`)
-      return {
-        url: selectedTab.url,
-        tabId: selectedTab.id,
-        title: selectedTab.title,
-      }
-    }
-
-    // Strategy 2: Look for the most recently opened tab (highest ID)
-    // Tabs are usually ordered with newer tabs having higher IDs
-    const sortedTabs = [...tabs].sort((a, b) => b.id - a.id)
-    selectedTab = sortedTabs[0]
-
-    if (selectedTab) {
-      console.log(`✅ Using most recent tab: "${selectedTab.title}" (no active tab found)`)
-      return {
-        url: selectedTab.url,
-        tabId: selectedTab.id,
-        title: selectedTab.title,
-      }
-    }
-
-    throw new Error('No suitable tab found.')
-  } catch (error) {
-    console.log(`❌ Browser Extension API failed: ${error}`)
-    throw error
-  }
 }
 
 /**
@@ -470,35 +417,30 @@ function formatForTanaMarkdown(pageInfo: PageInfo): string {
 }
 
 /**
- * Main command entry point
+ * Process selected tab and extract content
  */
-export default async function Command() {
+async function processTab(selectedTab: BrowserTab) {
   const toast = await showToast({
     style: Toast.Style.Animated,
     title: 'Extracting Page Content',
+    message: `Processing "${selectedTab.title}"...`,
   })
 
   try {
-    // Get best available tab
-    const activeTab = await getBestAvailableTab()
-    if (!activeTab) {
-      throw new Error('No suitable browser tab found')
-    }
-
     toast.message = 'Getting page metadata...'
 
     // Extract metadata
-    const metadata = await extractPageMetadata(activeTab.tabId, activeTab.url, activeTab.title)
+    const metadata = await extractPageMetadata(selectedTab.id, selectedTab.url, selectedTab.title)
 
     toast.message = 'Extracting main content...'
 
     // Extract main content using Raycast's reader mode
-    const content = await extractMainContent(activeTab.tabId)
+    const content = await extractMainContent(selectedTab.id)
 
     // Combine all info
     const pageInfo: PageInfo = {
       title: metadata.title || 'Web Page',
-      url: metadata.url || activeTab.url,
+      url: metadata.url || selectedTab.url,
       description: metadata.description,
       author: metadata.author,
       content,
@@ -539,4 +481,112 @@ export default async function Command() {
 
     console.error('Page content extraction error:', error)
   }
+}
+
+/**
+ * Get domain name from URL for display
+ */
+function getDomainFromUrl(url: string): string {
+  try {
+    const urlObj = new URL(url)
+    return urlObj.hostname.replace('www.', '')
+  } catch {
+    return 'Unknown'
+  }
+}
+
+/**
+ * Main command component with tab selection
+ */
+export default function Command() {
+  const [tabs, setTabs] = useState<BrowserTab[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadTabs() {
+      try {
+        console.log('🔍 Loading browser tabs...')
+        const browserTabs = await withTimeout(
+          BrowserExtension.getTabs(),
+          6000,
+          'Getting browser tabs',
+        )
+
+        if (!browserTabs || browserTabs.length === 0) {
+          throw new Error(
+            'No browser tabs found. Please ensure you have browser tabs open and Raycast has permission to access your browser.',
+          )
+        }
+
+        console.log(`✅ Found ${browserTabs.length} tabs`)
+
+        // Convert to our format and sort by active status and title
+        const formattedTabs: BrowserTab[] = browserTabs
+          .map((tab) => ({
+            id: tab.id,
+            title: tab.title || 'Untitled',
+            url: tab.url || '',
+            active: tab.active || false,
+          }))
+          .sort((a, b) => {
+            // Active tabs first, then sort by title
+            if (a.active && !b.active) return -1
+            if (!a.active && b.active) return 1
+            return a.title.localeCompare(b.title)
+          })
+
+        setTabs(formattedTabs)
+        setError(null)
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+        console.error('❌ Failed to load tabs:', errorMessage)
+        setError(errorMessage)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadTabs()
+  }, [])
+
+  if (error) {
+    return (
+      <List>
+        <List.Item title="Error Loading Tabs" subtitle={error} icon="❌" />
+      </List>
+    )
+  }
+
+  return (
+    <List isLoading={isLoading} searchBarPlaceholder="Search browser tabs...">
+      {tabs.map((tab) => (
+        <List.Item
+          key={tab.id}
+          title={tab.title}
+          subtitle={getDomainFromUrl(tab.url)}
+          accessories={[
+            ...(tab.active ? [{ text: 'Active' }] : []),
+            { text: getDomainFromUrl(tab.url) },
+          ]}
+          icon={tab.active ? '✅' : '🌐'}
+          actions={
+            <ActionPanel>
+              <Action title="Extract Content to Tana" onAction={() => processTab(tab)} />
+              <Action.OpenInBrowser
+                title="Open in Browser"
+                url={tab.url}
+                shortcut={{ modifiers: ['cmd'], key: 'o' }}
+              />
+              <Action.CopyToClipboard
+                title="Copy URL"
+                content={tab.url}
+                shortcut={{ modifiers: ['cmd'], key: 'c' }}
+              />
+            </ActionPanel>
+          }
+        />
+      ))}
+    </List>
+  )
 }
