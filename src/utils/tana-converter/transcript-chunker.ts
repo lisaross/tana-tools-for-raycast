@@ -7,14 +7,10 @@ import { ChunkingError, ErrorUtils, InvalidInputError } from './errors'
 import { StringBuilder } from './string-builder'
 
 /**
- * Safe property access helper for transcript chunking
- * Safely gets the length property of strings or arrays without throwing errors
- * @param {unknown} value - The value to get the length of
- * @returns {number} The length of the value if it's a string or array, 0 otherwise
- * @example
- * getSafeLength('hello world') // returns 11
- * getSafeLength(['a', 'b', 'c']) // returns 3
- * getSafeLength(null) // returns 0
+ * Returns the length of a string or array, or 0 if the input is neither.
+ *
+ * @param value - The value whose length is to be determined.
+ * @returns The length if {@link value} is a string or array; otherwise, 0.
  */
 function getSafeLength(value: unknown): number {
   return typeof value === 'string' || Array.isArray(value)
@@ -54,14 +50,12 @@ interface TranscriptChunk {
 }
 
 /**
- * Type guard to validate transcript chunk structure and content
- * Ensures an object conforms to the TranscriptChunk interface requirements
- * @param {unknown} obj - The object to validate as a TranscriptChunk
- * @returns {boolean} True if obj is a valid TranscriptChunk, false otherwise
- * @example
- * isValidTranscriptChunk({content: 'text', chunkNumber: 1}) // returns true
- * isValidTranscriptChunk({content: '', chunkNumber: 0}) // returns false
- * isValidTranscriptChunk(null) // returns false
+ * Determines whether the given object is a valid {@link TranscriptChunk}.
+ *
+ * Validates that the object is non-null, has a non-empty string `content`, and a `chunkNumber` of at least 1.
+ *
+ * @param obj - The object to check.
+ * @returns True if the object meets the {@link TranscriptChunk} requirements; otherwise, false.
  */
 function isValidTranscriptChunk(obj: unknown): obj is TranscriptChunk {
   if (typeof obj !== 'object' || obj === null) return false
@@ -76,9 +70,12 @@ function isValidTranscriptChunk(obj: unknown): obj is TranscriptChunk {
 }
 
 /**
- * Estimate reading duration based on word count
- * @param wordCount Number of words
- * @returns Duration string in format "X min Y sec"
+ * Estimates the reading duration for a given word count, assuming an average reading speed of 250 words per minute.
+ *
+ * @param wordCount - The number of words to estimate the reading duration for.
+ * @returns A string representing the estimated duration in the format "X min Y sec", "X min", or "Y sec".
+ *
+ * @throws {ChunkingError} If {@link wordCount} is not a non-negative number.
  */
 function estimateReadingDuration(wordCount: number): string {
   // Validate input
@@ -106,9 +103,12 @@ function estimateReadingDuration(wordCount: number): string {
 }
 
 /**
- * Count words in text content
- * @param text Text to count words in
- * @returns Number of words
+ * Counts the number of words in a string.
+ *
+ * Returns 0 if the input is not a non-empty string.
+ *
+ * @param text - The text to analyze.
+ * @returns The count of words in {@link text}.
  */
 function countWords(text: string): number {
   // Input validation
@@ -124,10 +124,13 @@ function countWords(text: string): number {
 }
 
 /**
- * Find the best split point near a target position
- * @param text Text to find split point in
- * @param targetPosition Target character position to split near
- * @returns Best split position
+ * Finds the optimal position near a target index in the text to split, preferring sentence boundaries and falling back to word boundaries if necessary.
+ *
+ * @param text - The text in which to find a split point.
+ * @param targetPosition - The character index near which to split.
+ * @returns The character index at which to split the text.
+ *
+ * @throws {ChunkingError} If {@link text} is not a non-empty string or {@link targetPosition} is negative.
  */
 function findBestSplitPoint(text: string, targetPosition: number): number {
   // Input validation
@@ -206,9 +209,15 @@ function findBestSplitPoint(text: string, targetPosition: number): number {
 }
 
 /**
- * Split transcript into manageable chunks with overlap
- * @param transcript Complete transcript text
- * @returns Array of transcript chunks
+ * Splits a transcript string into an array of manageable chunks, each not exceeding a specified maximum size.
+ *
+ * Chunks are created at optimal sentence or word boundaries to avoid awkward breaks, and each chunk includes metadata such as word count and estimated reading duration. Ensures that all chunks except the last meet a minimum size requirement. Throws a {@link ChunkingError} if the input is invalid or chunking fails.
+ *
+ * @param transcript - The complete transcript text to be chunked.
+ * @param maxSize - The maximum allowed size (in characters) for each chunk. Defaults to {@link CHUNKING_CONSTANTS.MAX_CHUNK_SIZE}.
+ * @returns An array of {@link TranscriptChunk} objects representing the split transcript.
+ *
+ * @throws {ChunkingError} If the input is not a non-empty string or if no valid chunks can be generated.
  */
 export function chunkTranscriptContent(
   transcript: string,
@@ -316,9 +325,14 @@ export function chunkTranscriptContent(
 }
 
 /**
- * Generate Tana-formatted output for transcript chunks
- * @param chunks Array of transcript chunks
- * @returns Formatted Tana output string
+ * Generates a Tana-formatted string representation of transcript chunks.
+ *
+ * Formats one or more transcript chunks into a structured output suitable for Tana, including word counts and estimated reading durations. For multiple chunks, includes an overview and individual part breakdowns.
+ *
+ * @param chunks - Array of transcript chunks to format.
+ * @returns The formatted transcript as a Tana-compatible string.
+ *
+ * @throws {ChunkingError} If the input is not a valid, non-empty array of transcript chunks or if formatting fails.
  */
 export function generateTranscriptOutput(chunks: TranscriptChunk[]): string {
   // Input validation
@@ -393,11 +407,16 @@ export function generateTranscriptOutput(chunks: TranscriptChunk[]): string {
 }
 
 /**
- * Generate hierarchical Tana-formatted output for transcript within existing structure
- * @param chunks Array of transcript chunks
- * @param transcriptIndent Indentation level for transcript header
- * @param chunkIndent Indentation level for individual chunks
- * @returns Formatted Tana output string
+ * Generates a hierarchical Tana-formatted transcript output with configurable indentation.
+ *
+ * Formats transcript chunks into a hierarchical structure, allowing custom indentation levels for the transcript header and individual chunks. Includes word counts and estimated reading durations in the output.
+ *
+ * @param chunks - Array of transcript chunks to format.
+ * @param transcriptIndent - Indentation level for the transcript header.
+ * @param chunkIndent - Indentation level for each chunk; must be greater than {@link transcriptIndent}.
+ * @returns The formatted Tana-compatible transcript string.
+ *
+ * @throws {ChunkingError} If input validation fails or output generation encounters an error.
  */
 export function generateHierarchicalTranscriptOutput(
   chunks: TranscriptChunk[],
@@ -489,13 +508,16 @@ export function generateHierarchicalTranscriptOutput(
 }
 
 /**
- * Process and chunk transcript content for simple single-line format
- * Combines chunking and formatting for simple transcript cases
- * @param content Single-line transcript content
- * @param maxSize Maximum chunk size
- * @returns Complete Tana-formatted output
- * @throws {InvalidInputError} When input validation fails
- * @throws {ChunkingError} When processing fails
+ * Processes transcript content by chunking and formatting it into a Tana-compatible output.
+ *
+ * Combines transcript chunking and output generation for simple, single-line transcript content.
+ *
+ * @param content - The transcript text to process.
+ * @param maxSize - The maximum allowed size for each chunk.
+ * @returns The formatted transcript output suitable for Tana.
+ *
+ * @throws {InvalidInputError} If the input content is invalid.
+ * @throws {ChunkingError} If chunking or formatting fails.
  */
 export function processSimpleTranscript(
   content: string,

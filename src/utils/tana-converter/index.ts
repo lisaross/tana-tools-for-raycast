@@ -6,15 +6,16 @@ import { processInput } from './processor-factory'
 import { InvalidInputError, ErrorUtils, GeneralConverterError, TanaConverterError } from './errors'
 
 /**
- * Convert markdown to Tana format
+ * Converts markdown text to Tana format with robust input validation and error handling.
  *
- * Enhanced to properly indent content under headings without using Tana's heading format
- * and to correctly handle formatting from Claude's AI outputs
+ * Accepts a markdown string and returns its Tana-formatted equivalent. If the input is empty or contains only whitespace, returns a minimal Tana output indicating no text was selected.
  *
- * @param inputText Markdown text to convert
- * @returns Tana-formatted text
- * @throws {InvalidInputError} When input validation fails
- * @throws {TanaConverterError} When conversion processing fails
+ * @param inputText - The markdown text to convert.
+ * @returns The Tana-formatted string.
+ *
+ * @throws {InvalidInputError} If the input is null, undefined, not a string, or exceeds 1MB in length.
+ * @throws {TanaConverterError} If an error occurs during conversion processing.
+ * @throws {GeneralConverterError} If an unexpected error occurs during conversion.
  */
 export function convertToTana(inputText: string | undefined | null): string {
   try {

@@ -5,9 +5,12 @@ import { CONSTANTS } from './types'
 import { chunkTranscriptContent } from './transcript-chunker'
 
 /**
- * Detects if a line contains a YouTube transcript in the format (MM:SS)
- * @param text The text to check for timestamps
- * @returns Array of segments split by timestamps, with each timestamp as its own segment
+ * Splits a YouTube transcript line into segments based on timestamp markers.
+ *
+ * If the input contains a "Transcript:" label and timestamps in the format (MM:SS) or (HH:MM:SS), returns an array where each segment starts with a timestamp, preserving the "Transcript:" label in the first segment. If no timestamps or "Transcript:" label are found, returns the original text as a single-element array.
+ *
+ * @param text - The text to process for YouTube transcript timestamps.
+ * @returns An array of transcript segments split at each timestamp.
  */
 export function processYouTubeTranscriptTimestamps(text: string): string[] {
   // Check if this is a transcript line
@@ -71,10 +74,12 @@ export function processLimitlessPendantTranscription(text: string): string {
 }
 
 /**
- * Process a Limitless Pendant transcription into a single line for chunking
- * This produces the same output format as the Limitless App format but with better spacing
- * @param text Text to process
- * @returns Single-line transcript
+ * Converts a multi-line Limitless Pendant transcription into a single-line transcript.
+ *
+ * Filters out headers and non-transcription lines, processes each pendant line to extract speaker and content, and joins the results into a single string suitable for chunking or further processing.
+ *
+ * @param text - The multi-line Limitless Pendant transcription text.
+ * @returns The processed transcript as a single line.
  */
 export function processLimitlessPendantTranscriptToSingleLine(text: string): string {
   // Pure functional approach: filter, transform, then join
@@ -89,9 +94,9 @@ export function processLimitlessPendantTranscriptToSingleLine(text: string): str
 }
 
 /**
- * Detect if text is a Limitless Pendant transcription
- * @param text Text to analyze
- * @returns True if the text appears to be a Limitless Pendant transcription
+ * Determines whether the provided text contains a Limitless Pendant transcription format.
+ *
+ * Returns true if the number of lines matching the Limitless Pendant transcription pattern meets or exceeds the configured threshold.
  */
 export function isLimitlessPendantTranscription(text: string): boolean {
   // Pure functional approach: count matching lines directly
@@ -104,14 +109,10 @@ export function isLimitlessPendantTranscription(text: string): boolean {
 }
 
 /**
- * Detect if text is in the new transcription format
- * Format:
- * Speaker Name
+ * Determines whether the provided text matches the new transcription format, characterized by speaker name lines followed by empty lines and timestamp lines with day and time patterns.
  *
- * Timestamp
- * Content
- * @param text Text to analyze
- * @returns True if the text appears to be in the new transcription format
+ * @param text - The text to analyze.
+ * @returns True if the text appears to be in the new transcription format; otherwise, false.
  */
 export function isNewTranscriptionFormat(text: string): boolean {
   const lines = text.split('\n')
@@ -142,13 +143,12 @@ export function isNewTranscriptionFormat(text: string): boolean {
 }
 
 /**
- * Process a Limitless App transcription into a single line with timestamps removed
- * This prepares the transcript for chunking by:
- * 1. Cleaning out timestamps
- * 2. Removing line breaks between entries
- * 3. Preparing for 7000 character chunking
- * @param text Text to process
- * @returns Single-line transcript
+ * Converts a Limitless App transcript into a single line, removing timestamps and formatting each speaker's content.
+ *
+ * Speaker sections are combined in the format `{Speaker}: {Content}` and concatenated into a single string, with all timestamps and line breaks removed.
+ *
+ * @param text - The Limitless App transcript to process.
+ * @returns The transcript as a single line with speakers and their content, suitable for chunking.
  */
 export function processLimitlessAppTranscriptToSingleLine(text: string): string {
   const lines = text.split('\n')
@@ -221,10 +221,10 @@ export function containsYouTubeTranscript(text: string): boolean {
 }
 
 /**
- * Process a YouTube transcript into a single line format
- * Similar to how we process Limitless App and Pendant transcripts
- * @param text Text to process
- * @returns Single-line transcript
+ * Converts a YouTube transcript into a single-line string, removing hashtags and extracting only the transcript content.
+ *
+ * @param text - The input text containing the YouTube transcript.
+ * @returns The transcript content as a single line, or an empty string if no transcript is found.
  */
 export function processYouTubeTranscriptToSingleLine(text: string): string {
   const lines = text
@@ -267,10 +267,13 @@ export function processYouTubeTranscriptToSingleLine(text: string): string {
 }
 
 /**
- * Chunk transcript content into smaller pieces, each starting with "- " and without line breaks
- * @param content The Tana-formatted content to chunk
- * @param maxChunkSize Maximum size per chunk (default: 7000 characters)
- * @returns Array of chunked content pieces
+ * Splits transcript content into multiple chunks, each prefixed with a header and formatted for Tana import.
+ *
+ * If the content is a single line or very short, it is chunked using the `chunkTranscriptContent` utility and each chunk is prefixed with the header and a bullet. For multi-line content, lines are accumulated into chunks without exceeding the specified maximum size, each chunk also prefixed with the header.
+ *
+ * @param content - The transcript content to be chunked.
+ * @param maxChunkSize - The maximum number of characters allowed per chunk. Defaults to {@link CONSTANTS.MAX_TRANSCRIPT_CHUNK_SIZE}.
+ * @returns An array of chunked transcript strings, each suitable for Tana import.
  */
 export function chunkTranscript(
   content: string,

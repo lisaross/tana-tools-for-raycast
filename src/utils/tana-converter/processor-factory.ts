@@ -50,13 +50,17 @@ export class InputProcessorFactory {
 }
 
 /**
- * Convenience function for processing input with the appropriate strategy
- * @param input The input text to process
- * @returns Tana-formatted output
- * @throws {InvalidInputError} When input validation fails
- * @throws {ProcessorSelectionError} When processor selection fails
- * @throws {TranscriptProcessingError} When transcript processing fails
- * @throws {HierarchyBuildingError} When hierarchy building fails
+ * Processes the input text using the appropriate processor and returns Tana-formatted output.
+ *
+ * Selects the correct input processor based on the content and format of {@link input}, then transforms it for Tana.
+ *
+ * @param input - The input text to process.
+ * @returns The processed output formatted for Tana.
+ *
+ * @throws {InvalidInputError} If the input is empty or invalid.
+ * @throws {ProcessorSelectionError} If no suitable processor can be selected.
+ * @throws {TranscriptProcessingError} If an error occurs during transcript processing.
+ * @throws {HierarchyBuildingError} If building the output hierarchy fails.
  */
 export function processInput(input: string): string {
   // Create and validate processor

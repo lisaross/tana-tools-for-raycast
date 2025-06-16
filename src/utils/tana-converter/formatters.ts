@@ -4,14 +4,12 @@
 import { CONSTANTS } from './types'
 
 /**
- * Convert markdown fields to Tana fields
+ * Converts markdown key-value fields to Tana field syntax using heuristics to avoid misidentifying regular text as fields.
  *
- * Fix for issue #2: "Regular text with colons incorrectly converted to fields"
- * This function is now smarter about when to convert text with colons to fields.
- * It uses heuristics to distinguish between descriptive text with colons and actual fields.
+ * Only lines that are likely to represent actual fields (e.g., metadata or structured data) are converted from `key: value` to `key::value`. Lines that appear to be regular text, instructions, or table rows are left unchanged.
  *
- * @param text Text to process
- * @returns Text with markdown fields converted to Tana fields
+ * @param text - The input text to process.
+ * @returns The text with markdown fields converted to Tana fields where appropriate.
  */
 export function convertFields(text: string): string {
   // Skip if already contains a field marker

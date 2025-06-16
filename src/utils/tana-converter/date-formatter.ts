@@ -39,9 +39,12 @@ export function getMonthNumber(month: string): string {
 }
 
 /**
- * Parse a date string into its components
- * @param text Date string to parse
- * @returns Parsed date object or null if not a recognized date format
+ * Parses a date string in various formats into a normalized {@link ParsedDate} object.
+ *
+ * Supports Tana date references, week and week range formats, ISO dates (with or without time), British and American date formats, durations, and several legacy or ambiguous patterns. Returns `null` if the input does not match any recognized date format or contains invalid week numbers.
+ *
+ * @param text - The date string to parse.
+ * @returns A {@link ParsedDate} object with normalized type and value, or `null` if the format is unrecognized or invalid.
  */
 export function parseDate(text: string): ParsedDate | null {
   // Already a Tana date reference

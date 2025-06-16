@@ -54,7 +54,12 @@ interface VideoInfo {
 }
 
 /**
- * Decode HTML entities to their text equivalents
+ * Decodes HTML entities and numeric character references in a string to their corresponding characters.
+ *
+ * Converts common named entities (such as &amp;, &lt;, &gt;, &quot;, &apos;, &nbsp;) and both decimal and hexadecimal numeric entities to plain text.
+ *
+ * @param text - The string containing HTML entities to decode.
+ * @returns The decoded string with all recognized HTML entities replaced by their character equivalents.
  */
 function decodeHTMLEntities(text: string): string {
   let decoded = text
@@ -75,7 +80,14 @@ function decodeHTMLEntities(text: string): string {
 }
 
 /**
- * Timeout wrapper for Browser Extension API calls to prevent hanging
+ * Wraps a promise with a timeout, rejecting if it does not resolve within the specified duration.
+ *
+ * @param promise - The promise to wrap with a timeout.
+ * @param timeoutMs - The maximum time to wait in milliseconds before rejecting (default: 10000).
+ * @param operation - A description of the operation for error messages (default: 'operation').
+ * @returns The resolved value of the original promise if it completes before the timeout.
+ *
+ * @throws {Error} If the promise does not resolve within {@link timeoutMs}, with a message indicating a possible Safari compatibility issue.
  */
 async function withTimeout<T>(
   promise: Promise<T>,
@@ -100,7 +112,12 @@ async function withTimeout<T>(
 }
 
 /**
- * Detect if we're running in Safari based on error patterns
+ * Determines whether an error is caused by Safari's browser access restrictions.
+ *
+ * Checks if the error message matches known patterns indicating Safari's security limitations when accessing browser tabs or content.
+ *
+ * @param error - The error object to inspect.
+ * @returns True if the error is related to Safari access restrictions; otherwise, false.
  */
 function isSafariAccessError(error: unknown): boolean {
   return (
@@ -111,7 +128,10 @@ function isSafariAccessError(error: unknown): boolean {
 }
 
 /**
- * Handle Safari-specific errors with helpful guidance
+ * Returns an error with detailed instructions for resolving Safari access restrictions encountered during a specific operation.
+ *
+ * @param operation - The name of the operation that triggered the Safari access restriction.
+ * @returns An {@link Error} containing user guidance for enabling necessary Safari developer settings.
  */
 function handleSafariError(operation: string): Error {
   return new Error(`Safari Access Restricted for ${operation}. 
@@ -126,7 +146,12 @@ This is a Safari security restriction that doesn't affect Arc or Chrome.`)
 }
 
 /**
- * Get YouTube tab using Browser Extension API
+ * Retrieves the active YouTube video tab using the Raycast Browser Extension API.
+ *
+ * @returns An object containing the URL, tab ID, and optional title of the active YouTube video tab, or null if not found.
+ *
+ * @throws {Error} If browser tabs cannot be accessed or no active YouTube video tab is found.
+ * @throws {Error} If Safari access restrictions prevent tab access, with guidance for enabling required settings.
  */
 async function getYouTubeTab(): Promise<{ url: string; tabId: number; title?: string } | null> {
   try {
@@ -168,7 +193,16 @@ async function getYouTubeTab(): Promise<{ url: string; tabId: number; title?: st
 }
 
 /**
- * Extract video metadata using Browser Extension API
+ * Extracts YouTube video metadata from a browser tab using the Raycast Browser Extension API.
+ *
+ * Attempts multiple fallback strategies to retrieve the video title, channel name and URL, duration, and description by querying the DOM and parsing the page HTML. Handles various YouTube URL formats and browser compatibility nuances.
+ *
+ * @param tabId - The identifier of the browser tab containing the YouTube video.
+ * @param url - The URL of the YouTube video.
+ * @param tabTitle - The title of the browser tab, used as a primary fallback for the video title.
+ * @returns A partial {@link VideoInfo} object containing extracted metadata fields.
+ *
+ * @throws {Error} If the video ID cannot be extracted from the URL or if browser access restrictions prevent content retrieval.
  */
 async function extractVideoMetadata(
   tabId: number,
@@ -559,7 +593,14 @@ async function extractVideoMetadata(
 }
 
 /**
- * Extract transcript using Browser Extension API
+ * Attempts to extract the transcript text from a YouTube video tab using the Raycast Browser Extension API.
+ *
+ * Tries multiple CSS selectors to locate and retrieve the transcript content. If the transcript panel is not expanded, detects this state and throws an error indicating that the "Show transcript" button must be clicked. Handles Safari-specific access restrictions by returning null instead of throwing.
+ *
+ * @param tabId - The ID of the browser tab containing the YouTube video.
+ * @returns The transcript text if found, or null if unavailable or access is restricted.
+ *
+ * @throws {Error} If the transcript panel is not expanded and user action is required ("TRANSCRIPT_BUTTON_NEEDED").
  */
 async function extractTranscript(tabId: number): Promise<string | null> {
   try {
@@ -696,7 +737,12 @@ async function extractTranscript(tabId: number): Promise<string | null> {
 }
 
 /**
- * Safely format transcript content for Tana field
+ * Cleans and normalizes a transcript string for safe insertion into a Tana field.
+ *
+ * Removes hashtags, timestamps, line breaks, extra spaces, multiple colons, and tabs, returning a single-line, trimmed string suitable for Tana.
+ *
+ * @param transcript - The raw transcript text to format.
+ * @returns The cleaned, single-line transcript string.
  */
 function formatTranscriptForTanaField(transcript: string): string {
   return transcript
@@ -713,7 +759,12 @@ function formatTranscriptForTanaField(transcript: string): string {
 }
 
 /**
- * Format video info for Tana in Markdown format
+ * Formats YouTube video metadata and transcript into a Markdown string suitable for import into Tana.
+ *
+ * Includes the video title (with duration if available), URL, channel information, transcript, and description, each as Tana fields.
+ *
+ * @param videoInfo - The metadata and transcript of the YouTube video to format.
+ * @returns A Markdown-formatted string containing the video information for Tana.
  */
 function formatForTanaMarkdown(videoInfo: VideoInfo): string {
   const titleWithDuration = videoInfo.duration
@@ -745,7 +796,11 @@ function formatForTanaMarkdown(videoInfo: VideoInfo): string {
 }
 
 /**
- * Main command entry point
+ * Extracts metadata and transcript from the active YouTube video tab, formats the data for Tana, copies it to the clipboard, and attempts to open the Tana app.
+ *
+ * Displays toast notifications to indicate progress, success, or failure, and provides user guidance if manual action is required (such as clicking "Show transcript").
+ *
+ * @remark If the transcript panel is not expanded, the user is prompted to click "Show transcript" before rerunning the command.
  */
 export default async function Command() {
   const toast = await showToast({

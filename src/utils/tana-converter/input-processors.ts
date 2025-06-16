@@ -40,14 +40,10 @@ export interface InputProcessor {
 }
 
 /**
- * Safe property access helper for error contexts
- * Safely gets the length property of strings or arrays without throwing errors
- * @param {unknown} value - The value to get the length of
- * @returns {number} The length of the value if it's a string or array, 0 otherwise
- * @example
- * getSafeLength('hello') // returns 5
- * getSafeLength([1, 2, 3]) // returns 3
- * getSafeLength(null) // returns 0
+ * Returns the length of a string or array, or 0 if the value is not a string or array.
+ *
+ * @param value - The value whose length is to be determined.
+ * @returns The length if {@link value} is a string or array; otherwise, 0.
  */
 function getSafeLength(value: unknown): number {
   try {
@@ -60,14 +56,12 @@ function getSafeLength(value: unknown): number {
 }
 
 /**
- * Safe string operation helper for error contexts
- * Creates a safe preview string from any value for debugging and error reporting
- * @param {unknown} value - The value to create a preview string from
- * @returns {string} A truncated string representation of the value (max 50 chars)
- * @example
- * getSafePreview('this is a long string') // returns 'this is a long string'
- * getSafePreview(null) // returns '[null]'
- * getSafePreview({key: 'value'}) // returns '[object Object]'
+ * Returns a truncated string preview (up to 100 characters) of any value for debugging or error reporting.
+ *
+ * If the value is a string, it is truncated to 100 characters with an ellipsis if necessary. For other types, their string representation is truncated. Returns fallback strings for null or unstringifiable values.
+ *
+ * @param value - The value to preview.
+ * @returns A string preview of {@link value}, truncated to 100 characters.
  */
 function getSafePreview(value: unknown): string {
   try {
@@ -81,13 +75,14 @@ function getSafePreview(value: unknown): string {
 }
 
 /**
- * Shared preprocessing for all input types
- * Cleans and normalizes input text using pure functional approach
- * @param {string} inputText - The raw input text to preprocess
- * @returns {string} The cleaned and normalized text
- * @throws {InvalidInputError} When input text is not a valid string
- * @example
- * preprocessInput('  Hello\\r\\nWorld  ') // returns 'Hello\\nWorld'
+ * Preprocesses and normalizes input text for transcript processing.
+ *
+ * Splits the input into lines, separates multiple bullets per line, and processes YouTube transcript timestamps to produce a cleaned, normalized string suitable for further parsing.
+ *
+ * @param inputText - The raw input text to preprocess.
+ * @returns The cleaned and normalized text.
+ *
+ * @throws {InvalidInputError} If {@link inputText} is not a non-empty string.
  */
 function preprocessInput(inputText: string): string {
   // Validate input with type guard
@@ -114,11 +109,15 @@ function preprocessInput(inputText: string): string {
 }
 
 /**
- * Shared logic for calculating indentation levels with comprehensive validation
- * Maps line indices to their calculated indentation levels for proper Tana formatting
- * @param {Line[]} hierarchicalLines - Array of parsed lines with hierarchy information
- * @returns {Map<number, number>} Map from line index to indentation level
- * @throws {ProcessingError} When indentation calculation fails
+ * Calculates indentation levels for each line in a hierarchical transcript structure.
+ *
+ * Validates the input array of parsed lines and determines the indentation level for each line, mapping line indices to their corresponding indentation for Tana-formatted output.
+ *
+ * @param hierarchicalLines - Array of parsed lines with hierarchy information.
+ * @returns A map from each line's index to its calculated indentation level.
+ *
+ * @throws {HierarchyBuildingError} If the input array is invalid or if indentation calculation fails for any line.
+ *
  * @example
  * // For lines: ['# Header', '  - Item', '    - Nested']
  * // Returns: Map { 0 => 0, 1 => 1, 2 => 2 }
@@ -175,15 +174,15 @@ function calculateIndentationLevels(hierarchicalLines: Line[]): Map<number, numb
 }
 
 /**
- * Shared logic for processing line content with type safety
- * Processes and formats line content based on whether it's a header or regular content
- * @param {string} content - The raw line content to process
- * @param {boolean} isHeader - Whether this line is a header (affects formatting)
- * @returns {string} The processed and formatted line content
- * @throws {ProcessingError} When line content processing fails
- * @example
- * processLineContent('# My Header', true) // returns formatted header
- * processLineContent('Regular text', false) // returns processed text
+ * Processes and formats a line of content for Tana output, handling headers and regular lines differently.
+ *
+ * For headers, extracts and returns the header text. For regular lines, removes list markers and applies field, date, and inline formatting conversions.
+ *
+ * @param content - The raw line content to process.
+ * @param isHeader - Indicates if the line is a header, affecting formatting.
+ * @returns The processed and formatted line content.
+ *
+ * @throws {FieldFormattingError} If {@link content} is not a non-empty string or {@link isHeader} is not a boolean.
  */
 function processLineContent(content: string, isHeader: boolean): string {
   // Validate inputs with type guards
@@ -226,15 +225,13 @@ function processLineContent(content: string, isHeader: boolean): string {
 }
 
 /**
- * Type guard to validate transcript index and content
- * Validates that transcript data is consistent and properly structured
- * @param {number} transcriptIdx - The index of the transcript line in the hierarchy
- * @param {string} transcriptContent - The transcript content to validate
- * @param {Line[]} hierarchicalLines - Array of all hierarchical lines for context validation
- * @returns {void} Throws error if validation fails, returns nothing if valid
- * @throws {ProcessingError} When transcript data is invalid or inconsistent
- * @example
- * validateTranscriptData(5, 'transcript text', hierarchicalLines)
+ * Validates that the transcript index and content are consistent with the hierarchical lines array.
+ *
+ * @param transcriptIdx - Index of the transcript line within the hierarchy.
+ * @param transcriptContent - Transcript content to validate.
+ * @param hierarchicalLines - Array of hierarchical lines for context validation.
+ *
+ * @throws {TranscriptProcessingError} If the transcript index is invalid, the content is not a non-empty string, or the index is out of bounds for {@link hierarchicalLines}.
  */
 function validateTranscriptData(
   transcriptIdx: number,

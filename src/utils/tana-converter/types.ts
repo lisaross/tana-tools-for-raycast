@@ -28,7 +28,10 @@ export interface Line {
 }
 
 /**
- * Type guard to check if an object is a valid Line
+ * Determines whether the given object conforms to the {@link Line} interface.
+ *
+ * @param obj - The value to check.
+ * @returns True if {@link obj} is a valid {@link Line} object; otherwise, false.
  */
 export function isValidLine(obj: unknown): obj is Line {
   if (typeof obj !== 'object' || obj === null) {
@@ -52,7 +55,9 @@ export function isValidLine(obj: unknown): obj is Line {
 }
 
 /**
- * Type guard to check if an array contains only valid Line objects
+ * Determines whether the provided value is an array consisting only of valid {@link Line} objects.
+ *
+ * @returns `true` if {@link arr} is an array where every element satisfies the {@link Line} interface; otherwise, `false`.
  */
 export function isValidLineArray(arr: unknown): arr is Line[] {
   return Array.isArray(arr) && arr.every(isValidLine)

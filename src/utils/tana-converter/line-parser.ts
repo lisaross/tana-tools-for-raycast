@@ -4,9 +4,14 @@
 import { Line, TypeCheckers, VALIDATORS } from './types'
 
 /**
- * Parse a line to determine its structure
- * @param line The line of text to parse
- * @returns Line object with parsed structure information
+ * Parses a single line of text and determines its structural properties for hierarchical processing.
+ *
+ * Identifies headers, code blocks, bullet points, numbered lists, and general list items. Calculates indentation level, extracts content without leading whitespace, and returns a {@link Line} object with relevant flags and metadata.
+ *
+ * @param line - The line of text to parse.
+ * @returns A {@link Line} object containing parsed content, indentation, type flags, and original line information.
+ *
+ * @throws {Error} If {@link line} is not a string.
  */
 export function parseLine(line: string): Line {
   // Input validation with type guard
@@ -60,10 +65,14 @@ export function parseLine(line: string): Line {
 }
 
 /**
- * Split a line with multiple bullet points into separate lines
- * Handles cases where multiple bullets are on the same line
- * @param line Line text to process
- * @returns Array of separated lines
+ * Splits a line containing multiple bullet points or numbered sections into separate lines.
+ *
+ * Handles complex cases where bullets and numbered sections coexist on the same line, preserving indentation and formatting for each resulting line.
+ *
+ * @param line - The line of text to process.
+ * @returns An array of lines, each representing a distinct bullet point or numbered section from the input.
+ *
+ * @throws {Error} If {@link line} is not a string.
  */
 export function splitMultipleBullets(line: string): string[] {
   // Input validation with type guard
@@ -196,9 +205,14 @@ export function splitMultipleBullets(line: string): string[] {
 }
 
 /**
- * Build the hierarchy by linking lines to their parents
- * @param lines Array of parsed lines
- * @returns Lines with parent relationships established
+ * Establishes hierarchical parent-child relationships among parsed lines based on headers, lists, and indentation.
+ *
+ * Each line's `parent` property is set to indicate its logical parent in the hierarchy, enabling structured traversal of the content.
+ *
+ * @param lines - Array of parsed {@link Line} objects to organize hierarchically.
+ * @returns The input array with each line's `parent` property updated to reflect its position in the hierarchy.
+ *
+ * @throws {Error} If the input is not an array or contains invalid line objects.
  */
 export function buildHierarchy(lines: Line[]): Line[] {
   // Input validation with type guard
