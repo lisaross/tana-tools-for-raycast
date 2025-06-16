@@ -2,16 +2,19 @@
 
 Convert text, Markdown, YouTube, and Limitless content to Tana Paste format from Raycast.
 
+> **⚠️ Important:** Web-based commands require the [Raycast Browser Extension](https://raycast.com/browser-extension)
+
 > **Note:** Unofficial Tana tool by Lisa Ross. Suggestions welcome via GitHub issues or Slack DM.
 
 ## Features
 
 - Convert clipboard, selected text, or web content to Tana Paste format
-- Extract and format YouTube video metadata and transcripts
+- Extract and format YouTube video metadata and transcripts using Raycast Browser Extension API
 - Process Limitless Pendant and App transcriptions
 - Edit content before converting
 - Support for Markdown transformations (headings, lists, nesting)
 - Web extractions: Compatible with Chrome, Arc, and Safari
+- Automatic Tana app opening after content conversion
 
 ## Commands
 
@@ -20,12 +23,40 @@ Convert text, Markdown, YouTube, and Limitless content to Tana Paste format from
 - **Quick Clipboard to Tana:** Instantly convert clipboard content to Tana format
 - **Paste and Edit for Tana:** Review and edit content before converting
 - **Convert Selected Text to Tana:** Convert highlighted text (includes page title/URL for web content)
-- **YouTube to Tana:** Extract video title, URL, channel, description, and transcript
+- **YouTube to Tana:** Extract video title, URL, channel, description, duration, and transcript from active YouTube tab (requires manually clicking "Show transcript" first)
 - **Copy Page Content to Tana Paste:** Extract main content from web pages
 
 ## Prerequisites
 
-YouTube functionality requires Chrome, Arc, or Safari as the frontmost browser.
+### ⚠️ Required: Raycast Browser Extension
+
+**All web-based commands require the Raycast Browser Extension to be installed and enabled:**
+
+1. Install the [Raycast Browser Extension](https://raycast.com/browser-extension)
+2. Follow Raycast's setup instructions for your browser
+3. Ensure the extension is active and has necessary permissions
+
+### For YouTube Functionality
+
+1. **Browser Setup:**
+   - **Arc/Chrome:** Works seamlessly with Browser Extension
+   - **Safari:** Requires Browser Extension + additional configuration:
+     - Safari Settings → Advanced → ✓ "Show features for web developers"
+     - Safari Settings → Developer → ✓ "Allow JavaScript from Apple Events"
+     - Reload YouTube page after enabling these settings
+
+2. **Usage Steps (Important!):**
+   - Open a YouTube video in your browser
+   - Ensure the YouTube tab is active
+   - **🔴 REQUIRED for transcripts:** Manually click "Show transcript" below the video
+     - Look for the transcript button in the video description area
+     - This must be done BEFORE running the Raycast command
+     - Without this step, only basic video info will be extracted
+   - Run the Raycast command
+
+### For Web Content Extraction
+
+Requires Raycast Browser Extension. Compatible with Chrome, Arc, and Safari for extracting page content and selected text.
 
 ## Example
 

@@ -1,6 +1,7 @@
 /**
  * Date formatting functionality for tana-converter
  */
+import { CONSTANTS } from './types'
 import { ParsedDate } from './types'
 
 /**
@@ -57,7 +58,7 @@ export function parseDate(text: string): ParsedDate | null {
   if (weekMatch) {
     const [, week, year] = weekMatch
     const wk = parseInt(week, 10)
-    if (wk < 1 || wk > 53) {
+    if (wk < CONSTANTS.MIN_WEEK_NUMBER || wk > CONSTANTS.MAX_WEEK_NUMBER) {
       return null // Invalid week number, return null to keep current API
     }
     return {
@@ -72,7 +73,12 @@ export function parseDate(text: string): ParsedDate | null {
     const [, week1, week2, year] = weekRangeMatch
     const wk1 = parseInt(week1, 10)
     const wk2 = parseInt(week2, 10)
-    if (wk1 < 1 || wk1 > 53 || wk2 < 1 || wk2 > 53) {
+    if (
+      wk1 < CONSTANTS.MIN_WEEK_NUMBER ||
+      wk1 > CONSTANTS.MAX_WEEK_NUMBER ||
+      wk2 < CONSTANTS.MIN_WEEK_NUMBER ||
+      wk2 > CONSTANTS.MAX_WEEK_NUMBER
+    ) {
       return null // Invalid week number(s), return null to keep current API
     }
     return {
