@@ -47,7 +47,7 @@ This extension provides tools to convert various formats to Tana Paste format:
 
 ### Unified Tana Formatting System
 - **Single Entry Point**: All commands use `formatForTana()` from `/utils/tana-formatter/`
-- **Automatic Content Detection**: System detects Limitless transcripts, YouTube content, browser pages, selected text
+- **Automatic Content Detection**: System detects Limitless transcripts, YouTube content, browser pages
 - **Smart Processing**: Each content type gets appropriate processing with smart chunking, boundary detection
 - **Consistent Output**: All formatting follows same patterns and escaping rules
 

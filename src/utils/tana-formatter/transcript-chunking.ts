@@ -46,6 +46,13 @@ export function chunkTranscript(transcript: string, maxSize: number = 7000): Tra
     // Find the best split point using smart boundary detection
     const actualEnd = findBestSplitPoint(transcript, Math.min(targetEnd, transcriptLength))
 
+    // Guard against infinite loop: ensure forward progress
+    if (actualEnd <= currentPosition) {
+      // Advance by at least one character, but respect max chunk size
+      currentPosition = Math.min(currentPosition + 1, transcriptLength)
+      continue
+    }
+
     // Extract chunk content
     const chunkContent = transcript.slice(currentPosition, actualEnd).trim()
 

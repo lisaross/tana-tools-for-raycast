@@ -142,7 +142,7 @@ async function getYouTubeTab(): Promise<{ url: string; tabId: number; title?: st
     }
 
     // Find YouTube tab by checking the focused tab first
-    let youtubeTab: any = null
+    let youtubeTab: BrowserExtension.Tab | null = null
 
     try {
       // Get title from focused tab to identify it
@@ -162,7 +162,7 @@ async function getYouTubeTab(): Promise<{ url: string; tabId: number; title?: st
         // Find the tab that matches our focused tab title
         youtubeTab = tabs.find(
           (tab) => tab.title === focusedTabTitle && tab.url?.includes('youtube.com/watch'),
-        )
+        ) || null
 
         if (!youtubeTab) {
           // Try partial match
@@ -173,7 +173,7 @@ async function getYouTubeTab(): Promise<{ url: string; tabId: number; title?: st
               tab.url?.includes('youtube.com/watch') &&
               (tab.title.includes(focusedTabTitle.substring(0, 10)) ||
                 focusedTabTitle.includes(tab.title.substring(0, 10))),
-          )
+          ) || null
         }
       }
     } catch {
@@ -182,7 +182,7 @@ async function getYouTubeTab(): Promise<{ url: string; tabId: number; title?: st
 
     // If focused tab approach didn't work, find any YouTube tab
     if (!youtubeTab) {
-      youtubeTab = tabs.find((tab) => tab.url?.includes('youtube.com/watch'))
+      youtubeTab = tabs.find((tab) => tab.url?.includes('youtube.com/watch')) || null
     }
 
     if (!youtubeTab) {

@@ -3,7 +3,11 @@
  * Handles metadata fields, content fields, and formatting helpers
  */
 import { TranscriptChunk } from './transcript-chunking'
-import { parseMarkdownStructure, convertNodesToTana, cleanContentForTana } from './content-processing'
+import {
+  parseMarkdownStructure,
+  convertNodesToTana,
+  cleanContentForTana,
+} from './content-processing'
 
 /**
  * Format metadata fields for Tana
@@ -155,7 +159,7 @@ export function formatLinesAsHierarchy(lines: string[]): string[] {
 
   const filteredLines = lines.filter((line) => {
     // Remove all Unicode whitespace and invisible characters
-    const cleaned = line.replace(/[\s\u200B\u200C\u200D\uFEFF]/g, '')
+    const cleaned = line.replace(/[\s\u200B-\uFEFF]/g, '')
     if (cleaned.length === 0) return false
 
     const trimmed = line.trim()
@@ -169,13 +173,13 @@ export function formatLinesAsHierarchy(lines: string[]): string[] {
       trimmed === '- *' ||
       trimmed === '-•' ||
       trimmed === '-*' ||
-      /^-\s*[•*\u200B\u200C\u200D\uFEFF]*\s*$/.test(trimmed)
+      /^-\s*[•*\u200B-\uFEFF]*\s*$/.test(trimmed)
     ) {
       return false
     }
 
     // Also filter lines that are just dashes with whitespace/invisible chars
-    if (/^[-\s\u200B\u200C\u200D\uFEFF]*$/.test(trimmed) && trimmed.includes('-')) {
+    if (/^[-\s\u200B-\uFEFF]*$/.test(trimmed) && trimmed.includes('-')) {
       return false
     }
 

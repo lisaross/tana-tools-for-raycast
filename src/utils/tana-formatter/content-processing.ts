@@ -231,12 +231,12 @@ export function convertNodesToTana(nodes: ContentNode[], depth: number = 0): str
     } else {
       // Process content line
       const processedText = convertMarkdownToTana(node.text)
-      
+
       // Handle multi-line content (like lists) by processing each line
       const lines = processedText.split('\n')
       for (const line of lines) {
         const cleanedText = line.trim()
-        
+
         // Skip empty lines and empty bullet nodes
         if (!cleanedText || isEmptyBulletNode(cleanedText)) {
           continue
@@ -244,7 +244,7 @@ export function convertNodesToTana(nodes: ContentNode[], depth: number = 0): str
 
         // Preserve original indentation from markdown
         const originalIndent = line.match(/^(\s*)/)?.[1] || ''
-        
+
         if (cleanedText.startsWith('- ')) {
           // Already a bullet - preserve original indentation relative to base
           result.push(`${indent}${originalIndent}${cleanedText}`)
@@ -272,8 +272,8 @@ function isEmptyBulletNode(line: string): boolean {
     trimmed === '- *' ||
     trimmed === '-•' ||
     trimmed === '-*' ||
-    /^-\s*[•*\u200B\u200C\u200D\uFEFF]*\s*$/.test(trimmed) ||
-    /^[-\s\u200B\u200C\u200D\uFEFF]*$/.test(trimmed)
+    /^-\s*[•*\u200B-\uFEFF]*\s*$/.test(trimmed) ||
+    /^[-\s\u200B-\uFEFF]*$/.test(trimmed)
   )
 }
 
@@ -422,7 +422,7 @@ export function cleanContentForTana(content: string): string {
         const trimmedLine = processedLine.trim()
 
         // Skip empty bullet-only lines and lines with only invisible characters
-        const cleaned = trimmedLine.replace(/[\s\u200B\u200C\u200D\uFEFF]/g, '')
+        const cleaned = trimmedLine.replace(/[\s\u200B-\uFEFF]/g, '')
         if (cleaned.length === 0) {
           return ''
         }

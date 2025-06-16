@@ -9,7 +9,6 @@ import {
   processLimitlessAppTranscript,
   processYouTubeTranscript,
   processAndChunkTranscript,
-  cleanContentForTana,
   removeColonsInContent,
 } from './content-processing'
 import {
