@@ -1,5 +1,6 @@
 import { BrowserExtension } from '@raycast/api'
 import TurndownService from 'turndown'
+import { formatForTana as formatForTanaUnified, TanaFormatOptions, formatForTanaMarkdown as formatForTanaMarkdownUnified, PageInfo as TanaPageInfo } from './tana-formatter'
 
 /**
  * Shared utilities for page content extraction and processing
@@ -571,134 +572,7 @@ export function unescapeRaycastMarkdown(content: string): string {
 }
 
 /**
- * Detect if text is a Limitless Pendant transcription
- */
-function isLimitlessPendantTranscription(text: string): boolean {
-  const pendantFormatCount = text
-    .split('\n')
-    .filter((line) => line.match(/^>\s*\[(.*?)\]\(#startMs=\d+&endMs=\d+\):/)).length
-  return pendantFormatCount >= 2 // At least 2 lines to consider it a transcript
-}
-
-/**
- * Detect if text is in the new Limitless App transcription format
- */
-function isNewTranscriptionFormat(text: string): boolean {
-  const lines = text.split('\n')
-  const speakerCount = lines
-    .map((line, i) => ({ line: line.trim(), index: i }))
-    .filter(
-      ({ line, index }) =>
-        line && 
-        index < lines.length - 1 && 
-        !lines[index + 1].trim(),
-    ).length
-
-  const timestampCount = lines.filter((line) =>
-    line
-      .trim()
-      .match(
-        /(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/,
-      ),
-  ).length
-
-  return speakerCount >= 2 && timestampCount >= 2
-}
-
-/**
- * Process a Limitless Pendant transcription into a single line for chunking
- */
-function processLimitlessPendantTranscriptToSingleLine(text: string): string {
-  return text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith('#'))
-    .filter((line) => line.startsWith('>'))
-    .map((line) => {
-      const match = line.match(/^>\s*\[(.*?)\]\(#startMs=(\d+)&endMs=\d+\):\s*(.*?)$/)
-      if (!match) return line
-      const [, speaker, , content] = match
-      return `${speaker}: ${content}`
-    })
-    .filter((processedContent) => processedContent !== '')
-    .join(' ')
-}
-
-/**
- * Process a Limitless App transcription into a single line with timestamps removed
- */
-function processLimitlessAppTranscriptToSingleLine(text: string): string {
-  const lines = text.split('\n')
-  const combinedContent: string[] = []
-  let currentSpeaker = ''
-  let contentParts: string[] = []
-
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i].trim()
-    if (!line) continue
-
-    // Check if this is a speaker line (followed by empty line)
-    if (i < lines.length - 1 && !lines[i + 1].trim()) {
-      if (currentSpeaker && contentParts.length > 0) {
-        combinedContent.push(`${currentSpeaker}: ${contentParts.join(' ')}`)
-        contentParts = []
-      }
-      currentSpeaker = line
-      continue
-    }
-
-    // Skip timestamp lines
-    if (
-      line.match(
-        /(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/,
-      )
-    ) {
-      continue
-    }
-
-    contentParts.push(line)
-  }
-
-  if (currentSpeaker && contentParts.length > 0) {
-    combinedContent.push(`${currentSpeaker}: ${contentParts.join(' ')}`)
-  }
-
-  return combinedContent.join(' ')
-}
-
-/**
- * Chunk transcript content into smaller pieces for Tana
- */
-function chunkTranscriptContent(content: string, maxChunkSize: number = 7000): Array<{ content: string }> {
-  if (content.length <= maxChunkSize) {
-    return [{ content }]
-  }
-
-  const words = content.split(' ')
-  const chunks: Array<{ content: string }> = []
-  let currentChunk = ''
-
-  for (const word of words) {
-    if (currentChunk.length + word.length + 1 > maxChunkSize && currentChunk.length > 0) {
-      chunks.push({ content: currentChunk.trim() })
-      currentChunk = word
-    } else {
-      if (currentChunk.length > 0) {
-        currentChunk += ' '
-      }
-      currentChunk += word
-    }
-  }
-
-  if (currentChunk.length > 0) {
-    chunks.push({ content: currentChunk.trim() })
-  }
-
-  return chunks
-}
-
-/**
- * General Tana formatting utility for different content types
+ * General Tana formatting utility - delegates to unified formatter
  */
 export function formatForTana(options: {
   title?: string
@@ -709,111 +583,32 @@ export function formatForTana(options: {
   lines?: string[]
   useSwipeTag?: boolean
 }): string {
-  let tanaText = '%%tana%%\n'
-  
-  // Check if we have content that might be a Limitless transcript
-  const rawContent = options.content || (options.lines ? options.lines.join('\n') : '')
-  
-  // Handle Limitless transcripts
-  if (rawContent && isLimitlessPendantTranscription(rawContent)) {
-    const singleLineTranscript = processLimitlessPendantTranscriptToSingleLine(rawContent)
-    const chunks = chunkTranscriptContent(singleLineTranscript)
-    
-    chunks.forEach((chunk) => {
-      tanaText += `- ${chunk.content}\n`
-    })
-    return tanaText
+  // Convert to unified formatter options
+  const tanaOptions: TanaFormatOptions = {
+    title: options.title,
+    url: options.url,
+    description: options.description,
+    author: options.author,
+    content: options.content,
+    lines: options.lines,
+    useSwipeTag: options.useSwipeTag,
   }
   
-  if (rawContent && isNewTranscriptionFormat(rawContent)) {
-    const singleLineTranscript = processLimitlessAppTranscriptToSingleLine(rawContent)
-    const chunks = chunkTranscriptContent(singleLineTranscript)
-    
-    chunks.forEach((chunk) => {
-      tanaText += `- ${chunk.content}\n`
-    })
-    return tanaText
-  }
-  
-  // Handle different content types (existing logic)
-  if (options.title) {
-    // Page/structured content with metadata
-    const swipeTag = options.useSwipeTag ? ' #swipe' : ''
-    tanaText += `- ${options.title}${swipeTag}\n`
-    
-    if (options.url) {
-      tanaText += `  - URL::${options.url}\n`
-    }
-    
-    if (options.description) {
-      tanaText += `  - Description::${options.description}\n`
-    }
-    
-    if (options.author) {
-      tanaText += `  - Author::${options.author}\n`
-    }
-    
-    if (options.content) {
-      tanaText += `  - Content::\n`
-      const contentLines = options.content.split('\n')
-        .filter((line) => line.trim().length > 0)
-        .map((line) => {
-          const trimmedLine = line.trim()
-          
-          // Convert markdown headers to Tana headings and escape # symbols
-          const headerMatch = trimmedLine.match(/^(#{1,6})\s+(.+)$/)
-          let processedLine: string
-          if (headerMatch) {
-            const text = headerMatch[2]
-            processedLine = `!! ${text}`
-          } else {
-            processedLine = trimmedLine.replace(/#/g, '\\#')
-          }
-          
-          // Convert to bullet points under Content:: field
-          if (processedLine.startsWith('- ')) {
-            return `    ${processedLine}`
-          }
-          return `    - ${processedLine}`
-        })
-      
-      tanaText += contentLines.join('\n')
-    }
-  } else if (options.lines && options.lines.length > 0) {
-    // Simple lines-based content (selected text, etc.)
-    const lines = options.lines.filter(line => line.trim().length > 0)
-    
-    if (lines.length === 1) {
-      // Single line
-      const escapedLine = lines[0].trim().replace(/#/g, '\\#')
-      tanaText += `- ${escapedLine}\n`
-    } else if (lines.length > 1) {
-      // Multiple lines - first as parent, rest as children
-      const escapedParent = lines[0].trim().replace(/#/g, '\\#')
-      tanaText += `- ${escapedParent}\n`
-      lines.slice(1).forEach(line => {
-        const escapedLine = line.trim().replace(/#/g, '\\#')
-        tanaText += `  - ${escapedLine}\n`
-      })
-    }
-  }
-  
-  return tanaText
+  return formatForTanaUnified(tanaOptions)
 }
 
 /**
  * Format page info for Tana in structured format (legacy wrapper)
  */
 export function formatForTanaMarkdown(pageInfo: PageInfo): string {
-  // IMPORTANT: Remove all :: in content BEFORE formatting to prevent field creation
-  const cleanedContent = removeColonsInContent(pageInfo.content)
-  
-  return formatForTana({
+  // Convert to unified formatter PageInfo type and delegate
+  const tanaPageInfo: TanaPageInfo = {
     title: pageInfo.title,
     url: pageInfo.url,
     description: pageInfo.description,
     author: pageInfo.author,
-    content: cleanedContent,
-    useSwipeTag: true,
-  })
+    content: pageInfo.content,
+  }
+  
+  return formatForTanaMarkdownUnified(tanaPageInfo)
 }

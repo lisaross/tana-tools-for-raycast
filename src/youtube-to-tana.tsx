@@ -1,5 +1,5 @@
 import { Clipboard, BrowserExtension, Toast, showToast } from '@raycast/api'
-import { convertToTana } from './utils/tana-converter'
+import { formatForTana } from './utils/tana-formatter'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 
@@ -733,55 +733,6 @@ async function extractTranscript(tabId: number): Promise<string | null> {
 }
 
 /**
- * Safely format transcript content for Tana field
- */
-function formatTranscriptForTanaField(transcript: string): string {
-  return transcript
-    .replace(/#\w+\b/g, '') // Remove hashtags
-    .replace(/\b\d{1,2}:\d{2}\b/g, '') // Remove timestamps like 1:23, 12:34
-    .replace(/\b\d{1,2}:\d{2}:\d{2}\b/g, '') // Remove timestamps like 1:23:45
-    .replace(/\r\n/g, ' ') // Replace line breaks with spaces
-    .replace(/\r/g, ' ')
-    .replace(/\n/g, ' ')
-    .replace(/\s+/g, ' ') // Multiple spaces to single space
-    .replace(/::+/g, ':') // Multiple colons
-    .replace(/\t/g, ' ') // Tabs to spaces
-    .trim()
-}
-
-/**
- * Format video info for Tana in Markdown format
- */
-function formatForTanaMarkdown(videoInfo: VideoInfo): string {
-  const titleWithDuration = videoInfo.duration
-    ? `${videoInfo.title} (${videoInfo.duration})`
-    : videoInfo.title
-
-  console.log(
-    `🔍 Formatting title: "${titleWithDuration}" (original: "${videoInfo.title}", duration: "${videoInfo.duration}")`,
-  )
-
-  let markdown = `# ${titleWithDuration} #video\n`
-  markdown += `URL::${videoInfo.url}\n`
-  markdown += `Channel URL::${videoInfo.channelUrl}\n`
-  markdown += `Author::${videoInfo.channelName}\n`
-
-  if (videoInfo.duration) {
-    markdown += `Duration::${videoInfo.duration}\n`
-  }
-
-  if (videoInfo.transcript) {
-    const safeTranscript = formatTranscriptForTanaField(videoInfo.transcript)
-    markdown += `Transcript::${safeTranscript}\n`
-  }
-
-  const safeDescription = formatTranscriptForTanaField(videoInfo.description)
-  markdown += `Description::${safeDescription}\n`
-
-  return markdown
-}
-
-/**
  * Main command entry point
  */
 export default async function Command() {
@@ -842,9 +793,27 @@ export default async function Command() {
       `🔍 Final video info - Title: "${videoInfo.title}", Duration: "${videoInfo.duration}"`,
     )
 
-    // Format and copy to clipboard
-    const markdownFormat = formatForTanaMarkdown(videoInfo)
-    const tanaFormat = convertToTana(markdownFormat)
+    // Format video info for Tana
+    const titleWithDuration = videoInfo.duration
+      ? `${videoInfo.title} (${videoInfo.duration})`
+      : videoInfo.title
+
+    // Prepare transcript content if available
+    let transcriptContent = ''
+    if (videoInfo.transcript) {
+      transcriptContent = `Transcript:: ${videoInfo.transcript}`
+    }
+    
+    const tanaFormat = formatForTana({
+      title: titleWithDuration,
+      url: videoInfo.url,
+      channelUrl: videoInfo.channelUrl,
+      description: videoInfo.description && videoInfo.description !== 'Description not available' ? videoInfo.description : undefined,
+      author: videoInfo.channelName,
+      duration: videoInfo.duration,
+      content: transcriptContent,
+    })
+    
     await Clipboard.copy(tanaFormat)
 
     // Open Tana and update toast to success

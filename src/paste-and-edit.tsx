@@ -25,14 +25,18 @@ export default function Command() {
   const [isLoading, setIsLoading] = useState(true)
 
   /**
-   * On mount, try to get clipboard content
+   * On mount, try to get clipboard content and convert it to Tana format
    */
   useEffect(() => {
     const initializeText = async () => {
       try {
         const clipboardText = await Clipboard.readText()
         if (clipboardText) {
-          setText(clipboardText)
+          // Convert to Tana format immediately for editing
+          const tanaFormat = formatForTana({
+            content: clipboardText,
+          })
+          setText(tanaFormat)
         }
       } catch (error) {
         console.error('Error reading clipboard:', error)
@@ -45,14 +49,18 @@ export default function Command() {
   }, [])
 
   /**
-   * Initializes the form with clipboard content
+   * Loads clipboard content and converts it to Tana format
    */
   const loadClipboardContent = async () => {
     try {
       setIsLoading(true)
       const clipboardText = await Clipboard.readText()
       if (clipboardText) {
-        setText(clipboardText)
+        // Convert to Tana format for editing
+        const tanaFormat = formatForTana({
+          content: clipboardText,
+        })
+        setText(tanaFormat)
       }
     } catch (error) {
       console.error('Error reading clipboard:', error)
@@ -63,7 +71,7 @@ export default function Command() {
   }
 
   /**
-   * Handles the form submission
+   * Handles the form submission - text is already in Tana format
    */
   const handleSubmit = async (values: FormValues) => {
     try {
@@ -72,13 +80,8 @@ export default function Command() {
         return
       }
 
-      // Convert to Tana format
-      const tanaOutput = formatForTana({
-        lines: values.text.split('\n'),
-      })
-
-      // Copy to clipboard
-      await Clipboard.copy(tanaOutput)
+      // Text is already in Tana format from the form editing, just copy it
+      await Clipboard.copy(values.text)
 
       // Open Tana
       try {
@@ -89,8 +92,8 @@ export default function Command() {
         await showHUD("Tana format copied to clipboard (but couldn't open Tana) ✨")
       }
     } catch (error) {
-      console.error('Error converting text:', error)
-      await showHUD('Failed to convert text. Please try again.')
+      console.error('Error processing text:', error)
+      await showHUD('Failed to process text. Please try again.')
     }
   }
 
@@ -112,8 +115,8 @@ export default function Command() {
     >
       <Form.TextArea
         id="text"
-        title="Text to Convert"
-        placeholder="Paste or type your text here..."
+        title="Tana Format (Edit as needed)"
+        placeholder="Tana formatted content will appear here for editing..."
         value={text}
         onChange={setText}
         enableMarkdown={false}

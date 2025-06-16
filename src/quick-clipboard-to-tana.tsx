@@ -20,9 +20,9 @@ export default async function Command() {
       return
     }
 
-    // Convert to Tana format
+    // Convert to Tana format - let the system auto-detect content type
     const tanaOutput = formatForTana({
-      lines: clipboardText.split('\n'),
+      content: clipboardText,
     })
 
     // Copy back to clipboard

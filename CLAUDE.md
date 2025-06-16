@@ -26,8 +26,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This extension provides tools to convert various formats to Tana Paste format:
 
 - Command files in `src/` for Raycast commands
-- Centralized utilities in `src/utils/page-content-extractor.ts`
-- Legacy converter in `src/utils/tana-converter/` (avoid using)
+- Content extraction utilities in `src/utils/page-content-extractor.ts`
+- Unified Tana formatter in `src/utils/tana-formatter/` (single conversion system)
 
 ## Key Architecture Principles
 
@@ -45,15 +45,22 @@ This extension provides tools to convert various formats to Tana Paste format:
 4. Remove problematic content (`cleanContentForTana()`)
 5. Format for Tana using centralized `formatForTana()` utility
 
+### Unified Tana Formatting System
+- **Single Entry Point**: All commands use `formatForTana()` from `/utils/tana-formatter/`
+- **Automatic Content Detection**: System detects Limitless transcripts, YouTube content, browser pages, selected text
+- **Smart Processing**: Each content type gets appropriate processing with smart chunking, boundary detection
+- **Consistent Output**: All formatting follows same patterns and escaping rules
+
 ### Tana Format Guidelines
-- Use centralized `formatForTana()` function for ALL Tana formatting
 - Escape `#` symbols to `\#` to prevent unwanted tag creation
 - Convert markdown headers (`## Header`) to Tana headings (`!! Header`)
 - Remove `::` from content to prevent accidental field creation
 - Use flat structure under `Content::` field for better hierarchy
+- Smart transcript chunking with sentence/word boundary detection
 
-### Content Cleaning
-- Remove image references (`!Image url` patterns)
-- Remove javascript:void links
-- Fix broken markdown links across multiple lines
-- Convert relative URLs to absolute URLs when base URL available
+### Content Processing Architecture
+- **Content Detection** (`content-detection.ts`): Identifies content types
+- **Content Processing** (`content-processing.ts`): Processes each type appropriately
+- **Transcript Chunking** (`transcript-chunking.ts`): Smart chunking with boundaries
+- **Field Formatting** (`field-formatting.ts`): Consistent metadata and content formatting
+- **Main Formatter** (`index.ts`): Single entry point coordinating all processing
