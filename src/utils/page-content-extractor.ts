@@ -81,8 +81,9 @@ export async function getActiveTabContent(): Promise<{
     }
     
     if (!targetTab) {
-      // Last fallback: use the first active tab
-      targetTab = tabs.find(tab => tab.active)
+      // Last fallback: use the most recent tab (highest ID)
+      const sortedTabs = [...tabs].sort((a, b) => b.id - a.id)
+      targetTab = sortedTabs[0]
     }
 
     if (!targetTab) {

@@ -141,12 +141,49 @@ async function getYouTubeTab(): Promise<{ url: string; tabId: number; title?: st
       )
     }
 
-    // Find active YouTube tab
-    const youtubeTab = tabs.find((tab) => tab.active && tab.url?.includes('youtube.com/watch'))
+    // Find YouTube tab by checking the focused tab first
+    let youtubeTab: any = null
+    
+    try {
+      // Get title from focused tab to identify it
+      const focusedTabTitle = await withTimeout(
+        BrowserExtension.getContent({
+          format: 'text',
+          cssSelector: 'title',
+        }),
+        3000,
+        'Getting focused tab title',
+      )
+
+      console.log(`🔍 Focused tab title: "${focusedTabTitle}"`)
+
+      // Check if focused tab is a YouTube video
+      if (focusedTabTitle && focusedTabTitle.includes('YouTube')) {
+        // Find the tab that matches our focused tab title
+        youtubeTab = tabs.find(tab => tab.title === focusedTabTitle && tab.url?.includes('youtube.com/watch'))
+        
+        if (!youtubeTab) {
+          // Try partial match
+          youtubeTab = tabs.find(tab => 
+            tab.title && focusedTabTitle && 
+            tab.url?.includes('youtube.com/watch') &&
+            (tab.title.includes(focusedTabTitle.substring(0, 10)) || 
+             focusedTabTitle.includes(tab.title.substring(0, 10)))
+          )
+        }
+      }
+    } catch {
+      console.log('Could not get focused tab title, falling back to searching tabs')
+    }
+
+    // If focused tab approach didn't work, find any YouTube tab
+    if (!youtubeTab) {
+      youtubeTab = tabs.find((tab) => tab.url?.includes('youtube.com/watch'))
+    }
 
     if (!youtubeTab) {
       throw new Error(
-        "No active YouTube video tab found. Please open a YouTube video and make sure it's the active tab.",
+        "No YouTube video tab found. Please open a YouTube video and make sure it's focused.",
       )
     }
 
