@@ -157,23 +157,24 @@ async function getYouTubeTab(): Promise<{ url: string; tabId: number; title?: st
 
       console.log(`🔍 Focused tab title: "${focusedTabTitle}"`)
 
-      // Check if focused tab is a YouTube video
-      if (focusedTabTitle && focusedTabTitle.includes('YouTube')) {
-        // Find the tab that matches our focused tab title
-        youtubeTab = tabs.find(
-          (tab) => tab.title === focusedTabTitle && tab.url?.includes('youtube.com/watch'),
-        ) || null
+      // First, check if we have a YouTube tab that matches the focused tab title
+      if (focusedTabTitle) {
+        // Find YouTube tabs by URL first, then match by title
+        const youtubeTabs = tabs.filter((tab) => tab.url?.includes('youtube.com/watch'))
+        
+        if (youtubeTabs.length > 0) {
+          // Try exact title match among YouTube tabs
+          youtubeTab = youtubeTabs.find((tab) => tab.title === focusedTabTitle) || null
 
-        if (!youtubeTab) {
-          // Try partial match
-          youtubeTab = tabs.find(
-            (tab) =>
-              tab.title &&
-              focusedTabTitle &&
-              tab.url?.includes('youtube.com/watch') &&
-              (tab.title.includes(focusedTabTitle.substring(0, 10)) ||
-                focusedTabTitle.includes(tab.title.substring(0, 10))),
-          ) || null
+          if (!youtubeTab) {
+            // Try partial match among YouTube tabs
+            youtubeTab = youtubeTabs.find(
+              (tab) =>
+                tab.title &&
+                (tab.title.includes(focusedTabTitle.substring(0, 10)) ||
+                  focusedTabTitle.includes(tab.title.substring(0, 10))),
+            ) || null
+          }
         }
       }
     } catch {
