@@ -8,6 +8,13 @@ import { StringBuilder } from './string-builder'
 
 /**
  * Safe property access helper for transcript chunking
+ * Safely gets the length property of strings or arrays without throwing errors
+ * @param {unknown} value - The value to get the length of
+ * @returns {number} The length of the value if it's a string or array, 0 otherwise
+ * @example
+ * getSafeLength('hello world') // returns 11
+ * getSafeLength(['a', 'b', 'c']) // returns 3
+ * getSafeLength(null) // returns 0
  */
 function getSafeLength(value: unknown): number {
   return typeof value === 'string' || Array.isArray(value)
@@ -29,6 +36,15 @@ const CHUNKING_CONSTANTS = {
 /**
  * Type guard for valid chunk objects
  */
+/**
+ * Represents a chunk of transcript content with metadata
+ * @interface TranscriptChunk
+ * @property {string} content - The actual transcript text content for this chunk
+ * @property {number} chunkNumber - The sequential number of this chunk (1-based)
+ * @property {number} [totalChunks] - Total number of chunks in the transcript (optional)
+ * @property {string} [estimatedDuration] - Estimated reading duration for this chunk (optional)
+ * @property {number} [wordCount] - Number of words in this chunk (optional)
+ */
 interface TranscriptChunk {
   content: string
   chunkNumber: number
@@ -38,7 +54,14 @@ interface TranscriptChunk {
 }
 
 /**
- * Type guard to validate transcript chunk
+ * Type guard to validate transcript chunk structure and content
+ * Ensures an object conforms to the TranscriptChunk interface requirements
+ * @param {unknown} obj - The object to validate as a TranscriptChunk
+ * @returns {boolean} True if obj is a valid TranscriptChunk, false otherwise
+ * @example
+ * isValidTranscriptChunk({content: 'text', chunkNumber: 1}) // returns true
+ * isValidTranscriptChunk({content: '', chunkNumber: 0}) // returns false
+ * isValidTranscriptChunk(null) // returns false
  */
 function isValidTranscriptChunk(obj: unknown): obj is TranscriptChunk {
   if (typeof obj !== 'object' || obj === null) return false

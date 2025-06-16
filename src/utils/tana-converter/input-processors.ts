@@ -41,6 +41,13 @@ export interface InputProcessor {
 
 /**
  * Safe property access helper for error contexts
+ * Safely gets the length property of strings or arrays without throwing errors
+ * @param {unknown} value - The value to get the length of
+ * @returns {number} The length of the value if it's a string or array, 0 otherwise
+ * @example
+ * getSafeLength('hello') // returns 5
+ * getSafeLength([1, 2, 3]) // returns 3
+ * getSafeLength(null) // returns 0
  */
 function getSafeLength(value: unknown): number {
   try {
@@ -54,6 +61,13 @@ function getSafeLength(value: unknown): number {
 
 /**
  * Safe string operation helper for error contexts
+ * Creates a safe preview string from any value for debugging and error reporting
+ * @param {unknown} value - The value to create a preview string from
+ * @returns {string} A truncated string representation of the value (max 50 chars)
+ * @example
+ * getSafePreview('this is a long string') // returns 'this is a long string'
+ * getSafePreview(null) // returns '[null]'
+ * getSafePreview({key: 'value'}) // returns '[object Object]'
  */
 function getSafePreview(value: unknown): string {
   try {
@@ -68,7 +82,12 @@ function getSafePreview(value: unknown): string {
 
 /**
  * Shared preprocessing for all input types
- * Refactored to use pure functional approach instead of forEach with side effects
+ * Cleans and normalizes input text using pure functional approach
+ * @param {string} inputText - The raw input text to preprocess
+ * @returns {string} The cleaned and normalized text
+ * @throws {InvalidInputError} When input text is not a valid string
+ * @example
+ * preprocessInput('  Hello\\r\\nWorld  ') // returns 'Hello\\nWorld'
  */
 function preprocessInput(inputText: string): string {
   // Validate input with type guard
@@ -96,6 +115,13 @@ function preprocessInput(inputText: string): string {
 
 /**
  * Shared logic for calculating indentation levels with comprehensive validation
+ * Maps line indices to their calculated indentation levels for proper Tana formatting
+ * @param {Line[]} hierarchicalLines - Array of parsed lines with hierarchy information
+ * @returns {Map<number, number>} Map from line index to indentation level
+ * @throws {ProcessingError} When indentation calculation fails
+ * @example
+ * // For lines: ['# Header', '  - Item', '    - Nested']
+ * // Returns: Map { 0 => 0, 1 => 1, 2 => 2 }
  */
 function calculateIndentationLevels(hierarchicalLines: Line[]): Map<number, number> {
   // Validate input with custom type guard
@@ -150,6 +176,14 @@ function calculateIndentationLevels(hierarchicalLines: Line[]): Map<number, numb
 
 /**
  * Shared logic for processing line content with type safety
+ * Processes and formats line content based on whether it's a header or regular content
+ * @param {string} content - The raw line content to process
+ * @param {boolean} isHeader - Whether this line is a header (affects formatting)
+ * @returns {string} The processed and formatted line content
+ * @throws {ProcessingError} When line content processing fails
+ * @example
+ * processLineContent('# My Header', true) // returns formatted header
+ * processLineContent('Regular text', false) // returns processed text
  */
 function processLineContent(content: string, isHeader: boolean): string {
   // Validate inputs with type guards
@@ -193,6 +227,14 @@ function processLineContent(content: string, isHeader: boolean): string {
 
 /**
  * Type guard to validate transcript index and content
+ * Validates that transcript data is consistent and properly structured
+ * @param {number} transcriptIdx - The index of the transcript line in the hierarchy
+ * @param {string} transcriptContent - The transcript content to validate
+ * @param {Line[]} hierarchicalLines - Array of all hierarchical lines for context validation
+ * @returns {void} Throws error if validation fails, returns nothing if valid
+ * @throws {ProcessingError} When transcript data is invalid or inconsistent
+ * @example
+ * validateTranscriptData(5, 'transcript text', hierarchicalLines)
  */
 function validateTranscriptData(
   transcriptIdx: number,

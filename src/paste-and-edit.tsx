@@ -6,6 +6,11 @@ import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
+/**
+ * Form values for the paste and edit interface
+ * @interface FormValues
+ * @property {string} text - The text content to be converted to Tana format
+ */
 interface FormValues {
   text: string
 }

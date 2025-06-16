@@ -31,7 +31,16 @@ const execAsync = promisify(exec)
  */
 
 /**
- * Video information extracted from YouTube
+ * Video information extracted from YouTube videos
+ * @interface VideoInfo
+ * @property {string} title - The video's title
+ * @property {string} channelName - The name of the YouTube channel
+ * @property {string} channelUrl - The URL of the YouTube channel
+ * @property {string} url - The canonical YouTube video URL
+ * @property {string} videoId - The unique YouTube video ID
+ * @property {string} description - The video's description text
+ * @property {string} [duration] - The video duration (optional, format: "HH:MM:SS" or "MM:SS")
+ * @property {string} [transcript] - The video transcript text (optional, only if available)
  */
 interface VideoInfo {
   title: string
