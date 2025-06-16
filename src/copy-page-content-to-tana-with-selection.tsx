@@ -290,26 +290,8 @@ function cleanContentForTana(content: string, baseUrl: string = ''): string {
         return ''
       }
 
-      // Handle lines that might accidentally create fields due to :: syntax
-      // Look for patterns like "Text:: followed by non-field content"
-      const fieldMatch = cleanLine.match(/^(.+?)::(.*)$/)
-      if (fieldMatch) {
-        const [, , afterColon] = fieldMatch
-        const trimmedAfter = afterColon.trim()
-
-        // If the text after :: looks like it's not meant to be a field value
-        // (starts with !, contains URLs, is very long, etc.), escape it
-        if (
-          trimmedAfter.startsWith('!') || // Alt text markers
-          trimmedAfter.includes('http') || // URLs
-          trimmedAfter.length > 100 || // Very long text
-          trimmedAfter.includes('=') || // HTML attributes
-          /\.(jpg|png|gif|webp|svg)/i.test(trimmedAfter) // Image references
-        ) {
-          // Escape the :: to prevent field creation
-          return line.replace('::', '\\:')
-        }
-      }
+      // Note: :: escaping is now handled earlier in the pipeline
+      // This section is kept for other content cleaning
 
       return line
     })
@@ -486,6 +468,19 @@ function convertTanaHeadersToParentNodes(tanaText: string): string {
 }
 
 /**
+ * Remove :: in content to prevent field creation (apply BEFORE Tana conversion)
+ */
+function removeColonsInContent(content: string): string {
+  return content
+    .split('\n')
+    .map((line) => {
+      // Remove all :: to prevent any field creation in content
+      return line.replace(/::/g, ':')
+    })
+    .join('\n')
+}
+
+/**
  * Format page info for Tana in structured format
  */
 function formatForTanaMarkdown(pageInfo: PageInfo): string {
@@ -503,8 +498,11 @@ function formatForTanaMarkdown(pageInfo: PageInfo): string {
   // Add the content in a Content:: field
   markdown += `Content::\n`
 
+  // IMPORTANT: Remove all :: in content BEFORE formatting to prevent field creation
+  const cleanedContent = removeColonsInContent(pageInfo.content)
+
   // Indent all content lines to be children of the Content:: field
-  const contentLines = pageInfo.content.split('\n')
+  const contentLines = cleanedContent.split('\n')
   const indentedContent = contentLines.map((line) => (line.trim() ? `  ${line}` : '')).join('\n')
 
   markdown += indentedContent
