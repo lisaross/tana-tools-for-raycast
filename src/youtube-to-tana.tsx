@@ -161,19 +161,20 @@ async function getYouTubeTab(): Promise<{ url: string; tabId: number; title?: st
       if (focusedTabTitle) {
         // Find YouTube tabs by URL first, then match by title
         const youtubeTabs = tabs.filter((tab) => tab.url?.includes('youtube.com/watch'))
-        
+
         if (youtubeTabs.length > 0) {
           // Try exact title match among YouTube tabs
           youtubeTab = youtubeTabs.find((tab) => tab.title === focusedTabTitle) || null
 
           if (!youtubeTab) {
             // Try partial match among YouTube tabs
-            youtubeTab = youtubeTabs.find(
-              (tab) =>
-                tab.title &&
-                (tab.title.includes(focusedTabTitle.substring(0, 10)) ||
-                  focusedTabTitle.includes(tab.title.substring(0, 10))),
-            ) || null
+            youtubeTab =
+              youtubeTabs.find(
+                (tab) =>
+                  tab.title &&
+                  (tab.title.includes(focusedTabTitle.substring(0, 10)) ||
+                    focusedTabTitle.includes(tab.title.substring(0, 10))),
+              ) || null
           }
         }
       }

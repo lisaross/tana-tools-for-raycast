@@ -1,7 +1,7 @@
 import { Clipboard, Toast, showToast } from '@raycast/api'
 import { exec } from 'child_process'
 import { promisify } from 'util'
-import { PageInfo, getActiveTabContent, extractPageMetadata } from './utils/page-content-extractor'
+import { PageInfo, getActiveTabContent } from './utils/page-content-extractor'
 import { formatForTana } from './utils/tana-formatter'
 
 const execAsync = promisify(exec)
@@ -31,14 +31,11 @@ export default async function Command() {
 
   try {
     // Get content and tab info from focused window's active tab
-    const { content, tabInfo } = await getActiveTabContent()
+    const { content, tabInfo, metadata } = await getActiveTabContent()
 
-    toast.message = 'Getting page metadata...'
+    toast.message = 'Converting to Tana format...'
 
-    // Extract metadata
-    const metadata = await extractPageMetadata(tabInfo.id, tabInfo.url, tabInfo.title)
-
-    // Combine all info
+    // Combine all info using the metadata already fetched
     const pageInfo: PageInfo = {
       title: metadata.title || tabInfo.title || 'Web Page',
       url: metadata.url || tabInfo.url,

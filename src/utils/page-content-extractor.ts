@@ -47,6 +47,7 @@ export async function withTimeout<T>(
 export async function getActiveTabContent(): Promise<{
   content: string
   tabInfo: { id: number; url: string; title: string }
+  metadata: Partial<PageInfo>
 }> {
   try {
     console.log('🔍 Getting content from active tab of focused window...')
@@ -109,6 +110,7 @@ export async function getActiveTabContent(): Promise<{
         url: metadata.url || targetTab.url,
         title: metadata.title || targetTab.title || 'Untitled',
       },
+      metadata,
     }
   } catch (error) {
     console.log(`❌ Active tab content extraction failed: ${error}`)

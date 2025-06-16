@@ -47,14 +47,11 @@ async function processActiveTab() {
 
   try {
     // Get content and tab info from focused window's active tab
-    const { content, tabInfo } = await getActiveTabContent()
+    const { content, tabInfo, metadata } = await getActiveTabContent()
 
-    toast.message = 'Getting page metadata...'
+    toast.message = 'Converting to Tana format...'
 
-    // Extract metadata
-    const metadata = await extractPageMetadata(tabInfo.id, tabInfo.url, tabInfo.title)
-
-    // Combine all info
+    // Combine all info using the metadata already fetched
     const pageInfo: PageInfo = {
       title: metadata.title || tabInfo.title || 'Web Page',
       url: metadata.url || tabInfo.url,
