@@ -180,10 +180,104 @@ async function extractPageMetadata(
 }
 
 /**
+ * Convert relative URLs to absolute URLs
+ */
+function makeAbsoluteUrl(url: string, baseUrl: string): string {
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+
+  if (url.startsWith('/')) {
+    // Relative to domain root
+    const urlObj = new URL(baseUrl)
+    return `${urlObj.protocol}//${urlObj.host}${url}`
+  }
+
+  // Relative to current path
+  return new URL(url, baseUrl).href
+}
+
+/**
+ * Fix broken markdown links and convert to Tana-clickable format
+ */
+function fixBrokenLinks(content: string, baseUrl: string = ''): string {
+  const lines = content.split('\n')
+  const result: string[] = []
+  let i = 0
+
+  while (i < lines.length) {
+    const line = lines[i].trim()
+
+    // Check for start of a broken link pattern: line ending with just "["
+    if (line === '[' || line.endsWith('- [')) {
+      let linkText = ''
+      let linkUrl = ''
+      let linkComplete = false
+      let j = i + 1
+
+      // Look ahead to collect link text and URL
+      while (j < lines.length && !linkComplete) {
+        const nextLine = lines[j].trim()
+
+        // Check if this line contains the URL part: ](url)
+        const urlMatch = nextLine.match(/^\]\(([^)]+)\)(.*)$/)
+        if (urlMatch) {
+          linkUrl = urlMatch[1]
+          const remaining = urlMatch[2].trim()
+          linkComplete = true
+
+          // Create the proper link format for Tana
+          const baseIndent = lines[i].match(/^(\s*)/)?.[1] || ''
+          if (linkText.trim() && linkUrl.trim()) {
+            // Convert relative URLs to absolute URLs if we have a base URL
+            const absoluteUrl = baseUrl ? makeAbsoluteUrl(linkUrl, baseUrl) : linkUrl
+
+            // Format for Tana: Text [URL](URL)
+            result.push(
+              `${baseIndent}- ${linkText.trim()} [${absoluteUrl}](${absoluteUrl})${remaining ? ' ' + remaining : ''}`,
+            )
+          } else {
+            // If we can't form a proper link, just add the text
+            result.push(`${baseIndent}- ${linkText.trim()}${remaining ? ' ' + remaining : ''}`)
+          }
+
+          i = j + 1
+          break
+        } else {
+          // Accumulate link text
+          if (linkText) {
+            linkText += ' ' + nextLine
+          } else {
+            linkText = nextLine
+          }
+          j++
+        }
+      }
+
+      if (!linkComplete) {
+        // If we couldn't complete the link, just add the original lines
+        result.push(lines[i])
+        i++
+      }
+    } else {
+      // Regular line, just add it
+      result.push(lines[i])
+      i++
+    }
+  }
+
+  return result.join('\n')
+}
+
+/**
  * Clean content to prevent accidental Tana field creation and other issues
  */
-function cleanContentForTana(content: string): string {
-  return content
+function cleanContentForTana(content: string, baseUrl: string = ''): string {
+  // First fix broken links
+  let cleanedContent = fixBrokenLinks(content, baseUrl)
+
+  // Then apply other cleaning
+  cleanedContent = cleanedContent
     .split('\n')
     .map((line) => {
       const cleanLine = line.trim()
@@ -221,12 +315,14 @@ function cleanContentForTana(content: string): string {
     })
     .filter((line) => line.trim().length > 0 || line === '') // Keep structure but remove completely empty content
     .join('\n')
+
+  return cleanedContent
 }
 
 /**
  * Extract main content using Raycast's reader mode
  */
-async function extractMainContent(tabId: number): Promise<string> {
+async function extractMainContent(tabId: number, pageUrl: string = ''): Promise<string> {
   try {
     console.log(`🔍 Extracting main content using reader mode from tab ${tabId}...`)
 
@@ -307,7 +403,7 @@ async function extractMainContent(tabId: number): Promise<string> {
     }
 
     // Clean up content to prevent accidental field creation
-    content = cleanContentForTana(content)
+    content = cleanContentForTana(content, pageUrl)
 
     console.log(`✅ Extracted ${content.length} characters of clean content`)
     return content.trim()
@@ -435,7 +531,7 @@ async function processTab(selectedTab: BrowserTab) {
     toast.message = 'Extracting main content...'
 
     // Extract main content using Raycast's reader mode
-    const content = await extractMainContent(selectedTab.id)
+    const content = await extractMainContent(selectedTab.id, selectedTab.url)
 
     // Combine all info
     const pageInfo: PageInfo = {
