@@ -1,4 +1,4 @@
-import { Clipboard, showHUD, BrowserExtension, Toast, showToast } from '@raycast/api'
+import { Clipboard, BrowserExtension, Toast, showToast } from '@raycast/api'
 import { convertToTana } from './utils/tana-converter'
 import { exec } from 'child_process'
 import { promisify } from 'util'
@@ -736,12 +736,12 @@ function formatForTanaMarkdown(videoInfo: VideoInfo): string {
  * Main command entry point
  */
 export default async function Command() {
-  try {
-    await showToast({
-      style: Toast.Style.Animated,
-      title: 'Processing YouTube Video',
-    })
+  const toast = await showToast({
+    style: Toast.Style.Animated,
+    title: 'Processing YouTube Video',
+  })
 
+  try {
     // Get YouTube tab
     const youtubeTab = await getYouTubeTab()
     if (!youtubeTab) {
@@ -766,13 +766,11 @@ export default async function Command() {
       }
     }
 
-    // If transcript button needs to be clicked, show warning and stop
+    // If transcript button needs to be clicked, update toast and stop
     if (transcriptButtonNeeded) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: 'Click "Show transcript" below video first',
-        message: 'Then run this command again to process the video with transcript.',
-      })
+      toast.style = Toast.Style.Failure
+      toast.title = 'Click "Show transcript" below video first'
+      toast.message = 'Then run this command again to process the video with transcript.'
       return
     }
 
@@ -800,46 +798,45 @@ export default async function Command() {
     const tanaFormat = convertToTana(markdownFormat)
     await Clipboard.copy(tanaFormat)
 
-    // Open Tana
+    // Open Tana and update toast to success
     try {
       await execAsync('open tana://')
-      // Show success message
+      // Update toast to success
+      toast.style = Toast.Style.Success
       if (transcript) {
-        await showHUD('YouTube video info and transcript copied to clipboard. Opening Tana... ✨')
+        toast.title = 'Success!'
+        toast.message = 'YouTube video info and transcript copied to clipboard. Opening Tana...'
       } else {
-        await showHUD(
-          'YouTube video info copied to clipboard (no transcript available). Opening Tana... ✨',
-        )
+        toast.title = 'Success!'
+        toast.message =
+          'YouTube video info copied to clipboard (no transcript available). Opening Tana...'
       }
     } catch (error) {
       console.error('Error opening Tana:', error)
-      // Show success message but note Tana couldn't be opened
+      // Update toast to success but note Tana couldn't be opened
+      toast.style = Toast.Style.Success
       if (transcript) {
-        await showHUD(
-          "YouTube video info and transcript copied to clipboard (but couldn't open Tana) ✨",
-        )
+        toast.title = 'Success!'
+        toast.message =
+          "YouTube video info and transcript copied to clipboard (but couldn't open Tana)"
       } else {
-        await showHUD(
-          "YouTube video info copied to clipboard (no transcript available, couldn't open Tana) ✨",
-        )
+        toast.title = 'Success!'
+        toast.message =
+          "YouTube video info copied to clipboard (no transcript available, couldn't open Tana)"
       }
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
 
-    // Show specific Safari error messages or general error
+    // Update toast to show specific Safari error messages or general error
     if (errorMessage.includes('Safari Access Restricted')) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: 'Safari Access Restricted',
-        message: 'Please check Safari settings and reload the page. Works fine in Arc/Chrome.',
-      })
+      toast.style = Toast.Style.Failure
+      toast.title = 'Safari Access Restricted'
+      toast.message = 'Please check Safari settings and reload the page. Works fine in Arc/Chrome.'
     } else {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: 'Failed to process YouTube video',
-        message: errorMessage,
-      })
+      toast.style = Toast.Style.Failure
+      toast.title = 'Failed to process YouTube video'
+      toast.message = errorMessage
     }
   }
 }
