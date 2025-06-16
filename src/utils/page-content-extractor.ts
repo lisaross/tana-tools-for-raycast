@@ -303,6 +303,7 @@ export async function extractMainContent(tabId: number, pageUrl: string = ''): P
       throw new Error('No content extracted from page')
     }
 
+
     // If the content looks like HTML (starts with < or contains HTML tags), convert it to markdown
     if (content.trim().startsWith('<') || /<[^>]+>/.test(content)) {
       console.log('⚠️ Content appears to be HTML, converting to markdown...')
@@ -364,6 +365,9 @@ export async function extractMainContent(tabId: number, pageUrl: string = ''): P
     if (!content || content.trim().length === 0) {
       throw new Error('No content extracted after processing')
     }
+
+    // Unescape Raycast's escaped markdown syntax
+    content = unescapeRaycastMarkdown(content)
 
     // Clean up content to prevent accidental field creation
     content = cleanContentForTana(content, pageUrl)
@@ -462,31 +466,86 @@ export function removeColonsInContent(content: string): string {
 }
 
 /**
+ * Unescape Raycast's escaped markdown syntax to get proper markdown
+ */
+function unescapeRaycastMarkdown(content: string): string {
+  return content
+    .split('\n')
+    .map((line) => {
+      let unescapedLine = line
+      
+      // Unescape headings: \# -> #
+      unescapedLine = unescapedLine.replace(/\\#/g, '#')
+      
+      // Unescape other common markdown escapes
+      unescapedLine = unescapedLine.replace(/\\\*/g, '*')
+      unescapedLine = unescapedLine.replace(/\\\_/g, '_')
+      unescapedLine = unescapedLine.replace(/\\\[/g, '[')
+      unescapedLine = unescapedLine.replace(/\\\]/g, ']')
+      unescapedLine = unescapedLine.replace(/\\\./g, '.')
+      
+      // Note: Don't convert numbered sections here - TurndownService already handles <h2> -> ## conversion
+      // We were double-processing and breaking the proper headings
+      
+      return unescapedLine
+    })
+    .join('\n')
+}
+
+/**
  * Format page info for Tana in structured format
  */
 export function formatForTanaMarkdown(pageInfo: PageInfo): string {
-  let markdown = `# ${pageInfo.title} #swipe\n`
-  markdown += `URL::${pageInfo.url}\n`
+  let markdown = `%%tana%%\n- ${pageInfo.title} #swipe\n`
+  markdown += `  - URL::${pageInfo.url}\n`
 
   if (pageInfo.description) {
-    markdown += `Description::${pageInfo.description}\n`
+    markdown += `  - Description::${pageInfo.description}\n`
   }
 
   if (pageInfo.author) {
-    markdown += `Author::${pageInfo.author}\n`
+    markdown += `  - Author::${pageInfo.author}\n`
   }
 
   // Add the content in a Content:: field
-  markdown += `Content::\n`
+  markdown += `  - Content::\n`
 
   // IMPORTANT: Remove all :: in content BEFORE formatting to prevent field creation
   const cleanedContent = removeColonsInContent(pageInfo.content)
 
-  // Indent all content lines to be children of the Content:: field
+  // Convert all content lines to flat bullet points under Content:: field
   const contentLines = cleanedContent.split('\n')
-  const indentedContent = contentLines.map((line) => (line.trim() ? `  ${line}` : '')).join('\n')
+  const bulletContent = contentLines
+    .filter((line) => line.trim().length > 0) // Remove empty lines
+    .map((line) => {
+      const trimmedLine = line.trim()
+      
+      // Process the line to handle special characters
+      let processedLine = trimmedLine
+      
+      // Convert markdown headers to Tana headings to avoid unwanted tags
+      // ## Header -> !! Header
+      // ### Header -> !! Header  
+      const headerMatch = processedLine.match(/^(#{1,6})\s+(.+)$/)
+      if (headerMatch) {
+        const text = headerMatch[2]
+        processedLine = `!! ${text}`
+      } else {
+        // Escape any remaining # symbols to prevent unwanted tag creation
+        processedLine = processedLine.replace(/#/g, '\\#')
+      }
+      
+      // If line already starts with a bullet, just indent it
+      if (processedLine.startsWith('- ')) {
+        return `    ${processedLine}`
+      }
+      
+      // Convert to bullet point and indent under Content:: field
+      return `    - ${processedLine}`
+    })
+    .join('\n')
 
-  markdown += indentedContent
+  markdown += bulletContent
 
   return markdown
 }

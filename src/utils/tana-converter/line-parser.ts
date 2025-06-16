@@ -257,7 +257,7 @@ export function buildHierarchy(lines: Line[]): Line[] {
       continue
     }
 
-    // Handle numbered lists
+    // Handle numbered lists - treat them like headers for hierarchy purposes
     if (line.isNumberedList) {
       // Find appropriate parent based on indentation
       if (headerStack.length > 0) {
@@ -265,6 +265,9 @@ export function buildHierarchy(lines: Line[]): Line[] {
       } else {
         line.parent = -1
       }
+      
+      // Add numbered list to header stack so it can be a parent for subsequent content
+      headerStack.push(i)
       currentNumberedList = i
       lastLineIdx = i
       continue
@@ -302,16 +305,18 @@ export function buildHierarchy(lines: Line[]): Line[] {
       }
     }
     // Regular content
-    else if (
+    else if (headerStack.length > 0) {
+      // Prioritize header relationships: content should be under the current header
+      line.parent = headerStack[headerStack.length - 1]
+    } else if (
       lastLineIdx >= 0 &&
       result[lastLineIdx] &&
       typeof line.originalIndent === 'number' &&
       typeof result[lastLineIdx].originalIndent === 'number' &&
       line.originalIndent > result[lastLineIdx].originalIndent
     ) {
+      // Only use indentation-based parenting when no header is available
       line.parent = lastLineIdx
-    } else if (headerStack.length > 0) {
-      line.parent = headerStack[headerStack.length - 1]
     } else {
       line.parent = -1
     }

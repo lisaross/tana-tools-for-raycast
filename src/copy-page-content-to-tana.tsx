@@ -1,5 +1,4 @@
 import { Clipboard, BrowserExtension, Toast, showToast } from '@raycast/api'
-import { convertToTana } from './utils/tana-converter'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import {
@@ -7,7 +6,6 @@ import {
   withTimeout,
   extractPageMetadata,
   extractMainContent,
-  convertTanaHeadersToParentNodes,
   formatForTanaMarkdown,
 } from './utils/page-content-extractor'
 
@@ -127,13 +125,9 @@ export default async function Command() {
 
     toast.message = 'Converting to Tana format...'
 
-    // Format and convert to Tana
-    const markdownFormat = formatForTanaMarkdown(pageInfo)
-    const tanaFormat = convertToTana(markdownFormat)
-
-    // Post-process to convert !! headings to regular parent nodes
-    const finalTanaFormat = convertTanaHeadersToParentNodes(tanaFormat)
-    await Clipboard.copy(finalTanaFormat)
+    // Format for Tana (bypass complex converter)
+    const tanaFormat = formatForTanaMarkdown(pageInfo)
+    await Clipboard.copy(tanaFormat)
 
     // Open Tana and update toast to success
     try {

@@ -179,13 +179,14 @@ function calculateIndentationLevels(hierarchicalLines: Line[]): Map<number, numb
  * Processes and formats line content based on whether it's a header or regular content
  * @param {string} content - The raw line content to process
  * @param {boolean} isHeader - Whether this line is a header (affects formatting)
+ * @param {boolean} preserveNumbers - Whether to preserve numbered list prefixes (default: false)
  * @returns {string} The processed and formatted line content
  * @throws {ProcessingError} When line content processing fails
  * @example
  * processLineContent('# My Header', true) // returns formatted header
  * processLineContent('Regular text', false) // returns processed text
  */
-function processLineContent(content: string, isHeader: boolean): string {
+function processLineContent(content: string, isHeader: boolean, preserveNumbers: boolean = false): string {
   // Validate inputs with type guards
   if (!TypeCheckers.isNonEmptyString(content)) {
     throw new FieldFormattingError('Content must be a non-empty string', {
@@ -213,8 +214,12 @@ function processLineContent(content: string, isHeader: boolean): string {
     // Remove list markers but preserve content
     processedContent = processedContent
       .replace(/^[-*+•▪]\s+/, '')
-      .replace(/^\d+\.\s+/, '')
       .replace(/^[a-z]\.\s+/i, '')
+
+    // Only remove numbered list markers if we're not preserving them
+    if (!preserveNumbers) {
+      processedContent = processedContent.replace(/^\d+\.\s+/, '')
+    }
 
     // Process other formatting with safe execution
     processedContent = convertFields(processedContent)
@@ -587,9 +592,15 @@ export class YouTubeTranscriptProcessor implements InputProcessor {
             })
           }
 
+          // Check if this numbered list has children (should preserve numbers)
+          const hasChildren = hierarchicalLines.some((childLine, childIndex) => 
+            childIndex > i && childLine.parent === i
+          )
+          const preserveNumbers = line.isNumberedList && hasChildren
+          
           // Process line content with validation
           const processedContent = ErrorUtils.safeExecuteSync(
-            () => processLineContent(content, line.isHeader),
+            () => processLineContent(content, line.isHeader, preserveNumbers),
             FieldFormattingError,
             { processorType: 'YouTube', step: 'lineContentProcessing', lineIndex: i },
           )
@@ -748,9 +759,15 @@ export class StandardMarkdownProcessor implements InputProcessor {
           })
         }
 
+        // Check if this numbered list has children (should preserve numbers)
+        const hasChildren = hierarchicalLines.some((childLine, childIndex) => 
+          childIndex > i && childLine.parent === i
+        )
+        const preserveNumbers = line.isNumberedList && hasChildren
+        
         // Process line content with validation
         const processedContent = ErrorUtils.safeExecuteSync(
-          () => processLineContent(content, line.isHeader),
+          () => processLineContent(content, line.isHeader, preserveNumbers),
           FieldFormattingError,
           { processorType: 'StandardMarkdown', step: 'lineContentProcessing', lineIndex: i },
         )
