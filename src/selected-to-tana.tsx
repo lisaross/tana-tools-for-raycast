@@ -5,7 +5,6 @@ import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
-
 /**
  * Raycast command that converts currently selected text to Tana format
  * Gets the selected text from the system, optionally includes browser context (URL and page title),
@@ -33,7 +32,7 @@ export default async function Command() {
     let pageTitle = ''
     let pageUrl = ''
     let isInBrowser = false
-    
+
     try {
       // Step 1: Get title from focused tab to identify it
       const focusedTabTitle = await withTimeout(
@@ -47,21 +46,27 @@ export default async function Command() {
 
       if (focusedTabTitle) {
         // Step 2: Get all tabs and find the one that matches our focused tab
-        const tabs = await withTimeout(BrowserExtension.getTabs(), 3000, 'Getting tabs for metadata')
-        
+        const tabs = await withTimeout(
+          BrowserExtension.getTabs(),
+          3000,
+          'Getting tabs for metadata',
+        )
+
         if (tabs) {
           // Find the tab that matches our focused tab title
-          let targetTab = tabs.find(tab => tab.title === focusedTabTitle)
-          
+          let targetTab = tabs.find((tab) => tab.title === focusedTabTitle)
+
           if (!targetTab) {
             // Fallback: try partial match
-            targetTab = tabs.find(tab => 
-              tab.title && focusedTabTitle && 
-              (tab.title.includes(focusedTabTitle.substring(0, 10)) || 
-               focusedTabTitle.includes(tab.title.substring(0, 10)))
+            targetTab = tabs.find(
+              (tab) =>
+                tab.title &&
+                focusedTabTitle &&
+                (tab.title.includes(focusedTabTitle.substring(0, 10)) ||
+                  focusedTabTitle.includes(tab.title.substring(0, 10))),
             )
           }
-          
+
           if (targetTab && targetTab.url?.startsWith('http')) {
             isInBrowser = true
             pageTitle = focusedTabTitle
@@ -74,16 +79,17 @@ export default async function Command() {
     }
 
     // Format for Tana based on context
-    const tanaOutput = isInBrowser && pageTitle 
-      ? formatForTana({
-          title: pageTitle,
-          url: pageUrl,
-          content: selectedText,
-          useSwipeTag: true,
-        })
-      : formatForTana({
-          lines: selectedText.split('\n'),
-        })
+    const tanaOutput =
+      isInBrowser && pageTitle
+        ? formatForTana({
+            title: pageTitle,
+            url: pageUrl,
+            content: selectedText,
+            useSwipeTag: true,
+          })
+        : formatForTana({
+            lines: selectedText.split('\n'),
+          })
 
     // Copy to clipboard
     await Clipboard.copy(tanaOutput)

@@ -1,6 +1,11 @@
 import { BrowserExtension } from '@raycast/api'
 import TurndownService from 'turndown'
-import { formatForTana as formatForTanaUnified, TanaFormatOptions, formatForTanaMarkdown as formatForTanaMarkdownUnified, PageInfo as TanaPageInfo } from './tana-formatter'
+import {
+  formatForTana as formatForTanaUnified,
+  TanaFormatOptions,
+  formatForTanaMarkdown as formatForTanaMarkdownUnified,
+  PageInfo as TanaPageInfo,
+} from './tana-formatter'
 
 /**
  * Shared utilities for page content extraction and processing
@@ -59,28 +64,26 @@ export async function getActiveTabContent(): Promise<{
     console.log(`🔍 Focused tab title: "${focusedTabTitle}"`)
 
     // Step 2: Get all tabs and find the one that matches our focused tab
-    const tabs = await withTimeout(
-      BrowserExtension.getTabs(),
-      6000,
-      'Getting browser tabs',
-    )
+    const tabs = await withTimeout(BrowserExtension.getTabs(), 6000, 'Getting browser tabs')
 
     if (!tabs || tabs.length === 0) {
       throw new Error('Could not access browser tabs')
     }
 
     // Find the tab that matches our focused tab title
-    let targetTab = tabs.find(tab => tab.title === focusedTabTitle)
-    
+    let targetTab = tabs.find((tab) => tab.title === focusedTabTitle)
+
     if (!targetTab) {
       // Fallback: try partial match
-      targetTab = tabs.find(tab => 
-        tab.title && focusedTabTitle && 
-        (tab.title.includes(focusedTabTitle.substring(0, 10)) || 
-         focusedTabTitle.includes(tab.title.substring(0, 10)))
+      targetTab = tabs.find(
+        (tab) =>
+          tab.title &&
+          focusedTabTitle &&
+          (tab.title.includes(focusedTabTitle.substring(0, 10)) ||
+            focusedTabTitle.includes(tab.title.substring(0, 10))),
       )
     }
-    
+
     if (!targetTab) {
       // Last fallback: use the most recent tab (highest ID)
       const sortedTabs = [...tabs].sort((a, b) => b.id - a.id)
@@ -382,7 +385,6 @@ export async function extractMainContent(tabId: number, pageUrl: string = ''): P
       throw new Error('No content extracted from page')
     }
 
-
     // If the content looks like HTML (starts with < or contains HTML tags), convert it to markdown
     if (content.trim().startsWith('<') || /<[^>]+>/.test(content)) {
       console.log('⚠️ Content appears to be HTML, converting to markdown...')
@@ -552,20 +554,20 @@ export function unescapeRaycastMarkdown(content: string): string {
     .split('\n')
     .map((line) => {
       let unescapedLine = line
-      
+
       // Unescape headings: \# -> #
       unescapedLine = unescapedLine.replace(/\\#/g, '#')
-      
+
       // Unescape other common markdown escapes
       unescapedLine = unescapedLine.replace(/\\\*/g, '*')
-      unescapedLine = unescapedLine.replace(/\\\_/g, '_')
+      unescapedLine = unescapedLine.replace(/\\_/g, '_')
       unescapedLine = unescapedLine.replace(/\\\[/g, '[')
       unescapedLine = unescapedLine.replace(/\\\]/g, ']')
       unescapedLine = unescapedLine.replace(/\\\./g, '.')
-      
+
       // Note: Don't convert numbered sections here - TurndownService already handles <h2> -> ## conversion
       // We were double-processing and breaking the proper headings
-      
+
       return unescapedLine
     })
     .join('\n')
@@ -593,7 +595,7 @@ export function formatForTana(options: {
     lines: options.lines,
     useSwipeTag: options.useSwipeTag,
   }
-  
+
   return formatForTanaUnified(tanaOptions)
 }
 
@@ -609,6 +611,6 @@ export function formatForTanaMarkdown(pageInfo: PageInfo): string {
     author: pageInfo.author,
     content: pageInfo.content,
   }
-  
+
   return formatForTanaMarkdownUnified(tanaPageInfo)
 }

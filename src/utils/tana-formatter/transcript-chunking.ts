@@ -47,7 +47,7 @@ export function chunkTranscript(transcript: string, maxSize: number = 7000): Tra
     const actualEnd = findBestSplitPoint(transcript, Math.min(targetEnd, transcriptLength))
 
     // Extract chunk content
-    let chunkContent = transcript.slice(currentPosition, actualEnd).trim()
+    const chunkContent = transcript.slice(currentPosition, actualEnd).trim()
 
     // Skip empty chunks
     if (chunkContent.length === 0) {

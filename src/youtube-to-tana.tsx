@@ -143,7 +143,7 @@ async function getYouTubeTab(): Promise<{ url: string; tabId: number; title?: st
 
     // Find YouTube tab by checking the focused tab first
     let youtubeTab: any = null
-    
+
     try {
       // Get title from focused tab to identify it
       const focusedTabTitle = await withTimeout(
@@ -160,15 +160,19 @@ async function getYouTubeTab(): Promise<{ url: string; tabId: number; title?: st
       // Check if focused tab is a YouTube video
       if (focusedTabTitle && focusedTabTitle.includes('YouTube')) {
         // Find the tab that matches our focused tab title
-        youtubeTab = tabs.find(tab => tab.title === focusedTabTitle && tab.url?.includes('youtube.com/watch'))
-        
+        youtubeTab = tabs.find(
+          (tab) => tab.title === focusedTabTitle && tab.url?.includes('youtube.com/watch'),
+        )
+
         if (!youtubeTab) {
           // Try partial match
-          youtubeTab = tabs.find(tab => 
-            tab.title && focusedTabTitle && 
-            tab.url?.includes('youtube.com/watch') &&
-            (tab.title.includes(focusedTabTitle.substring(0, 10)) || 
-             focusedTabTitle.includes(tab.title.substring(0, 10)))
+          youtubeTab = tabs.find(
+            (tab) =>
+              tab.title &&
+              focusedTabTitle &&
+              tab.url?.includes('youtube.com/watch') &&
+              (tab.title.includes(focusedTabTitle.substring(0, 10)) ||
+                focusedTabTitle.includes(tab.title.substring(0, 10))),
           )
         }
       }
@@ -803,17 +807,20 @@ export default async function Command() {
     if (videoInfo.transcript) {
       transcriptContent = `Transcript:: ${videoInfo.transcript}`
     }
-    
+
     const tanaFormat = formatForTana({
       title: titleWithDuration,
       url: videoInfo.url,
       channelUrl: videoInfo.channelUrl,
-      description: videoInfo.description && videoInfo.description !== 'Description not available' ? videoInfo.description : undefined,
+      description:
+        videoInfo.description && videoInfo.description !== 'Description not available'
+          ? videoInfo.description
+          : undefined,
       author: videoInfo.channelName,
       duration: videoInfo.duration,
       content: transcriptContent,
     })
-    
+
     await Clipboard.copy(tanaFormat)
 
     // Open Tana and update toast to success

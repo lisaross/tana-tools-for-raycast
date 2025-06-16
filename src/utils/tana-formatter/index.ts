@@ -3,7 +3,7 @@
  * Single entry point for all Tana formatting with automatic content type detection
  */
 
-import { detectContentType, ContentType, isYouTubeTranscript } from './content-detection'
+import { detectContentType, isYouTubeTranscript } from './content-detection'
 import {
   processLimitlessPendantTranscript,
   processLimitlessAppTranscript,
@@ -47,30 +47,28 @@ export interface TanaFormatOptions {
  * Automatically detects content type and applies appropriate processing
  */
 export function formatForTana(options: TanaFormatOptions): string {
-  const lines = ['%%tana%%']
-  
   // Detect what type of content we're dealing with
   const contentType = detectContentType(options)
-  
+
   switch (contentType) {
     case 'limitless-pendant':
       return formatLimitlessPendantTranscript(options)
-      
+
     case 'limitless-app':
       return formatLimitlessAppTranscript(options)
-      
+
     case 'youtube-video':
       return formatYouTubeVideoContent(options)
-      
+
     case 'youtube-transcript':
       return formatYouTubeTranscript(options)
-      
+
     case 'browser-page':
       return formatBrowserPageContent(options)
-      
+
     case 'selected-text':
       return formatSelectedTextContent(options)
-      
+
     case 'plain-text':
     default:
       return formatPlainTextContent(options)
@@ -84,10 +82,10 @@ function formatLimitlessPendantTranscript(options: TanaFormatOptions): string {
   const rawContent = options.content || (options.lines ? options.lines.join('\n') : '')
   const singleLineTranscript = processLimitlessPendantTranscript(rawContent)
   const chunks = processAndChunkTranscript(singleLineTranscript)
-  
+
   const lines = ['%%tana%%']
   lines.push(...formatTranscriptChunks(chunks))
-  
+
   return lines.join('\n')
 }
 
@@ -98,10 +96,10 @@ function formatLimitlessAppTranscript(options: TanaFormatOptions): string {
   const rawContent = options.content || (options.lines ? options.lines.join('\n') : '')
   const singleLineTranscript = processLimitlessAppTranscript(rawContent)
   const chunks = processAndChunkTranscript(singleLineTranscript)
-  
+
   const lines = ['%%tana%%']
   lines.push(...formatTranscriptChunks(chunks))
-  
+
   return lines.join('\n')
 }
 
@@ -110,27 +108,29 @@ function formatLimitlessAppTranscript(options: TanaFormatOptions): string {
  */
 function formatYouTubeVideoContent(options: TanaFormatOptions): string {
   const lines = ['%%tana%%']
-  
+
   if (options.title) {
     // YouTube video title with #video tag (not #swipe)
     lines.push(formatTitleLine(options.title, ['video']))
-    
+
     // Add metadata fields (description will be properly processed here)
-    lines.push(...formatMetadataFields({
-      url: options.url,
-      channelUrl: options.channelUrl,
-      author: options.author,
-      duration: options.duration,
-      description: options.description,
-    }))
-    
+    lines.push(
+      ...formatMetadataFields({
+        url: options.url,
+        channelUrl: options.channelUrl,
+        author: options.author,
+        duration: options.duration,
+        description: options.description,
+      }),
+    )
+
     // Handle transcript if present in content
     const rawContent = options.content || ''
     if (rawContent && isYouTubeTranscript(rawContent)) {
       const transcriptContent = processYouTubeTranscript(rawContent)
       if (transcriptContent && transcriptContent.trim().length > 0) {
         const chunks = processAndChunkTranscript(transcriptContent)
-        
+
         if (chunks.length > 0) {
           // Format transcript as children under Transcript:: field
           lines.push(...formatTranscriptFieldWithSiblings(chunks))
@@ -138,7 +138,7 @@ function formatYouTubeVideoContent(options: TanaFormatOptions): string {
       }
     }
   }
-  
+
   return lines.join('\n')
 }
 
@@ -149,15 +149,15 @@ function formatYouTubeTranscript(options: TanaFormatOptions): string {
   const rawContent = options.content || (options.lines ? options.lines.join('\n') : '')
   const transcriptContent = processYouTubeTranscript(rawContent)
   const chunks = processAndChunkTranscript(transcriptContent)
-  
+
   const lines = ['%%tana%%']
-  
+
   if (options.title) {
     // Include video metadata
     const tags = options.useSwipeTag ? ['swipe'] : []
     lines.push(formatTitleLine(options.title, tags))
     lines.push(...formatMetadataFields(options))
-    
+
     if (options.transcriptAsFields) {
       lines.push(...formatTranscriptField(chunks))
     } else {
@@ -167,7 +167,7 @@ function formatYouTubeTranscript(options: TanaFormatOptions): string {
     // Just transcript chunks
     lines.push(...formatTranscriptChunks(chunks))
   }
-  
+
   return lines.join('\n')
 }
 
@@ -176,23 +176,23 @@ function formatYouTubeTranscript(options: TanaFormatOptions): string {
  */
 function formatBrowserPageContent(options: TanaFormatOptions): string {
   const lines = ['%%tana%%']
-  
+
   if (options.title) {
     const tags = options.useSwipeTag ? ['swipe'] : []
     lines.push(formatTitleLine(options.title, tags))
-    
+
     // Add metadata fields
     lines.push(...formatMetadataFields(options))
-    
+
     // Add content if present
     if (options.content) {
       // Clean content and remove colons to prevent field creation
       const cleanedContent = removeColonsInContent(options.content)
-      const processedContent = cleanContentForTana(cleanedContent)
-      lines.push(...formatContentField(processedContent))
+      // formatContentField handles all the hierarchical processing internally
+      lines.push(...formatContentField(cleanedContent))
     }
   }
-  
+
   return lines.join('\n')
 }
 
@@ -201,11 +201,11 @@ function formatBrowserPageContent(options: TanaFormatOptions): string {
  */
 function formatSelectedTextContent(options: TanaFormatOptions): string {
   const lines = ['%%tana%%']
-  
+
   if (options.lines && options.lines.length > 0) {
     lines.push(...formatLinesAsHierarchy(options.lines))
   }
-  
+
   return lines.join('\n')
 }
 
@@ -214,12 +214,12 @@ function formatSelectedTextContent(options: TanaFormatOptions): string {
  */
 function formatPlainTextContent(options: TanaFormatOptions): string {
   const lines = ['%%tana%%']
-  
+
   if (options.content) {
-    const contentLines = options.content.split('\n').filter(line => line.trim().length > 0)
+    const contentLines = options.content.split('\n').filter((line) => line.trim().length > 0)
     lines.push(...formatLinesAsHierarchy(contentLines))
   }
-  
+
   return lines.join('\n')
 }
 

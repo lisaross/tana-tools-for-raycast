@@ -16,8 +16,8 @@ import {
   getActiveTabContent,
   extractPageMetadata,
   extractMainContent,
-  formatForTanaMarkdown,
 } from './utils/page-content-extractor'
+import { formatForTana } from './utils/tana-formatter'
 
 const execAsync = promisify(exec)
 
@@ -69,8 +69,15 @@ async function processActiveTab() {
 
     toast.message = 'Converting to Tana format...'
 
-    // Format for Tana (bypass complex converter)
-    const tanaFormat = formatForTanaMarkdown(pageInfo)
+    // Format for Tana using unified formatter
+    const tanaFormat = formatForTana({
+      title: pageInfo.title,
+      url: pageInfo.url,
+      description: pageInfo.description,
+      author: pageInfo.author,
+      content: pageInfo.content,
+      useSwipeTag: true,
+    })
     await Clipboard.copy(tanaFormat)
 
     // Open Tana and update toast to success
@@ -132,8 +139,15 @@ async function processTab(selectedTab: BrowserTab) {
 
     toast.message = 'Converting to Tana format...'
 
-    // Format for Tana (bypass complex converter)
-    const tanaFormat = formatForTanaMarkdown(pageInfo)
+    // Format for Tana using unified formatter
+    const tanaFormat = formatForTana({
+      title: pageInfo.title,
+      url: pageInfo.url,
+      description: pageInfo.description,
+      author: pageInfo.author,
+      content: pageInfo.content,
+      useSwipeTag: true,
+    })
     await Clipboard.copy(tanaFormat)
 
     // Open Tana and update toast to success
@@ -242,8 +256,8 @@ export default function Command() {
         icon="⚡"
         actions={
           <ActionPanel>
-            <Action 
-              title="Extract Active Tab to Tana" 
+            <Action
+              title="Extract Active Tab to Tana"
               onAction={processActiveTab}
               shortcut={{ modifiers: ['cmd'], key: 'enter' }}
             />

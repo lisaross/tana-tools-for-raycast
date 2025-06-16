@@ -1,12 +1,8 @@
-import { Clipboard, BrowserExtension, Toast, showToast } from '@raycast/api'
+import { Clipboard, Toast, showToast } from '@raycast/api'
 import { exec } from 'child_process'
 import { promisify } from 'util'
-import {
-  PageInfo,
-  getActiveTabContent,
-  extractPageMetadata,
-  formatForTanaMarkdown,
-} from './utils/page-content-extractor'
+import { PageInfo, getActiveTabContent, extractPageMetadata } from './utils/page-content-extractor'
+import { formatForTana } from './utils/tana-formatter'
 
 const execAsync = promisify(exec)
 
@@ -23,7 +19,6 @@ const execAsync = promisify(exec)
  * - Maintains proper content hierarchy under headings
  * - Automatically filters out ads, navigation, and other noise
  */
-
 
 /**
  * Main command entry point
@@ -58,8 +53,15 @@ export default async function Command() {
 
     toast.message = 'Converting to Tana format...'
 
-    // Format for Tana (bypass complex converter)
-    const tanaFormat = formatForTanaMarkdown(pageInfo)
+    // Format for Tana using unified formatter
+    const tanaFormat = formatForTana({
+      title: pageInfo.title,
+      url: pageInfo.url,
+      description: pageInfo.description,
+      author: pageInfo.author,
+      content: pageInfo.content,
+      useSwipeTag: true,
+    })
     await Clipboard.copy(tanaFormat)
 
     // Open Tana and update toast to success

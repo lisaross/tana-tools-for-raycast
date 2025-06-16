@@ -29,15 +29,12 @@ export function isLimitlessAppTranscription(text: string): boolean {
   }
 
   const lines = text.split('\n')
-  
+
   // Count speakers (lines followed by empty lines)
   const speakerCount = lines
     .map((line, i) => ({ line: line.trim(), index: i }))
     .filter(
-      ({ line, index }) =>
-        line && 
-        index < lines.length - 1 && 
-        !lines[index + 1].trim(),
+      ({ line, index }) => line && index < lines.length - 1 && !lines[index + 1].trim(),
     ).length
 
   // Count timestamps
@@ -80,9 +77,9 @@ export function isBrowserPageContent(options: {
 /**
  * Detect content type and return appropriate processing strategy
  */
-export type ContentType = 
+export type ContentType =
   | 'limitless-pendant'
-  | 'limitless-app' 
+  | 'limitless-app'
   | 'youtube-transcript'
   | 'youtube-video'
   | 'browser-page'
@@ -98,7 +95,11 @@ export function isYouTubeVideo(options: {
   duration?: string
   author?: string
 }): boolean {
-  return !!(options.url && (options.url.includes('youtube.com') || options.url.includes('youtu.be')) && options.title)
+  return !!(
+    options.url &&
+    (options.url.includes('youtube.com') || options.url.includes('youtu.be')) &&
+    options.title
+  )
 }
 
 export function detectContentType(options: {
@@ -114,29 +115,29 @@ export function detectContentType(options: {
   if (isYouTubeVideo(options)) {
     return 'youtube-video'
   }
-  
+
   // Check raw content for transcript formats
   const rawContent = options.content || (options.lines ? options.lines.join('\n') : '')
-  
+
   if (rawContent && isLimitlessPendantTranscription(rawContent)) {
     return 'limitless-pendant'
   }
-  
+
   if (rawContent && isLimitlessAppTranscription(rawContent)) {
     return 'limitless-app'
   }
-  
+
   if (rawContent && isYouTubeTranscript(rawContent)) {
     return 'youtube-transcript'
   }
-  
+
   if (isBrowserPageContent(options)) {
     return 'browser-page'
   }
-  
+
   if (options.lines && options.lines.length > 0) {
     return 'selected-text'
   }
-  
+
   return 'plain-text'
 }
