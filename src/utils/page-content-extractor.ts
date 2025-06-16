@@ -266,6 +266,11 @@ export function cleanContentForTana(content: string, baseUrl: string = ''): stri
         return ''
       }
 
+      // Remove image references (both !Image url and ![](url) formats)
+      if (cleanLine.match(/^!.*https?:\/\//)) {
+        return ''
+      }
+
       // Note: :: escaping is now handled earlier in the pipeline
       // This section is kept for other content cleaning
 
