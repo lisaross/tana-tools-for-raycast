@@ -157,7 +157,7 @@ export function convertMarkdownToTana(text: string): string {
 }
 
 /**
- * Convert markdown lists to Tana bullet format
+ * Convert markdown and various list formats to Tana bullet format
  */
 function convertMarkdownLists(text: string): string {
   const lines = text.split('\n')
@@ -166,18 +166,43 @@ function convertMarkdownLists(text: string): string {
   for (const line of lines) {
     const trimmed = line.trim()
 
-    // Detect list items (- item, * item, + item, or numbered 1. item)
-    const unorderedMatch = trimmed.match(/^[-*+]\s+(.+)$/)
-    const orderedMatch = trimmed.match(/^\d+\.\s+(.+)$/)
+    // Enhanced list detection for various formats
+    // Standard markdown bullets: - * + (with one or more spaces)
+    const markdownMatch = trimmed.match(/^[-*+]\s+(.+)$/)
+    // Unicode bullets commonly used by browsers: • ‣ ▸ ▪ ▫ ▬ ◦ (with one or more spaces)
+    const unicodeBulletMatch = trimmed.match(/^[•‣▸▪▫▬◦]\s+(.+)$/)
+    // Standalone bullet characters (just the bullet, content on next line)
+    const standaloneBulletMatch = trimmed.match(/^[•‣▸▪▫▬◦]$/)
+    // Numbered lists: 1. 2. etc. (with one or more spaces)
+    const numberedMatch = trimmed.match(/^\d+\.\s+(.+)$/)
+    // Lettered lists: a. b. etc. (with one or more spaces)
+    const letteredMatch = trimmed.match(/^[a-z]\.\s+(.+)$/)
+    // Roman numerals: i. ii. iii. etc. (with one or more spaces)
+    const romanMatch = trimmed.match(/^[ivx]+\.\s+(.+)$/i)
 
-    if (unorderedMatch) {
-      // Convert unordered list items
+    if (markdownMatch) {
+      // Convert markdown list items
       const indent = line.match(/^(\s*)/)?.[1] || ''
-      result.push(`${indent}- ${unorderedMatch[1]}`)
-    } else if (orderedMatch) {
-      // Convert ordered list items to unordered (Tana uses bullets)
+      result.push(`${indent}- ${markdownMatch[1]}`)
+    } else if (unicodeBulletMatch) {
+      // Convert Unicode bullet list items
       const indent = line.match(/^(\s*)/)?.[1] || ''
-      result.push(`${indent}- ${orderedMatch[1]}`)
+      result.push(`${indent}- ${unicodeBulletMatch[1]}`)
+    } else if (standaloneBulletMatch) {
+      // Skip standalone bullet characters (they're just separators)
+      continue
+    } else if (numberedMatch) {
+      // Convert numbered list items to bullets
+      const indent = line.match(/^(\s*)/)?.[1] || ''
+      result.push(`${indent}- ${numberedMatch[1]}`)
+    } else if (letteredMatch) {
+      // Convert lettered list items to bullets
+      const indent = line.match(/^(\s*)/)?.[1] || ''
+      result.push(`${indent}- ${letteredMatch[1]}`)
+    } else if (romanMatch) {
+      // Convert roman numeral list items to bullets
+      const indent = line.match(/^(\s*)/)?.[1] || ''
+      result.push(`${indent}- ${romanMatch[1]}`)
     } else {
       // Preserve non-list lines as-is
       result.push(line)
@@ -206,18 +231,27 @@ export function convertNodesToTana(nodes: ContentNode[], depth: number = 0): str
     } else {
       // Process content line
       const processedText = convertMarkdownToTana(node.text)
-      const cleanedText = processedText.trim()
+      
+      // Handle multi-line content (like lists) by processing each line
+      const lines = processedText.split('\n')
+      for (const line of lines) {
+        const cleanedText = line.trim()
+        
+        // Skip empty lines and empty bullet nodes
+        if (!cleanedText || isEmptyBulletNode(cleanedText)) {
+          continue
+        }
 
-      // Skip empty lines and empty bullet nodes
-      if (!cleanedText || isEmptyBulletNode(cleanedText)) {
-        continue
-      }
-
-      // Add as bullet point if not already formatted
-      if (cleanedText.startsWith('- ')) {
-        result.push(`${indent}${cleanedText}`)
-      } else {
-        result.push(`${indent}- ${cleanedText}`)
+        // Preserve original indentation from markdown
+        const originalIndent = line.match(/^(\s*)/)?.[1] || ''
+        
+        if (cleanedText.startsWith('- ')) {
+          // Already a bullet - preserve original indentation relative to base
+          result.push(`${indent}${originalIndent}${cleanedText}`)
+        } else {
+          // Make it a bullet with original indentation
+          result.push(`${indent}${originalIndent}- ${cleanedText}`)
+        }
       }
     }
   }
