@@ -175,6 +175,9 @@ async function extractVideoMetadata(
     if (!videoId && urlObj.hostname.includes('youtu.be')) {
       videoId = urlObj.pathname.slice(1)
     }
+    if (!videoId && urlObj.pathname.startsWith('/shorts/')) {
+      videoId = urlObj.pathname.slice(8) // Remove '/shorts/' prefix
+    }
     if (!videoId) {
       throw new Error('Could not extract video ID from URL')
     }
