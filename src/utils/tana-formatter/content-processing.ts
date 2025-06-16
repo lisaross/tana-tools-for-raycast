@@ -134,9 +134,11 @@ export function convertMarkdownToTana(text: string): string {
 
   // Convert italic: *text* (single asterisk, not bold) or _text_ to __text__ (Tana italic format)
   // Handle single asterisks for italic (but not double asterisks for bold)
-  result = result.replace(/\b\*([^*\n]+)\*\b/g, '__$1__')
+  // Match single asterisk that's not preceded or followed by another asterisk
+  result = result.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, '$1__$2__')
   // Handle underscore italic (single underscores, not double)
-  result = result.replace(/\b_([^_\n\s]+)_\b/g, '__$1__')
+  // Match single underscore that's not preceded or followed by another underscore
+  result = result.replace(/(^|[^_])_([^_\n\s]+?)_(?!_)/g, '$1__$2__')
 
   // Convert highlight: ==text== to ^^text^^ (Tana highlight format)
   result = result.replace(/==([^=\n]+)==/g, '^^$1^^')
