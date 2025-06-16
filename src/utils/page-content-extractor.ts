@@ -571,6 +571,133 @@ export function unescapeRaycastMarkdown(content: string): string {
 }
 
 /**
+ * Detect if text is a Limitless Pendant transcription
+ */
+function isLimitlessPendantTranscription(text: string): boolean {
+  const pendantFormatCount = text
+    .split('\n')
+    .filter((line) => line.match(/^>\s*\[(.*?)\]\(#startMs=\d+&endMs=\d+\):/)).length
+  return pendantFormatCount >= 2 // At least 2 lines to consider it a transcript
+}
+
+/**
+ * Detect if text is in the new Limitless App transcription format
+ */
+function isNewTranscriptionFormat(text: string): boolean {
+  const lines = text.split('\n')
+  const speakerCount = lines
+    .map((line, i) => ({ line: line.trim(), index: i }))
+    .filter(
+      ({ line, index }) =>
+        line && 
+        index < lines.length - 1 && 
+        !lines[index + 1].trim(),
+    ).length
+
+  const timestampCount = lines.filter((line) =>
+    line
+      .trim()
+      .match(
+        /(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/,
+      ),
+  ).length
+
+  return speakerCount >= 2 && timestampCount >= 2
+}
+
+/**
+ * Process a Limitless Pendant transcription into a single line for chunking
+ */
+function processLimitlessPendantTranscriptToSingleLine(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#'))
+    .filter((line) => line.startsWith('>'))
+    .map((line) => {
+      const match = line.match(/^>\s*\[(.*?)\]\(#startMs=(\d+)&endMs=\d+\):\s*(.*?)$/)
+      if (!match) return line
+      const [, speaker, , content] = match
+      return `${speaker}: ${content}`
+    })
+    .filter((processedContent) => processedContent !== '')
+    .join(' ')
+}
+
+/**
+ * Process a Limitless App transcription into a single line with timestamps removed
+ */
+function processLimitlessAppTranscriptToSingleLine(text: string): string {
+  const lines = text.split('\n')
+  const combinedContent: string[] = []
+  let currentSpeaker = ''
+  let contentParts: string[] = []
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i].trim()
+    if (!line) continue
+
+    // Check if this is a speaker line (followed by empty line)
+    if (i < lines.length - 1 && !lines[i + 1].trim()) {
+      if (currentSpeaker && contentParts.length > 0) {
+        combinedContent.push(`${currentSpeaker}: ${contentParts.join(' ')}`)
+        contentParts = []
+      }
+      currentSpeaker = line
+      continue
+    }
+
+    // Skip timestamp lines
+    if (
+      line.match(
+        /(Yesterday|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\d{1,2}:\d{2}\s+(AM|PM)/,
+      )
+    ) {
+      continue
+    }
+
+    contentParts.push(line)
+  }
+
+  if (currentSpeaker && contentParts.length > 0) {
+    combinedContent.push(`${currentSpeaker}: ${contentParts.join(' ')}`)
+  }
+
+  return combinedContent.join(' ')
+}
+
+/**
+ * Chunk transcript content into smaller pieces for Tana
+ */
+function chunkTranscriptContent(content: string, maxChunkSize: number = 7000): Array<{ content: string }> {
+  if (content.length <= maxChunkSize) {
+    return [{ content }]
+  }
+
+  const words = content.split(' ')
+  const chunks: Array<{ content: string }> = []
+  let currentChunk = ''
+
+  for (const word of words) {
+    if (currentChunk.length + word.length + 1 > maxChunkSize && currentChunk.length > 0) {
+      chunks.push({ content: currentChunk.trim() })
+      currentChunk = word
+    } else {
+      if (currentChunk.length > 0) {
+        currentChunk += ' '
+      }
+      currentChunk += word
+    }
+  }
+
+  if (currentChunk.length > 0) {
+    chunks.push({ content: currentChunk.trim() })
+  }
+
+  return chunks
+}
+
+/**
  * General Tana formatting utility for different content types
  */
 export function formatForTana(options: {
@@ -584,7 +711,31 @@ export function formatForTana(options: {
 }): string {
   let tanaText = '%%tana%%\n'
   
-  // Handle different content types
+  // Check if we have content that might be a Limitless transcript
+  const rawContent = options.content || (options.lines ? options.lines.join('\n') : '')
+  
+  // Handle Limitless transcripts
+  if (rawContent && isLimitlessPendantTranscription(rawContent)) {
+    const singleLineTranscript = processLimitlessPendantTranscriptToSingleLine(rawContent)
+    const chunks = chunkTranscriptContent(singleLineTranscript)
+    
+    chunks.forEach((chunk) => {
+      tanaText += `- ${chunk.content}\n`
+    })
+    return tanaText
+  }
+  
+  if (rawContent && isNewTranscriptionFormat(rawContent)) {
+    const singleLineTranscript = processLimitlessAppTranscriptToSingleLine(rawContent)
+    const chunks = chunkTranscriptContent(singleLineTranscript)
+    
+    chunks.forEach((chunk) => {
+      tanaText += `- ${chunk.content}\n`
+    })
+    return tanaText
+  }
+  
+  // Handle different content types (existing logic)
   if (options.title) {
     // Page/structured content with metadata
     const swipeTag = options.useSwipeTag ? ' #swipe' : ''
