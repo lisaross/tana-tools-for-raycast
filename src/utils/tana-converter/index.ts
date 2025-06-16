@@ -68,5 +68,6 @@ export function convertToTana(inputText: string | undefined | null): string {
   }
 }
 
-// Re-export types that should be publicly available
-export type { TextElement, Line, CONSTANTS } from './types'
+// Re-export types and values that should be publicly available
+export type { TextElement, Line } from './types'
+export { CONSTANTS } from './types'
