@@ -272,8 +272,8 @@ function isEmptyBulletNode(line: string): boolean {
     trimmed === '- *' ||
     trimmed === '-•' ||
     trimmed === '-*' ||
-    /^-\s*[•*\u200B-\uFEFF]*\s*$/.test(trimmed) ||
-    /^[-\s\u200B-\uFEFF]*$/.test(trimmed)
+    /^-\s*[•*\u200B\u200C\u200E\u200F\u2028\u2029\uFEFF]*(\u200D)*\s*$/u.test(trimmed) ||
+    /^[-\s\u200B\u200C\u200E\u200F\u2028\u2029\uFEFF]*(\u200D)*$/u.test(trimmed)
   )
 }
 
@@ -422,7 +422,10 @@ export function cleanContentForTana(content: string): string {
         const trimmedLine = processedLine.trim()
 
         // Skip empty bullet-only lines and lines with only invisible characters
-        const cleaned = trimmedLine.replace(/[\s\u200B-\uFEFF]/g, '')
+        const cleaned = trimmedLine.replace(
+          /[\s\u200B\u200C\u200E\u200F\u2028\u2029\uFEFF]|\u200D/gu,
+          '',
+        )
         if (cleaned.length === 0) {
           return ''
         }

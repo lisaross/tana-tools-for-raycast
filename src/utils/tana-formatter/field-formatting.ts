@@ -159,7 +159,7 @@ export function formatLinesAsHierarchy(lines: string[]): string[] {
 
   const filteredLines = lines.filter((line) => {
     // Remove all Unicode whitespace and invisible characters
-    const cleaned = line.replace(/[\s\u200B-\uFEFF]/g, '')
+    const cleaned = line.replace(/[\s\u200B\u200C\u200E\u200F\u2028\u2029\uFEFF]|\u200D/gu, '')
     if (cleaned.length === 0) return false
 
     const trimmed = line.trim()
@@ -173,13 +173,16 @@ export function formatLinesAsHierarchy(lines: string[]): string[] {
       trimmed === '- *' ||
       trimmed === '-•' ||
       trimmed === '-*' ||
-      /^-\s*[•*\u200B-\uFEFF]*\s*$/.test(trimmed)
+      /^-\s*[•*\u200B\u200C\u200E\u200F\u2028\u2029\uFEFF]*(\u200D)*\s*$/u.test(trimmed)
     ) {
       return false
     }
 
     // Also filter lines that are just dashes with whitespace/invisible chars
-    if (/^[-\s\u200B-\uFEFF]*$/.test(trimmed) && trimmed.includes('-')) {
+    if (
+      /^[-\s\u200B\u200C\u200E\u200F\u2028\u2029\uFEFF]*(\u200D)*$/u.test(trimmed) &&
+      trimmed.includes('-')
+    ) {
       return false
     }
 
