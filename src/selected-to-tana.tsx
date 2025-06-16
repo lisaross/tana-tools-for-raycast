@@ -1,9 +1,10 @@
 import { showHUD, getSelectedText, Clipboard, BrowserExtension } from '@raycast/api'
-import { convertToTana } from './utils/tana-converter'
+import { formatForTana, withTimeout } from './utils/page-content-extractor'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
+
 
 /**
  * Raycast command that converts currently selected text to Tana format
@@ -28,43 +29,61 @@ export default async function Command() {
       return
     }
 
-    // Try to get the active browser tab URL
-    let urlField = ''
+    // Check if we can get browser context from the focused window's active tab
     let pageTitle = ''
+    let pageUrl = ''
+    let isInBrowser = false
+    
     try {
-      const tabs = await BrowserExtension.getTabs()
-      const activeTab = tabs?.find((tab) => tab.active && tab.url?.startsWith('http'))
-      if (activeTab && activeTab.url) {
-        urlField = `\nURL::${activeTab.url}`
-        // Try to get the page title
-        try {
-          pageTitle = await BrowserExtension.getContent({
-            cssSelector: 'title',
-            format: 'text',
-            tabId: activeTab.id,
-          })
-        } catch {
-          /* ignore error */
+      // Step 1: Get title from focused tab to identify it
+      const focusedTabTitle = await withTimeout(
+        BrowserExtension.getContent({
+          format: 'text',
+          cssSelector: 'title',
+        }),
+        3000,
+        'Getting focused tab title',
+      )
+
+      if (focusedTabTitle) {
+        // Step 2: Get all tabs and find the one that matches our focused tab
+        const tabs = await withTimeout(BrowserExtension.getTabs(), 3000, 'Getting tabs for metadata')
+        
+        if (tabs) {
+          // Find the tab that matches our focused tab title
+          let targetTab = tabs.find(tab => tab.title === focusedTabTitle)
+          
+          if (!targetTab) {
+            // Fallback: try partial match
+            targetTab = tabs.find(tab => 
+              tab.title && focusedTabTitle && 
+              (tab.title.includes(focusedTabTitle.substring(0, 10)) || 
+               focusedTabTitle.includes(tab.title.substring(0, 10)))
+            )
+          }
+          
+          if (targetTab && targetTab.url?.startsWith('http')) {
+            isInBrowser = true
+            pageTitle = focusedTabTitle
+            pageUrl = targetTab.url
+          }
         }
       }
     } catch {
-      /* ignore error */
+      /* ignore error - not in browser or no access */
     }
 
-    // Format output: if pageTitle, use as parent node
-    let textWithUrl = selectedText + urlField
-    if (pageTitle) {
-      // Split selectedText into lines and indent each
-      const selectedLines = selectedText.split('\n').map((line) => `  ${line}`)
-      // Place URL as the first child if present
-      const urlLine = urlField ? `  ${urlField.trim()}` : ''
-      // Combine URL and selected text lines
-      const indented = [urlLine, ...selectedLines].filter(Boolean).join('\n')
-      textWithUrl = `# ${pageTitle} #swipe\n${indented}`
-    }
-
-    // Convert to Tana format
-    const tanaOutput = convertToTana(textWithUrl)
+    // Format for Tana based on context
+    const tanaOutput = isInBrowser && pageTitle 
+      ? formatForTana({
+          title: pageTitle,
+          url: pageUrl,
+          content: selectedText,
+          useSwipeTag: true,
+        })
+      : formatForTana({
+          lines: selectedText.split('\n'),
+        })
 
     // Copy to clipboard
     await Clipboard.copy(tanaOutput)

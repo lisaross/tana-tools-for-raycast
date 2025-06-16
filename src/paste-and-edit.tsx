@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Form, ActionPanel, Action, showHUD, Clipboard } from '@raycast/api'
-import { convertToTana } from './utils/tana-converter'
+import { formatForTana } from './utils/page-content-extractor'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 
@@ -73,7 +73,9 @@ export default function Command() {
       }
 
       // Convert to Tana format
-      const tanaOutput = convertToTana(values.text)
+      const tanaOutput = formatForTana({
+        lines: values.text.split('\n'),
+      })
 
       // Copy to clipboard
       await Clipboard.copy(tanaOutput)

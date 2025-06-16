@@ -13,6 +13,7 @@ import { promisify } from 'util'
 import {
   PageInfo,
   withTimeout,
+  getActiveTabContent,
   extractPageMetadata,
   extractMainContent,
   formatForTanaMarkdown,
@@ -32,6 +33,67 @@ interface BrowserTab {
   title: string
   url: string
   active: boolean
+}
+
+/**
+ * Process active tab directly using the reliable method
+ */
+async function processActiveTab() {
+  const toast = await showToast({
+    style: Toast.Style.Animated,
+    title: 'Extracting Page Content',
+    message: 'Processing active tab...',
+  })
+
+  try {
+    // Get content and tab info from focused window's active tab
+    const { content, tabInfo } = await getActiveTabContent()
+
+    toast.message = 'Getting page metadata...'
+
+    // Extract metadata
+    const metadata = await extractPageMetadata(tabInfo.id, tabInfo.url, tabInfo.title)
+
+    // Combine all info
+    const pageInfo: PageInfo = {
+      title: metadata.title || tabInfo.title || 'Web Page',
+      url: metadata.url || tabInfo.url,
+      description: metadata.description,
+      author: metadata.author,
+      content,
+    }
+
+    console.log(
+      `🔍 Final page info - Title: "${pageInfo.title}", Content length: ${pageInfo.content.length}`,
+    )
+
+    toast.message = 'Converting to Tana format...'
+
+    // Format for Tana (bypass complex converter)
+    const tanaFormat = formatForTanaMarkdown(pageInfo)
+    await Clipboard.copy(tanaFormat)
+
+    // Open Tana and update toast to success
+    try {
+      await execAsync('open tana://')
+      toast.style = Toast.Style.Success
+      toast.title = 'Success!'
+      toast.message = 'Page content copied to clipboard and Tana opened'
+    } catch (error) {
+      console.error('Error opening Tana:', error)
+      toast.style = Toast.Style.Success
+      toast.title = 'Success!'
+      toast.message = 'Page content copied to clipboard (could not open Tana)'
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+
+    toast.style = Toast.Style.Failure
+    toast.title = 'Failed to extract page content'
+    toast.message = errorMessage
+
+    console.error('Page content extraction error:', error)
+  }
 }
 
 /**
@@ -174,6 +236,20 @@ export default function Command() {
 
   return (
     <List isLoading={isLoading} searchBarPlaceholder="Search browser tabs...">
+      <List.Item
+        title="🎯 Extract Active Tab"
+        subtitle="Process the currently focused browser tab"
+        icon="⚡"
+        actions={
+          <ActionPanel>
+            <Action 
+              title="Extract Active Tab to Tana" 
+              onAction={processActiveTab}
+              shortcut={{ modifiers: ['cmd'], key: 'enter' }}
+            />
+          </ActionPanel>
+        }
+      />
       {tabs.map((tab) => (
         <List.Item
           key={tab.id}

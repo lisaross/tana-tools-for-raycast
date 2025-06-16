@@ -3,9 +3,8 @@ import { exec } from 'child_process'
 import { promisify } from 'util'
 import {
   PageInfo,
-  withTimeout,
+  getActiveTabContent,
   extractPageMetadata,
-  extractMainContent,
   formatForTanaMarkdown,
 } from './utils/page-content-extractor'
 
@@ -25,64 +24,6 @@ const execAsync = promisify(exec)
  * - Automatically filters out ads, navigation, and other noise
  */
 
-/**
- * Get best available browser tab information with improved detection
- */
-async function getBestAvailableTab(): Promise<{
-  url: string
-  tabId: number
-  title?: string
-} | null> {
-  try {
-    console.log('🔍 Getting browser tabs via Browser Extension API...')
-
-    const tabs = await withTimeout(BrowserExtension.getTabs(), 6000, 'Getting browser tabs')
-    console.log(`🔍 Found ${tabs?.length || 0} tabs`)
-
-    if (!tabs || tabs.length === 0) {
-      throw new Error(
-        'Could not access browser tabs. Please ensure Raycast has permission to access your browser.',
-      )
-    }
-
-    // Log all tabs for debugging
-    tabs.forEach((tab, index) => {
-      console.log(
-        `🔍 Tab ${index}: ${tab.active ? '[ACTIVE]' : '[INACTIVE]'} "${tab.title}" - ${tab.url}`,
-      )
-    })
-
-    // Strategy 1: Look for active tab first
-    let selectedTab = tabs.find((tab) => tab.active)
-    if (selectedTab) {
-      console.log(`✅ Using active tab: "${selectedTab.title}"`)
-      return {
-        url: selectedTab.url,
-        tabId: selectedTab.id,
-        title: selectedTab.title,
-      }
-    }
-
-    // Strategy 2: Look for the most recently opened tab (highest ID)
-    // Tabs are usually ordered with newer tabs having higher IDs
-    const sortedTabs = [...tabs].sort((a, b) => b.id - a.id)
-    selectedTab = sortedTabs[0]
-
-    if (selectedTab) {
-      console.log(`✅ Using most recent tab: "${selectedTab.title}" (no active tab found)`)
-      return {
-        url: selectedTab.url,
-        tabId: selectedTab.id,
-        title: selectedTab.title,
-      }
-    }
-
-    throw new Error('No suitable tab found.')
-  } catch (error) {
-    console.log(`❌ Browser Extension API failed: ${error}`)
-    throw error
-  }
-}
 
 /**
  * Main command entry point
@@ -94,26 +35,18 @@ export default async function Command() {
   })
 
   try {
-    // Get best available tab
-    const activeTab = await getBestAvailableTab()
-    if (!activeTab) {
-      throw new Error('No suitable browser tab found')
-    }
+    // Get content and tab info from focused window's active tab
+    const { content, tabInfo } = await getActiveTabContent()
 
     toast.message = 'Getting page metadata...'
 
     // Extract metadata
-    const metadata = await extractPageMetadata(activeTab.tabId, activeTab.url, activeTab.title)
-
-    toast.message = 'Extracting main content...'
-
-    // Extract main content using Raycast's reader mode
-    const content = await extractMainContent(activeTab.tabId, activeTab.url)
+    const metadata = await extractPageMetadata(tabInfo.id, tabInfo.url, tabInfo.title)
 
     // Combine all info
     const pageInfo: PageInfo = {
-      title: metadata.title || 'Web Page',
-      url: metadata.url || activeTab.url,
+      title: metadata.title || tabInfo.title || 'Web Page',
+      url: metadata.url || tabInfo.url,
       description: metadata.description,
       author: metadata.author,
       content,

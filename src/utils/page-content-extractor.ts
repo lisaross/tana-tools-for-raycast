@@ -35,6 +35,83 @@ export async function withTimeout<T>(
 }
 
 /**
+ * Get active tab content and metadata using the most reliable approach
+ * Uses getContent() without tabId to target the focused window's active tab
+ */
+export async function getActiveTabContent(): Promise<{
+  content: string
+  tabInfo: { id: number; url: string; title: string }
+}> {
+  try {
+    console.log('🔍 Getting content from active tab of focused window...')
+
+    // Step 1: Get title from focused tab to identify it
+    const focusedTabTitle = await withTimeout(
+      BrowserExtension.getContent({
+        format: 'text',
+        cssSelector: 'title',
+      }),
+      3000,
+      'Getting focused tab title',
+    ).catch(() => '')
+
+    console.log(`🔍 Focused tab title: "${focusedTabTitle}"`)
+
+    // Step 2: Get all tabs and find the one that matches our focused tab
+    const tabs = await withTimeout(
+      BrowserExtension.getTabs(),
+      6000,
+      'Getting browser tabs',
+    )
+
+    if (!tabs || tabs.length === 0) {
+      throw new Error('Could not access browser tabs')
+    }
+
+    // Find the tab that matches our focused tab title
+    let targetTab = tabs.find(tab => tab.title === focusedTabTitle)
+    
+    if (!targetTab) {
+      // Fallback: try partial match
+      targetTab = tabs.find(tab => 
+        tab.title && focusedTabTitle && 
+        (tab.title.includes(focusedTabTitle.substring(0, 10)) || 
+         focusedTabTitle.includes(tab.title.substring(0, 10)))
+      )
+    }
+    
+    if (!targetTab) {
+      // Last fallback: use the first active tab
+      targetTab = tabs.find(tab => tab.active)
+    }
+
+    if (!targetTab) {
+      throw new Error('Could not identify target tab')
+    }
+
+    console.log(`✅ Target tab identified: "${targetTab.title}" - ${targetTab.url}`)
+
+    // Step 3: Use the EXACT same approach as tab selection - extractMainContent + extractPageMetadata
+    const [content, metadata] = await Promise.all([
+      extractMainContent(targetTab.id, targetTab.url),
+      extractPageMetadata(targetTab.id, targetTab.url, targetTab.title),
+    ])
+
+    return {
+      content,
+      tabInfo: {
+        id: targetTab.id,
+        url: metadata.url || targetTab.url,
+        title: metadata.title || targetTab.title || 'Untitled',
+      },
+    }
+  } catch (error) {
+    console.log(`❌ Active tab content extraction failed: ${error}`)
+    throw error
+  }
+}
+
+/**
  * Extract page metadata using targeted selectors
  */
 export async function extractPageMetadata(
@@ -468,7 +545,7 @@ export function removeColonsInContent(content: string): string {
 /**
  * Unescape Raycast's escaped markdown syntax to get proper markdown
  */
-function unescapeRaycastMarkdown(content: string): string {
+export function unescapeRaycastMarkdown(content: string): string {
   return content
     .split('\n')
     .map((line) => {
@@ -493,59 +570,98 @@ function unescapeRaycastMarkdown(content: string): string {
 }
 
 /**
- * Format page info for Tana in structured format
+ * General Tana formatting utility for different content types
+ */
+export function formatForTana(options: {
+  title?: string
+  url?: string
+  description?: string
+  author?: string
+  content?: string
+  lines?: string[]
+  useSwipeTag?: boolean
+}): string {
+  let tanaText = '%%tana%%\n'
+  
+  // Handle different content types
+  if (options.title) {
+    // Page/structured content with metadata
+    const swipeTag = options.useSwipeTag ? ' #swipe' : ''
+    tanaText += `- ${options.title}${swipeTag}\n`
+    
+    if (options.url) {
+      tanaText += `  - URL::${options.url}\n`
+    }
+    
+    if (options.description) {
+      tanaText += `  - Description::${options.description}\n`
+    }
+    
+    if (options.author) {
+      tanaText += `  - Author::${options.author}\n`
+    }
+    
+    if (options.content) {
+      tanaText += `  - Content::\n`
+      const contentLines = options.content.split('\n')
+        .filter((line) => line.trim().length > 0)
+        .map((line) => {
+          const trimmedLine = line.trim()
+          
+          // Convert markdown headers to Tana headings and escape # symbols
+          const headerMatch = trimmedLine.match(/^(#{1,6})\s+(.+)$/)
+          let processedLine: string
+          if (headerMatch) {
+            const text = headerMatch[2]
+            processedLine = `!! ${text}`
+          } else {
+            processedLine = trimmedLine.replace(/#/g, '\\#')
+          }
+          
+          // Convert to bullet points under Content:: field
+          if (processedLine.startsWith('- ')) {
+            return `    ${processedLine}`
+          }
+          return `    - ${processedLine}`
+        })
+      
+      tanaText += contentLines.join('\n')
+    }
+  } else if (options.lines && options.lines.length > 0) {
+    // Simple lines-based content (selected text, etc.)
+    const lines = options.lines.filter(line => line.trim().length > 0)
+    
+    if (lines.length === 1) {
+      // Single line
+      const escapedLine = lines[0].trim().replace(/#/g, '\\#')
+      tanaText += `- ${escapedLine}\n`
+    } else if (lines.length > 1) {
+      // Multiple lines - first as parent, rest as children
+      const escapedParent = lines[0].trim().replace(/#/g, '\\#')
+      tanaText += `- ${escapedParent}\n`
+      lines.slice(1).forEach(line => {
+        const escapedLine = line.trim().replace(/#/g, '\\#')
+        tanaText += `  - ${escapedLine}\n`
+      })
+    }
+  }
+  
+  return tanaText
+}
+
+/**
+ * Format page info for Tana in structured format (legacy wrapper)
  */
 export function formatForTanaMarkdown(pageInfo: PageInfo): string {
-  let markdown = `%%tana%%\n- ${pageInfo.title} #swipe\n`
-  markdown += `  - URL::${pageInfo.url}\n`
-
-  if (pageInfo.description) {
-    markdown += `  - Description::${pageInfo.description}\n`
-  }
-
-  if (pageInfo.author) {
-    markdown += `  - Author::${pageInfo.author}\n`
-  }
-
-  // Add the content in a Content:: field
-  markdown += `  - Content::\n`
-
   // IMPORTANT: Remove all :: in content BEFORE formatting to prevent field creation
   const cleanedContent = removeColonsInContent(pageInfo.content)
-
-  // Convert all content lines to flat bullet points under Content:: field
-  const contentLines = cleanedContent.split('\n')
-  const bulletContent = contentLines
-    .filter((line) => line.trim().length > 0) // Remove empty lines
-    .map((line) => {
-      const trimmedLine = line.trim()
-      
-      // Process the line to handle special characters
-      let processedLine = trimmedLine
-      
-      // Convert markdown headers to Tana headings to avoid unwanted tags
-      // ## Header -> !! Header
-      // ### Header -> !! Header  
-      const headerMatch = processedLine.match(/^(#{1,6})\s+(.+)$/)
-      if (headerMatch) {
-        const text = headerMatch[2]
-        processedLine = `!! ${text}`
-      } else {
-        // Escape any remaining # symbols to prevent unwanted tag creation
-        processedLine = processedLine.replace(/#/g, '\\#')
-      }
-      
-      // If line already starts with a bullet, just indent it
-      if (processedLine.startsWith('- ')) {
-        return `    ${processedLine}`
-      }
-      
-      // Convert to bullet point and indent under Content:: field
-      return `    - ${processedLine}`
-    })
-    .join('\n')
-
-  markdown += bulletContent
-
-  return markdown
+  
+  return formatForTana({
+    title: pageInfo.title,
+    url: pageInfo.url,
+    description: pageInfo.description,
+    author: pageInfo.author,
+    content: cleanedContent,
+    useSwipeTag: true,
+  })
 }

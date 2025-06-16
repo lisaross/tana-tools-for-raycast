@@ -1,5 +1,5 @@
 import { Clipboard, showHUD } from '@raycast/api'
-import { convertToTana } from './utils/tana-converter'
+import { formatForTana } from './utils/page-content-extractor'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 
@@ -21,7 +21,9 @@ export default async function Command() {
     }
 
     // Convert to Tana format
-    const tanaOutput = convertToTana(clipboardText)
+    const tanaOutput = formatForTana({
+      lines: clipboardText.split('\n'),
+    })
 
     // Copy back to clipboard
     await Clipboard.copy(tanaOutput)
