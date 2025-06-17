@@ -615,7 +615,7 @@ async function extractTranscript(tabId: number): Promise<string | null> {
       const transcriptButton = await withTimeout(
         BrowserExtension.getContent({
           cssSelector:
-            'button[aria-label*="transcript" i], button[aria-label*="Show transcript" i]',
+            'button[aria-label*="transcript" i], button[aria-label*="Show transcript" i], #show-hide-transcript',
           format: 'text',
           tabId: tabId,
         }),
@@ -623,14 +623,29 @@ async function extractTranscript(tabId: number): Promise<string | null> {
         'Checking for transcript button',
       )
 
-      if (transcriptButton && transcriptButton.includes('Show transcript')) {
-        console.log('🔍 Transcript panel not expanded, but transcript button found')
+      console.log(`🔍 Transcript button text found: "${transcriptButton}"`)
+
+      if (transcriptButton && transcriptButton.trim().length > 0) {
+        console.log('🔍 Transcript button found, checking if transcript panel needs to be opened')
         needsTranscriptButton = true
       }
     } catch (error) {
       console.log(`🔍 Could not check transcript button: ${error}`)
     }
 
+    // Try to get clean transcript text without timestamps
+    try {
+      console.log('🔍 Attempting to extract clean transcript text')
+      const cleanTranscript = await extractCleanTranscript(tabId)
+      if (cleanTranscript) {
+        console.log(`✅ Found clean transcript text (${cleanTranscript.length} chars)`)
+        return cleanTranscript
+      }
+    } catch (error) {
+      console.log(`🔍 Clean transcript extraction failed: ${error}`)
+    }
+
+    // Fallback to text-only extraction
     // Try different selectors for transcript content - prioritize container selectors that get all segments
     const transcriptSelectors = [
       // Container selectors that should capture all transcript segments
@@ -663,7 +678,9 @@ async function extractTranscript(tabId: number): Promise<string | null> {
 
         if (transcriptText && transcriptText.trim().length > 50) {
           console.log(`✅ Found transcript with ${selector} (${transcriptText.length} chars)`)
-          return transcriptText.trim()
+          // Clean the transcript text to remove timestamps
+          const cleanedText = cleanTranscriptText(transcriptText)
+          return cleanedText || transcriptText.trim()
         } else if (transcriptText && transcriptText.trim().length > 0) {
           console.log(
             `🔍 Found short content with ${selector}: "${transcriptText.substring(0, 100)}..."`,
@@ -712,8 +729,9 @@ async function extractTranscript(tabId: number): Promise<string | null> {
 
     console.log('❌ No transcript found with any selector')
 
-    // If we found a transcript button that needs to be clicked, throw a specific error
+    // If we found a transcript button that needs to be clicked and no transcript content, throw a specific error
     if (needsTranscriptButton) {
+      console.log('🔍 No transcript content found, but transcript button exists - user should click it')
       throw new Error('TRANSCRIPT_BUTTON_NEEDED')
     }
 
@@ -774,6 +792,7 @@ export default async function Command() {
 
     // If transcript button needs to be clicked, update toast and stop
     if (transcriptButtonNeeded) {
+      console.log('🔍 Showing transcript button toast to user')
       toast.style = Toast.Style.Failure
       toast.title = 'Click "Show transcript" below video first'
       toast.message = 'Then run this command again to process the video with transcript.'
@@ -866,4 +885,75 @@ export default async function Command() {
       toast.message = errorMessage
     }
   }
+}
+
+/**
+ * Extract clean transcript text without timestamps from YouTube
+ */
+async function extractCleanTranscript(tabId: number): Promise<string | null> {
+  try {
+    // Try to get only the text content from transcript segments, excluding timestamps
+    const textOnlySelectors = [
+      // Target only the text elements within transcript segments
+      'ytd-transcript-segment-renderer .segment-text',
+      'ytd-transcript-segment-renderer yt-formatted-string.segment-text',
+      '.segment-text:not(.segment-timestamp)',
+      'yt-formatted-string.segment-text.style-scope.ytd-transcript-segment-renderer',
+    ]
+
+    for (const selector of textOnlySelectors) {
+      try {
+        console.log(`🔍 Trying text-only selector: ${selector}`)
+        const textContent = await withTimeout(
+          BrowserExtension.getContent({
+            cssSelector: selector,
+            format: 'text',
+            tabId: tabId,
+          }),
+          5000,
+          `Getting clean transcript text via: ${selector}`,
+        )
+
+        if (textContent && textContent.trim().length > 50) {
+          // Clean up the text by removing timestamp patterns and joining properly
+          const cleanedText = cleanTranscriptText(textContent)
+          if (cleanedText && cleanedText.length > 50) {
+            console.log(`✅ Found clean transcript text with ${selector} (${cleanedText.length} chars)`)
+            return cleanedText
+          }
+        }
+      } catch (error) {
+        console.log(`❌ Text-only selector ${selector} failed: ${error}`)
+        continue
+      }
+    }
+
+    return null
+  } catch (error) {
+    console.log(`❌ Clean transcript extraction failed: ${error}`)
+    return null
+  }
+}
+
+/**
+ * Clean transcript text by removing timestamps and formatting properly
+ */
+function cleanTranscriptText(rawText: string): string {
+  if (!rawText) return ''
+
+  let cleanedText = rawText
+    // Remove timestamp patterns like "0:00", "1:23", "12:34:56" with surrounding spaces
+    .replace(/\s*\b\d{1,2}:\d{2}(?::\d{2})?\b\s*/g, ' ')
+    // Remove decimal timestamps like "0.5", "12.34"  
+    .replace(/\s*\b\d+\.\d+\b\s*/g, ' ')
+    // Remove standalone numbers that might be timestamps (with word boundaries)
+    .replace(/\s+\b\d+\b\s+/g, ' ')
+    // Remove any remaining isolated numbers at start of lines
+    .replace(/^\s*\d+\s+/gm, '')
+    // Remove multiple consecutive spaces
+    .replace(/\s{2,}/g, ' ')
+    // Remove extra whitespace and normalize
+    .trim()
+
+  return cleanedText
 }
