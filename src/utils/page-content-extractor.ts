@@ -4,20 +4,15 @@ import {
   formatForTana as formatForTanaUnified,
   TanaFormatOptions,
   formatForTanaMarkdown as formatForTanaMarkdownUnified,
-  PageInfo as TanaPageInfo,
+  PageInfo,
 } from './tana-formatter'
 
 /**
  * Shared utilities for page content extraction and processing
  */
 
-export interface PageInfo {
-  title: string
-  url: string
-  description?: string
-  author?: string
-  content: string
-}
+// Re-export PageInfo for backward compatibility
+export type { PageInfo }
 
 /**
  * Timeout wrapper for Browser Extension API calls
@@ -27,7 +22,7 @@ export async function withTimeout<T>(
   timeoutMs: number = 8000,
   operation: string = 'operation',
 ): Promise<T> {
-  let timeoutId: NodeJS.Timeout
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
 
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
@@ -35,9 +30,18 @@ export async function withTimeout<T>(
     }, timeoutMs)
   })
 
-  return Promise.race([promise, timeoutPromise]).finally(() => {
-    clearTimeout(timeoutId)
-  })
+  try {
+    const result = await Promise.race([promise, timeoutPromise])
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId)
+    }
+    return result
+  } catch (error) {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId)
+    }
+    throw error
+  }
 }
 
 /**
@@ -258,71 +262,78 @@ export function makeAbsoluteUrl(url: string, baseUrl: string): string {
 }
 
 /**
+ * Helper function to process broken link patterns
+ */
+function processBrokenLink(
+  lines: string[],
+  startIndex: number,
+  baseUrl: string,
+): { linesConsumed: number; output: string } {
+  const startLine = lines[startIndex]
+  const baseIndent = startLine.match(/^(\s*)/)?.[1] || ''
+  
+  let linkText = ''
+  let linkUrl = ''
+  let linesConsumed = 1 // Start with the current line
+
+  // Look ahead to collect link text and URL
+  for (let j = startIndex + 1; j < lines.length; j++) {
+    const nextLine = lines[j].trim()
+
+    // Check if this line contains the URL part: ](url)
+    const urlMatch = nextLine.match(/^]\(([^)]+)\)(.*)$/)
+    if (urlMatch) {
+      linkUrl = urlMatch[1]
+      const remaining = urlMatch[2].trim()
+      linesConsumed = j - startIndex + 1
+
+      if (linkText.trim() && linkUrl.trim()) {
+        // Convert relative URLs to absolute URLs if we have a base URL
+        const absoluteUrl = baseUrl ? makeAbsoluteUrl(linkUrl, baseUrl) : linkUrl
+        // Format for Tana: Text [URL](URL)
+        return {
+          linesConsumed,
+          output: `${baseIndent}- ${linkText.trim()} [${absoluteUrl}](${absoluteUrl})${remaining ? ' ' + remaining : ''}`,
+        }
+      } else {
+        // If we can't form a proper link, just add the text
+        return {
+          linesConsumed,
+          output: `${baseIndent}- ${linkText.trim()}${remaining ? ' ' + remaining : ''}`,
+        }
+      }
+    } else {
+      // Accumulate link text
+      linkText = linkText ? linkText + ' ' + nextLine : nextLine
+    }
+  }
+
+  // If we couldn't complete the link, just return the original line
+  return {
+    linesConsumed: 1,
+    output: startLine,
+  }
+}
+
+/**
  * Fix broken markdown links and convert to Tana-clickable format
  */
 export function fixBrokenLinks(content: string, baseUrl: string = ''): string {
   const lines = content.split('\n')
   const result: string[] = []
-  let i = 0
 
-  while (i < lines.length) {
-    const line = lines[i].trim()
+  for (let idx = 0; idx < lines.length; ) {
+    const line = lines[idx].trim()
 
     // Check for start of a broken link pattern: line ending with just "["
     if (line === '[' || line.endsWith('- [')) {
-      let linkText = ''
-      let linkUrl = ''
-      let linkComplete = false
-      let j = i + 1
-
-      // Look ahead to collect link text and URL
-      while (j < lines.length && !linkComplete) {
-        const nextLine = lines[j].trim()
-
-        // Check if this line contains the URL part: ](url)
-        const urlMatch = nextLine.match(/^]\(([^)]+)\)(.*)$/)
-        if (urlMatch) {
-          linkUrl = urlMatch[1]
-          const remaining = urlMatch[2].trim()
-          linkComplete = true
-
-          // Create the proper link format for Tana
-          const baseIndent = lines[i].match(/^(\s*)/)?.[1] || ''
-          if (linkText.trim() && linkUrl.trim()) {
-            // Convert relative URLs to absolute URLs if we have a base URL
-            const absoluteUrl = baseUrl ? makeAbsoluteUrl(linkUrl, baseUrl) : linkUrl
-
-            // Format for Tana: Text [URL](URL)
-            result.push(
-              `${baseIndent}- ${linkText.trim()} [${absoluteUrl}](${absoluteUrl})${remaining ? ' ' + remaining : ''}`,
-            )
-          } else {
-            // If we can't form a proper link, just add the text
-            result.push(`${baseIndent}- ${linkText.trim()}${remaining ? ' ' + remaining : ''}`)
-          }
-
-          i = j + 1
-          break
-        } else {
-          // Accumulate link text
-          if (linkText) {
-            linkText += ' ' + nextLine
-          } else {
-            linkText = nextLine
-          }
-          j++
-        }
-      }
-
-      if (!linkComplete) {
-        // If we couldn't complete the link, just add the original lines
-        result.push(lines[i])
-        i++
-      }
+      const { linesConsumed, output } = processBrokenLink(lines, idx, baseUrl)
+      result.push(output)
+      idx += linesConsumed
     } else {
       // Regular line, just add it
-      result.push(lines[i])
-      i++
+      result.push(lines[idx])
+      idx += 1
     }
   }
 
@@ -670,14 +681,5 @@ export function formatForTana(options: {
  * Format page info for Tana in structured format (legacy wrapper)
  */
 export function formatForTanaMarkdown(pageInfo: PageInfo): string {
-  // Convert to unified formatter PageInfo type and delegate
-  const tanaPageInfo: TanaPageInfo = {
-    title: pageInfo.title,
-    url: pageInfo.url,
-    description: pageInfo.description,
-    author: pageInfo.author,
-    content: pageInfo.content,
-  }
-
-  return formatForTanaMarkdownUnified(tanaPageInfo)
+  return formatForTanaMarkdownUnified(pageInfo)
 }
