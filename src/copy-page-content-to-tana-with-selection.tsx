@@ -38,27 +38,21 @@ interface BrowserTab {
 /**
  * Process active tab directly using the reliable method
  */
-async function processActiveTab() {
+/**
+ * Shared logic for processing tab content and formatting for Tana
+ * @param getInfo - Function that retrieves page information
+ * @param toastMessage - Initial toast message
+ */
+async function processTabContent(getInfo: () => Promise<PageInfo>, toastMessage: string) {
   const toast = await showToast({
     style: Toast.Style.Animated,
     title: 'Extracting Page Content',
-    message: 'Processing active tab...',
+    message: toastMessage,
   })
 
   try {
-    // Get content and tab info from focused window's active tab
-    const { content, tabInfo, metadata } = await getActiveTabContent()
-
-    toast.message = 'Converting to Tana format...'
-
-    // Combine all info using the metadata already fetched
-    const pageInfo: PageInfo = {
-      title: metadata.title || tabInfo.title || 'Web Page',
-      url: metadata.url || tabInfo.url,
-      description: metadata.description,
-      author: metadata.author,
-      content,
-    }
+    // Get page information using the provided function
+    const pageInfo = await getInfo()
 
     console.log(
       `🔍 Final page info - Title: "${pageInfo.title}", Content length: ${pageInfo.content.length}`,
@@ -100,74 +94,42 @@ async function processActiveTab() {
   }
 }
 
+async function processActiveTab() {
+  await processTabContent(async () => {
+    // Get content and tab info from focused window's active tab
+    const { content, tabInfo, metadata } = await getActiveTabContent()
+
+    // Combine all info using the metadata already fetched
+    return {
+      title: metadata.title || tabInfo.title || 'Web Page',
+      url: metadata.url || tabInfo.url,
+      description: metadata.description,
+      author: metadata.author,
+      content,
+    }
+  }, 'Processing active tab...')
+}
+
 /**
  * Process selected tab and extract content
  */
 async function processTab(selectedTab: BrowserTab) {
-  const toast = await showToast({
-    style: Toast.Style.Animated,
-    title: 'Extracting Page Content',
-    message: `Processing "${selectedTab.title}"...`,
-  })
-
-  try {
-    toast.message = 'Getting page metadata...'
-
+  await processTabContent(async () => {
     // Extract metadata
     const metadata = await extractPageMetadata(selectedTab.id, selectedTab.url, selectedTab.title)
-
-    toast.message = 'Extracting main content...'
 
     // Extract main content using Raycast's reader mode
     const content = await extractMainContent(selectedTab.id, selectedTab.url)
 
     // Combine all info
-    const pageInfo: PageInfo = {
+    return {
       title: metadata.title || 'Web Page',
       url: metadata.url || selectedTab.url,
       description: metadata.description,
       author: metadata.author,
       content,
     }
-
-    console.log(
-      `🔍 Final page info - Title: "${pageInfo.title}", Content length: ${pageInfo.content.length}`,
-    )
-
-    toast.message = 'Converting to Tana format...'
-
-    // Format for Tana using unified formatter
-    const tanaFormat = formatForTana({
-      title: pageInfo.title,
-      url: pageInfo.url,
-      description: pageInfo.description,
-      author: pageInfo.author,
-      content: pageInfo.content,
-      useSwipeTag: true,
-    })
-    await Clipboard.copy(tanaFormat)
-
-    // Open Tana and update toast to success
-    try {
-      await execAsync('open tana://')
-      toast.style = Toast.Style.Success
-      toast.title = 'Success!'
-      toast.message = 'Page content copied to clipboard and Tana opened'
-    } catch (error) {
-      console.error('Error opening Tana:', error)
-      toast.style = Toast.Style.Success
-      toast.title = 'Success!'
-      toast.message = 'Page content copied to clipboard (could not open Tana)'
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-
-    toast.style = Toast.Style.Failure
-    toast.title = 'Failed to extract page content'
-    toast.message = errorMessage
-
-    console.error('Page content extraction error:', error)
-  }
+  }, `Processing "${selectedTab.title}"...`)
 }
 
 /**
@@ -256,7 +218,6 @@ export default function Command() {
             <Action
               title="Extract Active Tab to Tana"
               onAction={processActiveTab}
-              shortcut={{ modifiers: ['cmd'], key: 'enter' }}
             />
           </ActionPanel>
         }
@@ -277,12 +238,10 @@ export default function Command() {
               <Action.OpenInBrowser
                 title="Open in Browser"
                 url={tab.url}
-                shortcut={{ modifiers: ['cmd'], key: 'o' }}
               />
               <Action.CopyToClipboard
                 title="Copy URL"
                 content={tab.url}
-                shortcut={{ modifiers: ['cmd'], key: 'c' }}
               />
             </ActionPanel>
           }

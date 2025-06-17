@@ -47,6 +47,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Placeholders**: Provide in all text fields
 - **Icons**: 512x512px PNG, must work in light/dark themes (no default Raycast icon)
 - **Preferences**: Use Preferences API for configuration (not separate commands)
+- **Keyboard Shortcuts**: Do not hardcode shortcuts in Actions - let users configure them through Raycast preferences
 
 ### Security & Privacy
 - **No Keychain Access**: Will be rejected for security
