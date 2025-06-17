@@ -21,6 +21,47 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Architecture**: Follow pure functional programming principles with immutable data structures
 - **Testing**: Currently no explicit testing framework - validate changes manually
 
+## Files to Ignore
+
+- **`raycast-env.d.ts`**: Auto-generated file from extension manifest. Do not modify or warn about this file.
+
+## Raycast Extension Compliance
+
+### Technical Requirements
+- **Dependencies**: Use npm with `package-lock.json` committed
+- **API Version**: Always use latest Raycast API version
+- **Build**: Run `npm run build` before submission
+- **License**: Must use MIT license
+- **Node.js**: Requires Node.js 22.14 or higher
+- **Raycast**: Requires Raycast 1.26.0 or higher
+
+### Naming Conventions
+- **Commands**: Use `<verb> <noun>` or just `<noun>` format
+- **Titles**: Follow Apple Style Guide, use title case
+- **Avoid**: Generic names, articles ("a", "an"), restricted words ("Assistant")
+- **Prefer**: Nouns over verbs for clarity
+
+### UI/UX Standards
+- **Navigation**: Use Raycast Navigation API
+- **Empty States**: Handle gracefully with helpful messages
+- **Placeholders**: Provide in all text fields
+- **Icons**: 512x512px PNG, must work in light/dark themes (no default Raycast icon)
+- **Preferences**: Use Preferences API for configuration (not separate commands)
+
+### Security & Privacy
+- **No Keychain Access**: Will be rejected for security
+- **No External Analytics**: Prohibited
+- **User Data**: Only use for service connection and extension improvement
+- **Binary Dependencies**: Avoid opaque or unverified binaries
+- **Third-party Services**: Must comply with their Terms of Service
+
+### Quality Standards
+- **Value**: Must provide genuine value beyond native Raycast functionality
+- **Documentation**: Provide README for complex setup requirements
+- **Changelog**: Include CHANGELOG.md for updates
+- **Error Handling**: Implement robust error handling with helpful messages
+- **Maintenance**: Developer responsible for ongoing support and bug fixes
+
 ## Project Structure
 
 This extension provides tools to convert various formats to Tana Paste format:
