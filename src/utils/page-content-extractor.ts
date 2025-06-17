@@ -440,6 +440,72 @@ export async function extractMainContent(tabId: number, pageUrl: string = ''): P
         replacement: () => '',
       })
 
+      // Add custom rule to convert tables to Tana-friendly nested list format
+      turndownService.addRule('tablesToLists', {
+        filter: 'table',
+        replacement: (content: string, node: Node) => {
+          // Type guard to ensure we're working with an Element
+          if (!(node instanceof Element)) return ''
+
+          const rows = Array.from(node.querySelectorAll('tr'))
+          if (rows.length === 0) return ''
+
+          const result: string[] = []
+
+          // Extract headers if they exist
+          const headerRow = rows.find(
+            (row) => row.querySelector('th') !== null || row.parentElement?.nodeName === 'THEAD',
+          )
+
+          let dataRows = rows
+
+          if (headerRow) {
+            const headers = Array.from(headerRow.querySelectorAll('th, td'))
+              .map((cell) => (cell.textContent || '').trim())
+              .filter((text) => text.length > 0)
+
+            if (headers.length > 0) {
+              result.push(`**Table: ${headers.join(' | ')}**`)
+              result.push('')
+            }
+
+            // Remove header row from data rows
+            dataRows = rows.filter((row) => row !== headerRow)
+          }
+
+          // Process data rows
+          dataRows.forEach((row, rowIndex) => {
+            const cells = Array.from(row.querySelectorAll('td, th'))
+            const cellContents = cells
+              .map((cell) => (cell.textContent || '').trim())
+              .filter((text) => text.length > 0)
+
+            if (cellContents.length > 0) {
+              // For simple tables with 2 columns, format as "Column1: Column2"
+              if (cellContents.length === 2 && !headerRow) {
+                result.push(`- ${cellContents[0]}: ${cellContents[1]}`)
+              } else {
+                // For complex tables, create nested structure
+                result.push(`- Row ${rowIndex + 1}`)
+                cellContents.forEach((content, cellIndex) => {
+                  // Use header names if available
+                  if (headerRow) {
+                    const headers = Array.from(headerRow.querySelectorAll('th, td'))
+                    const headerName =
+                      headers[cellIndex]?.textContent?.trim() || `Column ${cellIndex + 1}`
+                    result.push(`  - ${headerName}: ${content}`)
+                  } else {
+                    result.push(`  - ${content}`)
+                  }
+                })
+              }
+            }
+          })
+
+          return result.join('\n') + '\n'
+        },
+      })
+
       // Convert HTML to markdown
       content = turndownService.turndown(content)
       console.log(`✅ Converted HTML to markdown`)
