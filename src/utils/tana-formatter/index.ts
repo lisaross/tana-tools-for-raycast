@@ -83,7 +83,9 @@ function formatLimitlessPendantTranscript(options: TanaFormatOptions): string {
   const chunks = processAndChunkTranscript(singleLineTranscript)
 
   const lines = ['%%tana%%']
-  lines.push(...formatTranscriptChunks(chunks))
+  if (chunks.length > 0) {
+    lines.push(...formatTranscriptChunks(chunks))
+  }
 
   return lines.join('\n')
 }
@@ -97,7 +99,9 @@ function formatLimitlessAppTranscript(options: TanaFormatOptions): string {
   const chunks = processAndChunkTranscript(singleLineTranscript)
 
   const lines = ['%%tana%%']
-  lines.push(...formatTranscriptChunks(chunks))
+  if (chunks.length > 0) {
+    lines.push(...formatTranscriptChunks(chunks))
+  }
 
   return lines.join('\n')
 }
