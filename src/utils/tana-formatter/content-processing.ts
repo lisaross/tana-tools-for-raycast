@@ -138,7 +138,7 @@ export function convertMarkdownToTana(text: string): string {
   result = result.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, '$1__$2__')
   // Handle underscore italic (single underscores, not double)
   // Match single underscore that's not preceded or followed by another underscore
-  result = result.replace(/(^|[^_])_([^_\n\s]+?)_(?!_)/g, '$1__$2__')
+  result = result.replace(/(^|[^_])_([^_\n]+?)_(?!_)/g, '$1__$2__')
 
   // Convert highlight: ==text== to ^^text^^ (Tana highlight format)
   result = result.replace(/==([^=\n]+)==/g, '^^$1^^')
