@@ -44,13 +44,17 @@ export function chunkTranscript(transcript: string, maxSize: number = 7000): Tra
     const targetEnd = currentPosition + maxSize
 
     // Find the best split point using smart boundary detection
-    const actualEnd = findBestSplitPoint(transcript, Math.min(targetEnd, transcriptLength))
+    let actualEnd = findBestSplitPoint(
+      transcript,
+      Math.min(targetEnd, transcriptLength),
+      currentPosition,
+    )
 
     // Guard against infinite loop: ensure forward progress
     if (actualEnd <= currentPosition) {
-      // Advance by at least one character, but respect max chunk size
-      currentPosition = Math.min(currentPosition + 1, transcriptLength)
-      continue
+      // Force a minimum chunk size to prevent content loss
+      const minChunkSize = Math.max(100, Math.floor(maxSize * 0.1))
+      actualEnd = Math.min(currentPosition + minChunkSize, transcriptLength)
     }
 
     // Extract chunk content
@@ -88,7 +92,11 @@ export function chunkTranscript(transcript: string, maxSize: number = 7000): Tra
 /**
  * Find the best split point near a target position using sentence and word boundaries
  */
-function findBestSplitPoint(text: string, targetPosition: number): number {
+function findBestSplitPoint(
+  text: string,
+  targetPosition: number,
+  currentPosition: number = 0,
+): number {
   const textLength = text.length
   if (targetPosition >= textLength) {
     return textLength
@@ -124,7 +132,12 @@ function findBestSplitPoint(text: string, targetPosition: number): number {
     // Return the position after the sentence boundary
     const matchIndex = bestMatch.index ?? 0
     const matchLength = bestMatch[0]?.length ?? 0
-    return searchStart + matchIndex + matchLength
+    const splitPoint = searchStart + matchIndex + matchLength
+
+    // Ensure forward progress
+    if (splitPoint > currentPosition) {
+      return splitPoint
+    }
   }
 
   // If no sentence boundary found, look for word boundaries
@@ -145,7 +158,24 @@ function findBestSplitPoint(text: string, targetPosition: number): number {
     currentPos = wordEnd + 1 // +1 for the space
   }
 
-  return Math.min(bestWordSplit, textLength)
+  const wordSplitResult = Math.min(bestWordSplit, textLength)
+
+  // Ensure forward progress - if no good split point found, advance by minimum amount
+  if (wordSplitResult <= currentPosition) {
+    // Fallback: advance by at least 50 characters or to next space, whichever comes first
+    const minAdvance = 50
+    let fallbackPosition = currentPosition + minAdvance
+
+    // Look for next space within reasonable distance
+    const nextSpaceIndex = text.indexOf(' ', currentPosition + 10)
+    if (nextSpaceIndex !== -1 && nextSpaceIndex < currentPosition + minAdvance * 2) {
+      fallbackPosition = nextSpaceIndex + 1
+    }
+
+    return Math.min(fallbackPosition, textLength)
+  }
+
+  return wordSplitResult
 }
 
 /**

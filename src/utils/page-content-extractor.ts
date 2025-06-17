@@ -443,7 +443,7 @@ export async function extractMainContent(tabId: number, pageUrl: string = ''): P
       // Add custom rule to convert tables to proper markdown table format for Tana Paste
       turndownService.addRule('tablesAsMarkdown', {
         filter: 'table',
-        replacement: (content: string, node: Node) => {
+        replacement: (_content: string, node: Node) => {
           // Type guard and cast to any to work with DOM methods
           if (!node || typeof node !== 'object' || !('querySelectorAll' in node)) return ''
           const element = node as any
@@ -457,7 +457,7 @@ export async function extractMainContent(tabId: number, pageUrl: string = ''): P
           let headers: string[] = []
           let hasHeaderRow = false
 
-          rows.forEach((row: any, rowIndex) => {
+          rows.forEach((row: any, _rowIndex) => {
             const cells = Array.from(row.querySelectorAll('td, th'))
             const cellContents = cells.map((cell: any) => (cell.textContent || '').trim())
 
@@ -467,7 +467,8 @@ export async function extractMainContent(tabId: number, pageUrl: string = ''): P
             }
 
             // Check if this row contains header cells (th elements)
-            const isHeaderRow = Array.from(row.querySelectorAll('th')).length > 0 || row.closest('thead') !== null
+            const isHeaderRow =
+              Array.from(row.querySelectorAll('th')).length > 0 || row.closest('thead') !== null
 
             if (isHeaderRow && !hasHeaderRow) {
               // This is the header row
@@ -480,7 +481,7 @@ export async function extractMainContent(tabId: number, pageUrl: string = ''): P
             } else {
               // This is a data row
               const dataCells = cellContents.map((content) => content || ' ')
-              
+
               // If we don't have headers yet, create generic ones
               if (!hasHeaderRow && dataCells.length > 0) {
                 headers = dataCells.map((_, index) => `Column ${index + 1}`)
@@ -488,7 +489,7 @@ export async function extractMainContent(tabId: number, pageUrl: string = ''): P
                 result.push(`| ${headers.map(() => '---').join(' | ')} |`)
                 hasHeaderRow = true
               }
-              
+
               // Add the data row
               if (dataCells.length > 0) {
                 // Pad row to match header length if needed
