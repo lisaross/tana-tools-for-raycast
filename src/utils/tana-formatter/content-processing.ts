@@ -414,7 +414,9 @@ export function cleanContentForTana(content: string): string {
     // Use hierarchical markdown processing
     const nodes = parseMarkdownStructure(content)
     const tanaLines = convertNodesToTana(nodes)
-    return tanaLines.join('\n')
+    // Escape # in content (but headings are already converted to !! format)
+    const escapedLines = tanaLines.map((line) => line.replace(/#/g, '\\#'))
+    return escapedLines.join('\n')
   } else {
     // Use simple line-by-line processing for content without headings
     return content

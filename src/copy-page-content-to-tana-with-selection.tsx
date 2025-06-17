@@ -215,10 +215,7 @@ export default function Command() {
         icon="⚡"
         actions={
           <ActionPanel>
-            <Action
-              title="Extract Active Tab to Tana"
-              onAction={processActiveTab}
-            />
+            <Action title="Extract Active Tab to Tana" onAction={processActiveTab} />
           </ActionPanel>
         }
       />
@@ -235,14 +232,8 @@ export default function Command() {
           actions={
             <ActionPanel>
               <Action title="Extract Content to Tana" onAction={() => processTab(tab)} />
-              <Action.OpenInBrowser
-                title="Open in Browser"
-                url={tab.url}
-              />
-              <Action.CopyToClipboard
-                title="Copy URL"
-                content={tab.url}
-              />
+              <Action.OpenInBrowser title="Open in Browser" url={tab.url} />
+              <Action.CopyToClipboard title="Copy URL" content={tab.url} />
             </ActionPanel>
           }
         />
