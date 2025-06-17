@@ -409,13 +409,13 @@ export async function extractMainContent(tabId: number, pageUrl: string = ''): P
 
       // Add custom rule to remove SVG elements
       turndownService.addRule('removeSvg', {
-        filter: (node: Element) => node.nodeName === 'SVG' || node.nodeName === 'PATH',
+        filter: (node: any) => node.nodeName === 'SVG' || node.nodeName === 'PATH',
         replacement: () => '',
       })
 
       // Add custom rule to filter out javascript:void links and unwanted links
       turndownService.addRule('filterBadLinks', {
-        filter: (node: Element) => {
+        filter: (node: any) => {
           if (node.nodeName === 'A') {
             const href = node.getAttribute('href') || ''
             const text = (node.textContent || '').trim()
@@ -440,69 +440,67 @@ export async function extractMainContent(tabId: number, pageUrl: string = ''): P
         replacement: () => '',
       })
 
-      // Add custom rule to convert tables to Tana-friendly nested list format
-      turndownService.addRule('tablesToLists', {
+      // Add custom rule to convert tables to proper markdown table format for Tana Paste
+      turndownService.addRule('tablesAsMarkdown', {
         filter: 'table',
         replacement: (content: string, node: Node) => {
-          // Type guard to ensure we're working with an Element
-          if (!(node instanceof Element)) return ''
+          // Type guard and cast to any to work with DOM methods
+          if (!node || typeof node !== 'object' || !('querySelectorAll' in node)) return ''
+          const element = node as any
 
-          const rows = Array.from(node.querySelectorAll('tr'))
+          const rows = Array.from(element.querySelectorAll('tr'))
           if (rows.length === 0) return ''
 
           const result: string[] = []
 
-          // Extract headers if they exist
-          const headerRow = rows.find(
-            (row) => row.querySelector('th') !== null || row.parentElement?.nodeName === 'THEAD',
-          )
+          // Process all rows to build markdown table
+          let headers: string[] = []
+          let hasHeaderRow = false
 
-          let dataRows = rows
+          rows.forEach((row: any, rowIndex) => {
+            const cells = Array.from(row.querySelectorAll('td, th'))
+            const cellContents = cells.map((cell: any) => (cell.textContent || '').trim())
 
-          if (headerRow) {
-            const headers = Array.from(headerRow.querySelectorAll('th, td'))
-              .map((cell) => (cell.textContent || '').trim())
-              .filter((text) => text.length > 0)
-
-            if (headers.length > 0) {
-              result.push(`**Table: ${headers.join(' | ')}**`)
-              result.push('')
+            // Skip completely empty rows
+            if (cellContents.every((content) => content.length === 0)) {
+              return
             }
 
-            // Remove header row from data rows
-            dataRows = rows.filter((row) => row !== headerRow)
-          }
+            // Check if this row contains header cells (th elements)
+            const isHeaderRow = Array.from(row.querySelectorAll('th')).length > 0 || row.closest('thead') !== null
 
-          // Process data rows
-          dataRows.forEach((row, rowIndex) => {
-            const cells = Array.from(row.querySelectorAll('td, th'))
-            const cellContents = cells
-              .map((cell) => (cell.textContent || '').trim())
-              .filter((text) => text.length > 0)
-
-            if (cellContents.length > 0) {
-              // For simple tables with 2 columns, format as "Column1: Column2"
-              if (cellContents.length === 2 && !headerRow) {
-                result.push(`- ${cellContents[0]}: ${cellContents[1]}`)
-              } else {
-                // For complex tables, create nested structure
-                result.push(`- Row ${rowIndex + 1}`)
-                cellContents.forEach((content, cellIndex) => {
-                  // Use header names if available
-                  if (headerRow) {
-                    const headers = Array.from(headerRow.querySelectorAll('th, td'))
-                    const headerName =
-                      headers[cellIndex]?.textContent?.trim() || `Column ${cellIndex + 1}`
-                    result.push(`  - ${headerName}: ${content}`)
-                  } else {
-                    result.push(`  - ${content}`)
-                  }
-                })
+            if (isHeaderRow && !hasHeaderRow) {
+              // This is the header row
+              headers = cellContents.filter((content) => content.length > 0)
+              if (headers.length > 0) {
+                result.push(`| ${headers.join(' | ')} |`)
+                result.push(`| ${headers.map(() => '---').join(' | ')} |`)
+                hasHeaderRow = true
+              }
+            } else {
+              // This is a data row
+              const dataCells = cellContents.map((content) => content || ' ')
+              
+              // If we don't have headers yet, create generic ones
+              if (!hasHeaderRow && dataCells.length > 0) {
+                headers = dataCells.map((_, index) => `Column ${index + 1}`)
+                result.push(`| ${headers.join(' | ')} |`)
+                result.push(`| ${headers.map(() => '---').join(' | ')} |`)
+                hasHeaderRow = true
+              }
+              
+              // Add the data row
+              if (dataCells.length > 0) {
+                // Pad row to match header length if needed
+                while (dataCells.length < headers.length) {
+                  dataCells.push(' ')
+                }
+                result.push(`| ${dataCells.join(' | ')} |`)
               }
             }
           })
 
-          return result.join('\n') + '\n'
+          return result.length > 0 ? '\n' + result.join('\n') + '\n' : ''
         },
       })
 
