@@ -21,7 +21,17 @@ const execAsync = promisify(exec)
  */
 
 /**
- * Main command entry point
+ * Extract content from the active browser tab and convert to Tana Paste format
+ * 
+ * Uses Raycast Browser Extension to extract clean page content using reader mode,
+ * then converts it to Tana format with proper metadata (title, URL, description, author).
+ * Automatically opens Tana application after copying content to clipboard.
+ * 
+ * Requirements:
+ * - Raycast Browser Extension must be installed and enabled
+ * - A browser tab must be open and focused
+ * 
+ * @returns Promise that resolves when command completes
  */
 export default async function Command() {
   const toast = await showToast({

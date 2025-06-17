@@ -3,6 +3,15 @@
  * Extracted from the sophisticated tana-converter chunking logic
  */
 
+/**
+ * Represents a single chunk of transcript content with metadata
+ * 
+ * @interface TranscriptChunk
+ * @property {string} content - The text content of this chunk
+ * @property {number} chunkNumber - Sequential number of this chunk (1-indexed)
+ * @property {number} [totalChunks] - Total number of chunks in the complete transcript
+ * @property {number} [wordCount] - Number of words in this chunk's content
+ */
 export interface TranscriptChunk {
   content: string
   chunkNumber: number
@@ -90,7 +99,16 @@ export function chunkTranscript(transcript: string, maxSize: number = 7000): Tra
 }
 
 /**
- * Find the best split point near a target position using sentence and word boundaries
+ * Find the optimal split point near a target position using intelligent boundary detection
+ * 
+ * Attempts to split transcript content at natural boundaries (sentences, then words)
+ * to maintain readability and context. Searches within a reasonable range around
+ * the target position to find the best split point.
+ * 
+ * @param text - The complete text to analyze for split points
+ * @param targetPosition - Desired position to split near
+ * @param currentPosition - Current processing position (for progress validation)
+ * @returns The optimal character position to split the text
  */
 function findBestSplitPoint(
   text: string,
@@ -179,7 +197,13 @@ function findBestSplitPoint(
 }
 
 /**
- * Count words in text content
+ * Count the number of words in text content
+ * 
+ * Splits text on whitespace and filters out empty strings to get an accurate
+ * word count. Used for chunk metadata and sizing calculations.
+ * 
+ * @param text - The text content to count words in
+ * @returns Number of words in the text, or 0 if text is empty
  */
 function countWords(text: string): number {
   if (!text || text.trim().length === 0) {

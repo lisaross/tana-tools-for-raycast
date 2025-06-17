@@ -262,7 +262,16 @@ export function makeAbsoluteUrl(url: string, baseUrl: string): string {
 }
 
 /**
- * Helper function to process broken link patterns
+ * Helper function to process broken link patterns across multiple lines
+ * 
+ * Handles markdown links that have been split across lines by content extraction,
+ * where the link text and URL appear on separate lines. Reconstructs proper
+ * markdown links and converts relative URLs to absolute URLs when possible.
+ * 
+ * @param lines - Array of all content lines
+ * @param startIndex - Index of the line containing the opening bracket
+ * @param baseUrl - Base URL for converting relative links to absolute
+ * @returns Object containing number of lines consumed and the processed output
  */
 function processBrokenLink(
   lines: string[],

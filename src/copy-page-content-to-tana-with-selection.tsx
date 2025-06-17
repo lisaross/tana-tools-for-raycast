@@ -28,6 +28,15 @@ const execAsync = promisify(exec)
  * using Raycast's reader mode and applies comprehensive metadata extraction.
  */
 
+/**
+ * Browser tab information from the Raycast Browser Extension API
+ * 
+ * @interface BrowserTab
+ * @property {number} id - Unique identifier for the browser tab
+ * @property {string} title - The page title displayed in the tab
+ * @property {string} url - The full URL of the page
+ * @property {boolean} active - Whether this tab is currently active (Note: unreliable across windows)
+ */
 interface BrowserTab {
   id: number
   title: string
@@ -94,6 +103,15 @@ async function processTabContent(getInfo: () => Promise<PageInfo>, toastMessage:
   }
 }
 
+/**
+ * Process the currently active/focused browser tab for content extraction
+ * 
+ * Uses the focused tab title matching approach to identify the correct tab
+ * and extract its content with metadata. This is the most reliable method
+ * for getting content from the tab the user is actually viewing.
+ * 
+ * @returns Promise that resolves when processing completes
+ */
 async function processActiveTab() {
   await processTabContent(async () => {
     // Get content and tab info from focused window's active tab
@@ -111,7 +129,13 @@ async function processActiveTab() {
 }
 
 /**
- * Process selected tab and extract content
+ * Process a user-selected browser tab for content extraction
+ * 
+ * Extracts content and metadata from the specified tab using the Browser Extension API.
+ * This allows users to choose any tab from the available tabs list.
+ * 
+ * @param selectedTab - The browser tab object selected by the user
+ * @returns Promise that resolves when processing completes
  */
 async function processTab(selectedTab: BrowserTab) {
   await processTabContent(async () => {
@@ -133,7 +157,13 @@ async function processTab(selectedTab: BrowserTab) {
 }
 
 /**
- * Get domain name from URL for display
+ * Extract clean domain name from URL for display purposes
+ * 
+ * Removes protocol, www prefix, and handles invalid URLs gracefully.
+ * Used in the tab selection interface to show readable domain names.
+ * 
+ * @param url - The full URL to extract domain from
+ * @returns Clean domain name (e.g., "example.com") or "Unknown" if URL is invalid
  */
 function getDomainFromUrl(url: string): string {
   try {
@@ -145,7 +175,20 @@ function getDomainFromUrl(url: string): string {
 }
 
 /**
- * Main command component with tab selection
+ * Interactive browser tab selection command for content extraction
+ * 
+ * Displays a list of all available browser tabs, allowing users to either:
+ * - Select "Active Tab" to process the currently focused tab
+ * - Choose any specific tab from the list to extract its content
+ * 
+ * Each tab shows its title, domain, and URL for easy identification.
+ * After selection, extracts page content and converts to Tana Paste format.
+ * 
+ * Requirements:
+ * - Raycast Browser Extension must be installed and enabled
+ * - At least one browser tab must be open
+ * 
+ * @returns React component for tab selection interface
  */
 export default function Command() {
   const [tabs, setTabs] = useState<BrowserTab[]>([])

@@ -75,7 +75,13 @@ export function formatForTana(options: TanaFormatOptions): string {
 }
 
 /**
- * Format Limitless Pendant transcription
+ * Format Limitless Pendant transcription for Tana
+ * 
+ * Processes raw Limitless Pendant transcript data by cleaning it up,
+ * chunking it into manageable segments, and formatting as Tana nodes.
+ * 
+ * @param options - Formatting options containing content or lines
+ * @returns Formatted Tana Paste string with %%tana%% header
  */
 function formatLimitlessPendantTranscript(options: TanaFormatOptions): string {
   const rawContent = options.content || (options.lines ? options.lines.join('\n') : '')
@@ -91,7 +97,13 @@ function formatLimitlessPendantTranscript(options: TanaFormatOptions): string {
 }
 
 /**
- * Format Limitless App transcription
+ * Format Limitless App transcription for Tana
+ * 
+ * Processes raw Limitless App transcript data by cleaning it up,
+ * chunking it into manageable segments, and formatting as Tana nodes.
+ * 
+ * @param options - Formatting options containing content or lines
+ * @returns Formatted Tana Paste string with %%tana%% header
  */
 function formatLimitlessAppTranscript(options: TanaFormatOptions): string {
   const rawContent = options.content || (options.lines ? options.lines.join('\n') : '')
@@ -107,7 +119,14 @@ function formatLimitlessAppTranscript(options: TanaFormatOptions): string {
 }
 
 /**
- * Format YouTube video with proper metadata and transcript structure
+ * Format YouTube video content with metadata and transcript for Tana
+ * 
+ * Creates a comprehensive Tana node structure including video title with #video tag,
+ * metadata fields (URL, channel, author, duration, description), and transcript
+ * content if available. Transcript is chunked and formatted as child nodes.
+ * 
+ * @param options - Formatting options with video metadata and transcript content
+ * @returns Formatted Tana Paste string with complete video information
  */
 function formatYouTubeVideoContent(options: TanaFormatOptions): string {
   const lines = ['%%tana%%']
@@ -146,7 +165,14 @@ function formatYouTubeVideoContent(options: TanaFormatOptions): string {
 }
 
 /**
- * Format YouTube transcript content
+ * Format standalone YouTube transcript content for Tana
+ * 
+ * Processes YouTube transcript text, applies smart chunking for readability,
+ * and formats as Tana nodes. Can include video metadata or format as standalone
+ * transcript chunks depending on options.
+ * 
+ * @param options - Formatting options with transcript content and optional metadata
+ * @returns Formatted Tana Paste string with transcript content
  */
 function formatYouTubeTranscript(options: TanaFormatOptions): string {
   const rawContent = options.content || (options.lines ? options.lines.join('\n') : '')
@@ -175,7 +201,14 @@ function formatYouTubeTranscript(options: TanaFormatOptions): string {
 }
 
 /**
- * Format browser page content with metadata
+ * Format browser page content with metadata for Tana
+ * 
+ * Extracts and formats web page content including title, URL, author, description,
+ * and main content. Applies content cleaning, removes problematic characters,
+ * and structures content hierarchically under a Content:: field.
+ * 
+ * @param options - Formatting options with page metadata and content
+ * @returns Formatted Tana Paste string with structured page content
  */
 function formatBrowserPageContent(options: TanaFormatOptions): string {
   const lines = ['%%tana%%']
@@ -200,7 +233,13 @@ function formatBrowserPageContent(options: TanaFormatOptions): string {
 }
 
 /**
- * Format selected text content
+ * Format user-selected text content for Tana
+ * 
+ * Takes an array of selected text lines and formats them as a hierarchical
+ * Tana structure. Preserves line structure and applies proper indentation.
+ * 
+ * @param options - Formatting options containing lines array
+ * @returns Formatted Tana Paste string with hierarchical text structure
  */
 function formatSelectedTextContent(options: TanaFormatOptions): string {
   const lines = ['%%tana%%']
@@ -213,7 +252,13 @@ function formatSelectedTextContent(options: TanaFormatOptions): string {
 }
 
 /**
- * Format plain text content
+ * Format plain text content for Tana
+ * 
+ * Takes raw text content, splits it into lines, and formats as a hierarchical
+ * Tana structure. Filters out empty lines while preserving content structure.
+ * 
+ * @param options - Formatting options containing raw text content
+ * @returns Formatted Tana Paste string with hierarchical text structure
  */
 function formatPlainTextContent(options: TanaFormatOptions): string {
   const lines = ['%%tana%%']
