@@ -37,12 +37,6 @@
       "mode": "view"
     },
     {
-      "name": "selected-to-tana",
-      "title": "Convert Selected Text to Tana",
-      "description": "Convert currently selected text to Tana Paste format",
-      "mode": "no-view"
-    },
-    {
       "name": "youtube-to-tana",
       "title": "Youtube to Tana",
       "description": "Extract YouTube video information from Chrome, Arc, or Safari and convert to Tana Paste format",
@@ -53,6 +47,12 @@
       "title": "Copy Page Content to Tana",
       "description": "Extract all text from the current browser page and convert to Tana Paste format",
       "mode": "no-view"
+    },
+    {
+      "name": "copy-page-content-to-tana-with-selection",
+      "title": "Copy Page Content to Tana (select Tab)",
+      "description": "Choose from available browser tabs and extract content to Tana Paste format",
+      "mode": "view"
     }
   ],
   "dependencies": {

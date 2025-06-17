@@ -1,6 +1,6 @@
 # Tana Tools for Raycast
 
-Convert text, Markdown, YouTube, and Limitless content to Tana Paste format from Raycast.
+Convert clipboard content, Markdown, YouTube, and Limitless content to Tana Paste format from Raycast.
 
 > **⚠️ Important:** Web-based commands require the [Raycast Browser Extension](https://raycast.com/browser-extension)
 
@@ -8,7 +8,7 @@ Convert text, Markdown, YouTube, and Limitless content to Tana Paste format from
 
 ## Features
 
-- Convert clipboard, selected text, or web content to Tana Paste format
+- Convert clipboard or web content to Tana Paste format
 - Extract and format YouTube video metadata and transcripts using Raycast Browser Extension API
 - Process Limitless Pendant and App transcriptions
 - Edit content before converting
@@ -22,7 +22,6 @@ Convert text, Markdown, YouTube, and Limitless content to Tana Paste format from
 
 - **Quick Clipboard to Tana:** Instantly convert clipboard content to Tana format
 - **Paste and Edit for Tana:** Review and edit content before converting
-- **Convert Selected Text to Tana:** Convert highlighted text (includes page title/URL for web content)
 - **YouTube to Tana:** Extract video title, URL, channel, description, duration, and transcript from active YouTube tab (requires manually clicking "Show transcript" first)
 - **Copy Page Content to Tana Paste:** Extract main content from web pages
 
@@ -56,7 +55,7 @@ Convert text, Markdown, YouTube, and Limitless content to Tana Paste format from
 
 ### For Web Content Extraction
 
-Requires Raycast Browser Extension. Compatible with Chrome, Arc, and Safari for extracting page content and selected text.
+Requires Raycast Browser Extension. Compatible with Chrome, Arc, and Safari for extracting page content.
 
 ## Example
 

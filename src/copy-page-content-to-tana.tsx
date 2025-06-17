@@ -1,90 +1,85 @@
-import { showHUD, Clipboard, BrowserExtension } from '@raycast/api'
+import { Clipboard, Toast, showToast } from '@raycast/api'
 import { exec } from 'child_process'
 import { promisify } from 'util'
-import os from 'os'
-import TurndownService from 'turndown'
-import { convertToTana } from './utils/tana-converter'
+import { PageInfo, getActiveTabContent } from './utils/page-content-extractor'
+import { formatForTana } from './utils/tana-formatter'
 
 const execAsync = promisify(exec)
 
 /**
- * Raycast command that extracts content from the active browser tab and converts it to Tana format
- * Extracts the main content (using main, article, or body selectors), converts HTML to markdown,
- * formats it for Tana with the page title and URL, and opens the Tana application
+ * Enhanced Copy Page Content to Tana
+ *
+ * Uses the Raycast Browser Extension's reader mode to extract clean content,
+ * then applies comprehensive metadata extraction and proper hierarchical formatting.
+ *
+ * FEATURES:
+ * - Leverages Raycast's built-in reader mode for intelligent content extraction
+ * - Extracts rich metadata (title, description, author, URL)
+ * - Converts headings to parent nodes (not Tana headings)
+ * - Maintains proper content hierarchy under headings
+ * - Automatically filters out ads, navigation, and other noise
+ */
+
+/**
+ * Main command entry point
  */
 export default async function Command() {
+  const toast = await showToast({
+    style: Toast.Style.Animated,
+    title: 'Extracting Page Content',
+  })
+
   try {
-    let pageTitle = ''
-    let pageHtml = ''
-    let url = ''
-    const tabs = await BrowserExtension.getTabs()
-    const activeTab = tabs?.find((tab) => tab.active)
-    if (!activeTab) {
-      await showHUD('No active browser tab found.')
-      return
-    }
-    url = activeTab.url || ''
-    pageTitle = activeTab.title || 'Untitled Page'
-    try {
-      pageHtml = await BrowserExtension.getContent({
-        cssSelector: 'main',
-        format: 'html',
-        tabId: activeTab.id,
-      })
-    } catch {
-      try {
-        pageHtml = await BrowserExtension.getContent({
-          cssSelector: 'article',
-          format: 'html',
-          tabId: activeTab.id,
-        })
-      } catch {
-        try {
-          pageHtml = await BrowserExtension.getContent({
-            cssSelector: 'body',
-            format: 'html',
-            tabId: activeTab.id,
-          })
-        } catch (error2) {
-          console.error('Error getting page HTML:', error2)
-          await showHUD('Unable to get page HTML. Please try again.')
-          return
-        }
-      }
+    // Get content and tab info from focused window's active tab
+    const { content, tabInfo, metadata } = await getActiveTabContent()
+
+    toast.message = 'Converting to Tana format...'
+
+    // Combine all info using the metadata already fetched
+    const pageInfo: PageInfo = {
+      title: metadata.title || tabInfo.title || 'Web Page',
+      url: metadata.url || tabInfo.url,
+      description: metadata.description,
+      author: metadata.author,
+      content,
     }
 
-    if (!pageHtml) {
-      await showHUD('Unable to extract main content.')
-      return
-    }
+    console.log(
+      `🔍 Final page info - Title: "${pageInfo.title}", Content length: ${pageInfo.content.length}`,
+    )
 
-    // Use Turndown to convert HTML to Markdown, but ignore images
-    const turndownService = new TurndownService()
-    turndownService.addRule('no-images', {
-      filter: 'img',
-      replacement: () => '',
+    toast.message = 'Converting to Tana format...'
+
+    // Format for Tana using unified formatter
+    const tanaFormat = formatForTana({
+      title: pageInfo.title,
+      url: pageInfo.url,
+      description: pageInfo.description,
+      author: pageInfo.author,
+      content: pageInfo.content,
+      useSwipeTag: true,
     })
-    const markdown = turndownService.turndown(pageHtml)
+    await Clipboard.copy(tanaFormat)
 
-    // Indent markdown content while preserving structure
-    const indentedMarkdown = markdown
-      .split('\n\n') // Split by paragraphs instead of lines
-      .filter((paragraph) => paragraph.trim() !== '')
-      .map((paragraph) => `  - ${paragraph.replace(/\n/g, ' ')}`) // Join lines within paragraphs
-      .join('\n')
-
-    // Compose Tana input: root node, URL, then the indented main content
-    const tanaInput = `- ${pageTitle} #swipe\n  - URL::${url}\n${indentedMarkdown}`
-    const tanaPaste = convertToTana(tanaInput)
-    await Clipboard.copy(tanaPaste)
-    await showHUD('Copied page content to Tana Paste!')
-
-    // Cross-platform open for tana://
-    const opener =
-      os.platform() === 'darwin' ? 'open' : os.platform() === 'win32' ? 'start' : 'xdg-open'
-    await execAsync(`${opener} tana://`)
+    // Open Tana and update toast to success
+    try {
+      await execAsync('open tana://')
+      toast.style = Toast.Style.Success
+      toast.title = 'Success!'
+      toast.message = 'Page content copied to clipboard and Tana opened'
+    } catch (error) {
+      console.error('Error opening Tana:', error)
+      toast.style = Toast.Style.Success
+      toast.title = 'Success!'
+      toast.message = 'Page content copied to clipboard (could not open Tana)'
+    }
   } catch (error) {
-    console.error(error)
-    await showHUD(`Error: ${(error as Error).message}`)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+
+    toast.style = Toast.Style.Failure
+    toast.title = 'Failed to extract page content'
+    toast.message = errorMessage
+
+    console.error('Page content extraction error:', error)
   }
 }
