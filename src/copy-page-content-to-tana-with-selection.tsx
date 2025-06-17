@@ -80,8 +80,8 @@ async function processTabContent(getInfo: () => Promise<PageInfo>, toastMessage:
     } catch (error) {
       console.error('Error opening Tana:', error)
       toast.style = Toast.Style.Success
-      toast.title = 'Success!'
-      toast.message = 'Page content copied to clipboard (could not open Tana)'
+      toast.title = 'Content Copied (Tana failed to open)'
+      toast.message = ''
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
