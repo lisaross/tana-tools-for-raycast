@@ -11,6 +11,12 @@ import {
 
 /**
  * Format metadata fields for Tana
+ *
+ * Creates properly formatted metadata fields (URL, Author, Description, etc.)
+ * with field name sanitization and conditional inclusion based on preferences.
+ *
+ * @param options - Object containing metadata and formatting preferences
+ * @returns Array of formatted field strings ready for Tana
  */
 export function formatMetadataFields(options: {
   url?: string;
@@ -70,6 +76,14 @@ export function formatMetadataFields(options: {
 
 /**
  * Format content under a Content:: field with hierarchical structure
+ *
+ * Processes and formats content for the main content field, handling
+ * different content types and applying appropriate cleaning and formatting.
+ * Uses hierarchical processing for content with markdown headings.
+ *
+ * @param content - Raw content to format
+ * @param contentField - Name of the content field (default: "Content")
+ * @returns Array of formatted content lines ready for Tana
  */
 export function formatContentField(
   content: string,
@@ -169,6 +183,13 @@ export function formatTranscriptField(
 
 /**
  * Format transcript chunks under a single Transcript:: field as nested children
+ *
+ * Creates a single Transcript field with multiple chunks as nested children,
+ * providing better organization for long transcripts in Tana.
+ *
+ * @param chunks - Array of transcript chunks to format
+ * @param transcriptField - Name of the transcript field (default: "Transcript")
+ * @returns Array of formatted transcript lines with nested structure
  */
 export function formatTranscriptFieldWithSiblings(
   chunks: TranscriptChunk[],
@@ -191,6 +212,13 @@ export function formatTranscriptFieldWithSiblings(
 
 /**
  * Format simple lines as parent/child structure
+ *
+ * Converts flat content lines into a hierarchical bullet structure
+ * for better organization and readability in Tana. Filters out empty
+ * bullets and invisible characters.
+ *
+ * @param lines - Array of content lines to format
+ * @returns Array of formatted lines with proper bullet hierarchy
  */
 export function formatLinesAsHierarchy(lines: string[]): string[] {
   if (!lines || lines.length === 0) {

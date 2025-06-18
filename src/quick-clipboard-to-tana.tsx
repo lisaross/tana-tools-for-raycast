@@ -1,5 +1,5 @@
 import { Clipboard, showHUD, getPreferenceValues } from "@raycast/api";
-import { formatForTana } from "./utils/page-content-extractor";
+import { formatForTana } from "./utils/tana-formatter";
 import { exec } from "child_process";
 import { promisify } from "util";
 

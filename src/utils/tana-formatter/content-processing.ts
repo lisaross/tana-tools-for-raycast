@@ -42,6 +42,12 @@ interface ContentSection {
 
 /**
  * Parse markdown content into hierarchical structure with headings and nested content
+ *
+ * Analyzes markdown text and creates a hierarchical structure where headings
+ * become parent nodes and content becomes children, preserving the document structure.
+ *
+ * @param content - The markdown content to parse
+ * @returns Array of ContentNode objects representing the hierarchical structure
  */
 export function parseMarkdownStructure(content: string): ContentNode[] {
   if (!content) return [];
@@ -88,6 +94,12 @@ export function parseMarkdownStructure(content: string): ContentNode[] {
 
 /**
  * Build hierarchical node structure from flat sections
+ *
+ * Takes flat content sections and builds a proper hierarchy based on heading levels,
+ * ensuring child nodes are properly nested under their parent headings.
+ *
+ * @param sections - Array of content sections to organize hierarchically
+ * @returns Array of ContentNode objects with proper parent-child relationships
  */
 function buildHierarchy(sections: ContentSection[]): ContentNode[] {
   const result: ContentNode[] = [];
@@ -144,6 +156,12 @@ function buildHierarchy(sections: ContentSection[]): ContentNode[] {
 
 /**
  * Convert markdown text formatting to Tana format
+ *
+ * Transforms markdown syntax to Tana-compatible formatting, including
+ * italic markers, highlights, blockquotes, images, and list structures.
+ *
+ * @param text - Markdown text to convert
+ * @returns Text formatted for Tana with proper syntax
  */
 export function convertMarkdownToTana(text: string): string {
   if (!text) return "";
@@ -178,6 +196,13 @@ export function convertMarkdownToTana(text: string): string {
 
 /**
  * Convert markdown and various list formats to Tana bullet format
+ *
+ * Handles multiple list formats including markdown bullets, Unicode bullets,
+ * numbered lists, lettered lists, and Roman numerals, converting all to
+ * consistent Tana bullet format while preserving indentation.
+ *
+ * @param text - Text containing various list formats
+ * @returns Text with all lists converted to Tana bullet format
  */
 function convertMarkdownLists(text: string): string {
   const lines = text.split("\n");
@@ -233,6 +258,13 @@ function convertMarkdownLists(text: string): string {
 
 /**
  * Convert hierarchical content nodes to Tana format
+ *
+ * Recursively converts ContentNode objects to Tana bullet format,
+ * handling headings as parent nodes and maintaining proper indentation.
+ *
+ * @param nodes - Array of ContentNode objects to convert
+ * @param depth - Current indentation depth (default: 0)
+ * @returns Array of formatted Tana lines
  */
 export function convertNodesToTana(
   nodes: ContentNode[],
@@ -283,6 +315,12 @@ export function convertNodesToTana(
 
 /**
  * Check if a line is an empty bullet node
+ *
+ * Detects various forms of empty bullet points including standard bullets,
+ * Unicode bullets, and lines with only invisible characters.
+ *
+ * @param line - Text line to check
+ * @returns True if the line is an empty bullet node
  */
 function isEmptyBulletNode(line: string): boolean {
   const trimmed = line.trim();
@@ -303,7 +341,13 @@ function isEmptyBulletNode(line: string): boolean {
 
 /**
  * Process a Limitless Pendant transcription into a clean single-line format
+ *
+ * Converts Limitless Pendant format transcripts into clean, single-line format
+ * by extracting speaker names and content while removing timestamps and metadata.
  * Format: > [Speaker](#startMs=timestamp&endMs=timestamp): Content
+ *
+ * @param text - Raw Limitless Pendant transcript text
+ * @returns Cleaned transcript in format "Speaker: Content Speaker: Content"
  */
 export function processLimitlessPendantTranscript(text: string): string {
   return text
@@ -326,7 +370,13 @@ export function processLimitlessPendantTranscript(text: string): string {
 
 /**
  * Process a Limitless App transcription into a clean single-line format
+ *
+ * Converts Limitless App format transcripts into clean, single-line format
+ * by grouping content by speaker and removing timestamps and formatting.
  * Format: Speaker Name, empty line, timestamp, content
+ *
+ * @param text - Raw Limitless App transcript text
+ * @returns Cleaned transcript in format "Speaker: Content Speaker: Content"
  */
 export function processLimitlessAppTranscript(text: string): string {
   const lines = text.split("\n");
@@ -369,7 +419,12 @@ export function processLimitlessAppTranscript(text: string): string {
 
 /**
  * Process YouTube transcript content
- * Extracts and cleans transcript from YouTube format
+ *
+ * Extracts and cleans transcript content from YouTube-formatted text,
+ * removing hashtags and formatting while preserving the actual transcript content.
+ *
+ * @param text - Text containing YouTube transcript data
+ * @returns Cleaned transcript text suitable for Tana
  */
 export function processYouTubeTranscript(text: string): string {
   const lines = text
@@ -417,6 +472,13 @@ export function processYouTubeTranscript(text: string): string {
 
 /**
  * Process and chunk any transcript content
+ *
+ * Takes any transcript content and chunks it into manageable sizes
+ * with proper boundary detection for optimal Tana formatting.
+ *
+ * @param content - Transcript content to process and chunk
+ * @param maxChunkSize - Maximum size for each chunk (default: 7000)
+ * @returns Array of TranscriptChunk objects
  */
 export function processAndChunkTranscript(
   content: string,
@@ -431,6 +493,13 @@ export function processAndChunkTranscript(
 
 /**
  * Clean and escape content for Tana formatting with enhanced markdown processing
+ *
+ * Processes content for Tana compatibility by handling markdown structures,
+ * escaping problematic characters, and converting formatting appropriately.
+ * Uses hierarchical processing for content with headings.
+ *
+ * @param content - Raw content to clean and format
+ * @returns Content cleaned and formatted for Tana
  */
 export function cleanContentForTana(content: string): string {
   if (!content) return "";
@@ -476,6 +545,12 @@ export function cleanContentForTana(content: string): string {
 
 /**
  * Legacy function for simple header conversion (kept for backward compatibility)
+ *
+ * Converts markdown headers to Tana headings and escapes hash symbols.
+ * Provided for backward compatibility with older formatting approaches.
+ *
+ * @param content - Content with markdown headers
+ * @returns Content with headers converted to Tana format
  */
 export function convertSimpleHeaders(content: string): string {
   return content
@@ -498,6 +573,12 @@ export function convertSimpleHeaders(content: string): string {
 
 /**
  * Remove colons from content to prevent accidental field creation
+ *
+ * Removes double colons (::) from content to prevent unintended
+ * Tana field creation while preserving single colons.
+ *
+ * @param content - Content that may contain double colons
+ * @returns Content with double colons converted to single colons
  */
 export function removeColonsInContent(content: string): string {
   if (!content) return "";
