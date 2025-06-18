@@ -70,7 +70,13 @@ interface VideoInfo {
 }
 
 /**
- * Decode HTML entities to their text equivalents
+ * Decode HTML entities in text content
+ *
+ * Converts common HTML entities (like &amp;, &lt;, &quot;) back to their
+ * text equivalents for proper display in Tana.
+ *
+ * @param text - Text containing HTML entities
+ * @returns Decoded text with entities converted to characters
  */
 function decodeHTMLEntities(text: string): string {
   let decoded = text

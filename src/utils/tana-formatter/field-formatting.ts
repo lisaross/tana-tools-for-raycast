@@ -104,7 +104,13 @@ export function formatContentField(content: string, contentField?: string): stri
 }
 
 /**
- * Format transcript chunks as sibling nodes
+ * Format transcript chunks as sibling nodes in Tana
+ *
+ * Converts an array of transcript chunks into individual Tana bullet points,
+ * creating a flat list structure where each chunk is a separate node.
+ *
+ * @param chunks - Array of transcript chunks with content and metadata
+ * @returns Array of Tana-formatted bullet points, one per chunk
  */
 export function formatTranscriptChunks(chunks: TranscriptChunk[]): string[] {
   if (!chunks || chunks.length === 0) {
@@ -115,7 +121,15 @@ export function formatTranscriptChunks(chunks: TranscriptChunk[]): string[] {
 }
 
 /**
- * Format transcript with metadata in structured format
+ * Format transcript chunks under separate numbered fields
+ *
+ * Creates either a single Transcript:: field for one chunk or multiple
+ * numbered Part N:: fields for multiple chunks, using custom field names
+ * when provided by user preferences.
+ *
+ * @param chunks - Array of transcript chunks to format
+ * @param transcriptField - Custom field name for transcript (default: "Transcript")
+ * @returns Array of Tana field lines with transcript content
  */
 export function formatTranscriptField(
   chunks: TranscriptChunk[],

@@ -159,6 +159,7 @@
     "@types/react-dom": "^19.1.1",
     "@types/turndown": "^5.0.5",
     "eslint": "^9.28.0",
+    "oxlint": "^1.1.0",
     "prettier": "^3.5.3",
     "typescript": "^5.8.2"
   },
@@ -166,6 +167,8 @@
     "build": "ray build -e dist",
     "dev": "ray develop",
     "lint": "ray lint",
+    "lint:oxc": "oxlint src/",
+    "lint:all": "npm run lint && npm run lint:oxc",
     "publish": "ray publish"
   }
 }

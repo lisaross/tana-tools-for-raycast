@@ -661,7 +661,31 @@ export function unescapeRaycastMarkdown(content: string): string {
 }
 
 /**
- * General Tana formatting utility - delegates to unified formatter
+ * General Tana formatting utility with user preference support
+ *
+ * Main entry point for converting various content types to Tana Paste format.
+ * Automatically detects content type and applies appropriate formatting with
+ * support for user-customized tags, field names, and content inclusion preferences.
+ *
+ * @param options - Formatting configuration object
+ * @param options.title - Content title
+ * @param options.url - Content URL
+ * @param options.description - Content description
+ * @param options.author - Content author/creator
+ * @param options.content - Main content text
+ * @param options.lines - Alternative content as array of lines
+ * @param options.useSwipeTag - Legacy option for swipe tag (deprecated)
+ * @param options.videoTag - Custom tag for video content
+ * @param options.articleTag - Custom tag for article content
+ * @param options.transcriptTag - Custom tag for transcript content
+ * @param options.noteTag - Custom tag for note content
+ * @param options.urlField - Custom field name for URLs
+ * @param options.authorField - Custom field name for authors
+ * @param options.transcriptField - Custom field name for transcripts
+ * @param options.contentField - Custom field name for main content
+ * @param options.includeAuthor - Whether to include author field
+ * @param options.includeDescription - Whether to include description field
+ * @returns Formatted Tana Paste string ready for clipboard
  */
 export function formatForTana(options: {
   title?: string
