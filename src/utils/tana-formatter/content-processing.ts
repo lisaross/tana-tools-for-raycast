@@ -210,7 +210,6 @@ function convertMarkdownLists(text: string): string {
       result.push(`${indent}- ${unicodeBulletMatch[1]}`);
     } else if (standaloneBulletMatch) {
       // Skip standalone bullet characters (they're just separators)
-      continue;
     } else if (numberedMatch) {
       // Convert numbered list items to bullets
       const indent = line.match(/^(\s*)/)?.[1] || "";

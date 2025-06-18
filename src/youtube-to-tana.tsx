@@ -386,7 +386,6 @@ async function extractVideoMetadata(
         }
       } catch (error) {
         console.log(`❌ Channel selector ${selector} failed: ${error}`);
-        continue;
       }
     }
 
@@ -439,7 +438,6 @@ async function extractVideoMetadata(
         }
       } catch (error) {
         console.log(`❌ Channel URL selector ${urlSelector} failed: ${error}`);
-        continue;
       }
     }
 
@@ -499,7 +497,6 @@ async function extractVideoMetadata(
         }
       } catch (error) {
         console.log(`❌ Duration selector ${selector} failed: ${error}`);
-        continue;
       }
     }
 
@@ -609,7 +606,6 @@ async function extractVideoMetadata(
         }
       } catch (error) {
         console.log(`❌ Description selector ${selector} failed: ${error}`);
-        continue;
       }
     }
 
@@ -738,7 +734,6 @@ async function extractTranscript(tabId: number): Promise<string | null> {
         }
       } catch (error) {
         console.log(`❌ Selector ${selector} failed: ${error}`);
-        continue;
       }
     }
 
@@ -777,7 +772,6 @@ async function extractTranscript(tabId: number): Promise<string | null> {
         console.log(
           `❌ Container selector ${containerSelector} failed: ${error}`,
         );
-        continue;
       }
     }
 
@@ -1004,7 +998,6 @@ async function extractCleanTranscript(tabId: number): Promise<string | null> {
         }
       } catch (error) {
         console.log(`❌ Text-only selector ${selector} failed: ${error}`);
-        continue;
       }
     }
 
