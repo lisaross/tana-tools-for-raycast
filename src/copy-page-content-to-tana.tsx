@@ -7,22 +7,6 @@ import { formatForTana } from './utils/tana-formatter'
 const execAsync = promisify(exec)
 
 /**
- * User preferences for Tana formatting
- */
-interface Preferences {
-  videoTag: string
-  articleTag: string
-  transcriptTag: string
-  noteTag: string
-  urlField: string
-  authorField: string
-  transcriptField: string
-  contentField: string
-  includeAuthor: boolean
-  includeDescription: boolean
-}
-
-/**
  * Enhanced Copy Page Content to Tana
  *
  * Uses the Raycast Browser Extension's reader mode to extract clean content,

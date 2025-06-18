@@ -16,22 +16,6 @@ interface FormValues {
 }
 
 /**
- * User preferences for Tana formatting
- */
-interface Preferences {
-  videoTag: string
-  articleTag: string
-  transcriptTag: string
-  noteTag: string
-  urlField: string
-  authorField: string
-  transcriptField: string
-  contentField: string
-  includeAuthor: boolean
-  includeDescription: boolean
-}
-
-/**
  * Raycast command that provides a form interface for editing and converting text to Tana format
  * Loads clipboard content by default, allows user editing, converts to Tana format,
  * and opens the Tana application with the converted content

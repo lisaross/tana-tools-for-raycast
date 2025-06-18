@@ -6,22 +6,6 @@ import { promisify } from 'util'
 const execAsync = promisify(exec)
 
 /**
- * User preferences for Tana formatting
- */
-interface Preferences {
-  videoTag: string
-  articleTag: string
-  transcriptTag: string
-  noteTag: string
-  urlField: string
-  authorField: string
-  transcriptField: string
-  contentField: string
-  includeAuthor: boolean
-  includeDescription: boolean
-}
-
-/**
  * YouTube to Tana Converter
  *
  * Uses the Raycast Browser Extension API to extract YouTube video metadata and transcripts.

@@ -6,22 +6,6 @@ import { promisify } from 'util'
 const execAsync = promisify(exec)
 
 /**
- * User preferences for Tana formatting
- */
-interface Preferences {
-  videoTag: string
-  articleTag: string
-  transcriptTag: string
-  noteTag: string
-  urlField: string
-  authorField: string
-  transcriptField: string
-  contentField: string
-  includeAuthor: boolean
-  includeDescription: boolean
-}
-
-/**
  * Raycast command that converts clipboard content to Tana format and opens Tana app
  * Reads text from the clipboard, converts it to Tana's paste format, copies it back,
  * and attempts to open the Tana application
