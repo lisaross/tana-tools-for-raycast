@@ -48,6 +48,8 @@ Transform any content into Tana's structured format with just a few keystrokes. 
 - **Content Control**: Toggle whether to include author and description fields
 - **Perfect Integration**: Make the output fit seamlessly into your existing Tana workflow
 
+![Configuration for custom Tana workflows and tags](metadata/01-Configuration-for-custom-tana-workflows-and-tags.png)
+
 ## 🚀 Quick Start
 
 ### 1. Install Requirements
@@ -63,8 +65,6 @@ Transform any content into Tana's structured format with just a few keystrokes. 
 3. **For text:** Copy anything → Run "Quick Clipboard to Tana" → Formatted content in Tana
 
 ### 3. Advanced Usage
-
-**Tab Selection:** Use "Copy Page Content to Tana (Select Tab)" to choose from multiple open tabs
 
 **Edit Before Converting:** Use "Paste and Edit for Tana" to review and modify content first
 
@@ -84,8 +84,13 @@ Transform any content into Tana's structured format with just a few keystrokes. 
 2. **Usage Steps:**
    - Open any YouTube video
    - **🔴 IMPORTANT:** Click "more → Show transcript" below the video first
+   
+   ![Run YouTube to Tana Command - note transcript must be showing](metadata/02-Run-Youtube-to-Tana-Command---note-transcript-must-be-showing.png)
+   
    - Run the Raycast command
    - Get complete video info + clean transcript text
+   
+   ![Tana Results - YouTube to Tana](metadata/03-Tana-Results----Youtube-to-Tana.png)
 
 ### For Web Content
 
@@ -93,6 +98,16 @@ Transform any content into Tana's structured format with just a few keystrokes. 
 - Automatically extracts clean content using reader mode
 - Filters out ads, navigation, and clutter
 - Preserves article structure and formatting
+
+![Run Copy Page Content to Tana from Website](metadata/04-Run-Copy-Page-Content-to-Tana-from-Website.png)
+
+![Tana Results - Copy Page Content to Tana](metadata/05-Tana-Results--Copy-Page-Content-to-Tana.png)
+
+**Tab Selection:** Use "Copy Page Content to Tana (Select Tab)" to choose from multiple open tabs
+
+![Copy Page Content to Tana (select Tab)](metadata/06-Copy-Page-Content-to-Tana-(select-Tab).png)
+
+![Clipboard as Tana Paste - Paste and Edit](metadata/07-Clipboard-as-Tana-Paste---Paste-and-Edit.png)
 
 ## 📖 Example Output
 
