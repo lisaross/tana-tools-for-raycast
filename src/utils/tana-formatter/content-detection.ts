@@ -104,11 +104,11 @@ export function isYouTubeVideo(options: {
 
 /**
  * Automatically detect the type of content being processed for appropriate formatting
- * 
+ *
  * Analyzes the provided options to determine what type of content is being formatted,
  * enabling the system to apply the most appropriate processing pipeline. This is the
  * main entry point for content type detection in the unified formatter.
- * 
+ *
  * @param options - Content options containing title, URL, content, and other metadata
  * @returns ContentType enum value indicating the detected content type
  */

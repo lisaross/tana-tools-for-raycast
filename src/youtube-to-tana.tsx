@@ -1,9 +1,25 @@
-import { Clipboard, BrowserExtension, Toast, showToast } from '@raycast/api'
+import { Clipboard, BrowserExtension, Toast, showToast, getPreferenceValues } from '@raycast/api'
 import { formatForTana } from './utils/tana-formatter'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
+
+/**
+ * User preferences for Tana formatting
+ */
+interface Preferences {
+  videoTag: string
+  articleTag: string
+  transcriptTag: string
+  noteTag: string
+  urlField: string
+  authorField: string
+  transcriptField: string
+  contentField: string
+  includeAuthor: boolean
+  includeDescription: boolean
+}
 
 /**
  * YouTube to Tana Converter
@@ -731,7 +747,9 @@ async function extractTranscript(tabId: number): Promise<string | null> {
 
     // If we found a transcript button that needs to be clicked and no transcript content, throw a specific error
     if (needsTranscriptButton) {
-      console.log('🔍 No transcript content found, but transcript button exists - user should click it')
+      console.log(
+        '🔍 No transcript content found, but transcript button exists - user should click it',
+      )
       throw new Error('TRANSCRIPT_BUTTON_NEEDED')
     }
 
@@ -760,6 +778,7 @@ async function extractTranscript(tabId: number): Promise<string | null> {
  * Main command entry point
  */
 export default async function Command() {
+  const preferences = getPreferenceValues<Preferences>()
   const toast = await showToast({
     style: Toast.Style.Animated,
     title: 'Processing YouTube Video',
@@ -840,6 +859,15 @@ export default async function Command() {
       author: videoInfo.channelName,
       duration: videoInfo.duration,
       content: transcriptContent,
+      videoTag: preferences.videoTag,
+      articleTag: preferences.articleTag,
+      transcriptTag: preferences.transcriptTag,
+      urlField: preferences.urlField,
+      authorField: preferences.authorField,
+      transcriptField: preferences.transcriptField,
+      contentField: preferences.contentField,
+      includeAuthor: preferences.includeAuthor,
+      includeDescription: preferences.includeDescription,
     })
 
     await Clipboard.copy(tanaFormat)
@@ -918,7 +946,9 @@ async function extractCleanTranscript(tabId: number): Promise<string | null> {
           // Clean up the text by removing timestamp patterns and joining properly
           const cleanedText = cleanTranscriptText(textContent)
           if (cleanedText && cleanedText.length > 50) {
-            console.log(`✅ Found clean transcript text with ${selector} (${cleanedText.length} chars)`)
+            console.log(
+              `✅ Found clean transcript text with ${selector} (${cleanedText.length} chars)`,
+            )
             return cleanedText
           }
         }
@@ -941,10 +971,10 @@ async function extractCleanTranscript(tabId: number): Promise<string | null> {
 function cleanTranscriptText(rawText: string): string {
   if (!rawText) return ''
 
-  let cleanedText = rawText
+  const cleanedText = rawText
     // Remove timestamp patterns like "0:00", "1:23", "12:34:56" with surrounding spaces
     .replace(/\s*\b\d{1,2}:\d{2}(?::\d{2})?\b\s*/g, ' ')
-    // Remove decimal timestamps like "0.5", "12.34"  
+    // Remove decimal timestamps like "0.5", "12.34"
     .replace(/\s*\b\d+\.\d+\b\s*/g, ' ')
     // Remove standalone numbers that might be timestamps (with word boundaries)
     .replace(/\s+\b\d+\b\s+/g, ' ')

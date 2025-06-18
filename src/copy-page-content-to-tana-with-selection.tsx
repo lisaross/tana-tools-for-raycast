@@ -6,6 +6,7 @@ import {
   List,
   Action,
   ActionPanel,
+  getPreferenceValues,
 } from '@raycast/api'
 import { useState, useEffect } from 'react'
 import { exec } from 'child_process'
@@ -22,6 +23,22 @@ import { formatForTana } from './utils/tana-formatter'
 const execAsync = promisify(exec)
 
 /**
+ * User preferences for Tana formatting
+ */
+interface Preferences {
+  videoTag: string
+  articleTag: string
+  transcriptTag: string
+  noteTag: string
+  urlField: string
+  authorField: string
+  transcriptField: string
+  contentField: string
+  includeAuthor: boolean
+  includeDescription: boolean
+}
+
+/**
  * Enhanced Copy Page Content to Tana with Tab Selection
  *
  * Provides a list of available browser tabs for selection, then extracts clean content
@@ -30,7 +47,7 @@ const execAsync = promisify(exec)
 
 /**
  * Browser tab information from the Raycast Browser Extension API
- * 
+ *
  * @interface BrowserTab
  * @property {number} id - Unique identifier for the browser tab
  * @property {string} title - The page title displayed in the tab
@@ -53,6 +70,7 @@ interface BrowserTab {
  * @param toastMessage - Initial toast message
  */
 async function processTabContent(getInfo: () => Promise<PageInfo>, toastMessage: string) {
+  const preferences = getPreferenceValues<Preferences>()
   const toast = await showToast({
     style: Toast.Style.Animated,
     title: 'Extracting Page Content',
@@ -77,6 +95,15 @@ async function processTabContent(getInfo: () => Promise<PageInfo>, toastMessage:
       author: pageInfo.author,
       content: pageInfo.content,
       useSwipeTag: true,
+      articleTag: preferences.articleTag,
+      videoTag: preferences.videoTag,
+      transcriptTag: preferences.transcriptTag,
+      urlField: preferences.urlField,
+      authorField: preferences.authorField,
+      transcriptField: preferences.transcriptField,
+      contentField: preferences.contentField,
+      includeAuthor: preferences.includeAuthor,
+      includeDescription: preferences.includeDescription,
     })
     await Clipboard.copy(tanaFormat)
 
@@ -105,11 +132,11 @@ async function processTabContent(getInfo: () => Promise<PageInfo>, toastMessage:
 
 /**
  * Process the currently active/focused browser tab for content extraction
- * 
+ *
  * Uses the focused tab title matching approach to identify the correct tab
  * and extract its content with metadata. This is the most reliable method
  * for getting content from the tab the user is actually viewing.
- * 
+ *
  * @returns Promise that resolves when processing completes
  */
 async function processActiveTab() {
@@ -130,10 +157,10 @@ async function processActiveTab() {
 
 /**
  * Process a user-selected browser tab for content extraction
- * 
+ *
  * Extracts content and metadata from the specified tab using the Browser Extension API.
  * This allows users to choose any tab from the available tabs list.
- * 
+ *
  * @param selectedTab - The browser tab object selected by the user
  * @returns Promise that resolves when processing completes
  */
@@ -158,10 +185,10 @@ async function processTab(selectedTab: BrowserTab) {
 
 /**
  * Extract clean domain name from URL for display purposes
- * 
+ *
  * Removes protocol, www prefix, and handles invalid URLs gracefully.
  * Used in the tab selection interface to show readable domain names.
- * 
+ *
  * @param url - The full URL to extract domain from
  * @returns Clean domain name (e.g., "example.com") or "Unknown" if URL is invalid
  */
@@ -176,18 +203,18 @@ function getDomainFromUrl(url: string): string {
 
 /**
  * Interactive browser tab selection command for content extraction
- * 
+ *
  * Displays a list of all available browser tabs, allowing users to either:
  * - Select "Active Tab" to process the currently focused tab
  * - Choose any specific tab from the list to extract its content
- * 
+ *
  * Each tab shows its title, domain, and URL for easy identification.
  * After selection, extracts page content and converts to Tana Paste format.
- * 
+ *
  * Requirements:
  * - Raycast Browser Extension must be installed and enabled
  * - At least one browser tab must be open
- * 
+ *
  * @returns React component for tab selection interface
  */
 export default function Command() {

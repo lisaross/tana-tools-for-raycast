@@ -39,6 +39,17 @@ export interface TanaFormatOptions {
   duration?: string
   useSwipeTag?: boolean
   transcriptAsFields?: boolean // Whether to format transcripts as fields vs sibling nodes
+  // User preference values
+  videoTag?: string
+  articleTag?: string
+  transcriptTag?: string
+  noteTag?: string
+  urlField?: string
+  authorField?: string
+  transcriptField?: string
+  contentField?: string
+  includeAuthor?: boolean
+  includeDescription?: boolean
 }
 
 /**
@@ -76,10 +87,10 @@ export function formatForTana(options: TanaFormatOptions): string {
 
 /**
  * Format Limitless Pendant transcription for Tana
- * 
+ *
  * Processes raw Limitless Pendant transcript data by cleaning it up,
  * chunking it into manageable segments, and formatting as Tana nodes.
- * 
+ *
  * @param options - Formatting options containing content or lines
  * @returns Formatted Tana Paste string with %%tana%% header
  */
@@ -98,10 +109,10 @@ function formatLimitlessPendantTranscript(options: TanaFormatOptions): string {
 
 /**
  * Format Limitless App transcription for Tana
- * 
+ *
  * Processes raw Limitless App transcript data by cleaning it up,
  * chunking it into manageable segments, and formatting as Tana nodes.
- * 
+ *
  * @param options - Formatting options containing content or lines
  * @returns Formatted Tana Paste string with %%tana%% header
  */
@@ -120,11 +131,11 @@ function formatLimitlessAppTranscript(options: TanaFormatOptions): string {
 
 /**
  * Format YouTube video content with metadata and transcript for Tana
- * 
+ *
  * Creates a comprehensive Tana node structure including video title with #video tag,
  * metadata fields (URL, channel, author, duration, description), and transcript
  * content if available. Transcript is chunked and formatted as child nodes.
- * 
+ *
  * @param options - Formatting options with video metadata and transcript content
  * @returns Formatted Tana Paste string with complete video information
  */
@@ -132,8 +143,10 @@ function formatYouTubeVideoContent(options: TanaFormatOptions): string {
   const lines = ['%%tana%%']
 
   if (options.title) {
-    // YouTube video title with #video tag (not #swipe)
-    lines.push(formatTitleLine(options.title, ['video']))
+    // YouTube video title with custom or default video tag
+    const videoTag = options.videoTag || 'video'
+    const tags = videoTag ? [videoTag] : []
+    lines.push(formatTitleLine(options.title, tags))
 
     // Add metadata fields (description will be properly processed here)
     lines.push(
@@ -143,6 +156,10 @@ function formatYouTubeVideoContent(options: TanaFormatOptions): string {
         author: options.author,
         duration: options.duration,
         description: options.description,
+        urlField: options.urlField,
+        authorField: options.authorField,
+        includeAuthor: options.includeAuthor,
+        includeDescription: options.includeDescription,
       }),
     )
 
@@ -155,7 +172,7 @@ function formatYouTubeVideoContent(options: TanaFormatOptions): string {
 
         if (chunks.length > 0) {
           // Format transcript as children under Transcript:: field
-          lines.push(...formatTranscriptFieldWithSiblings(chunks))
+          lines.push(...formatTranscriptFieldWithSiblings(chunks, options.transcriptField))
         }
       }
     }
@@ -166,11 +183,11 @@ function formatYouTubeVideoContent(options: TanaFormatOptions): string {
 
 /**
  * Format standalone YouTube transcript content for Tana
- * 
+ *
  * Processes YouTube transcript text, applies smart chunking for readability,
  * and formats as Tana nodes. Can include video metadata or format as standalone
  * transcript chunks depending on options.
- * 
+ *
  * @param options - Formatting options with transcript content and optional metadata
  * @returns Formatted Tana Paste string with transcript content
  */
@@ -183,12 +200,25 @@ function formatYouTubeTranscript(options: TanaFormatOptions): string {
 
   if (options.title) {
     // Include video metadata
-    const tags = options.useSwipeTag ? ['swipe'] : []
+    const transcriptTag = options.transcriptTag
+    const tags = transcriptTag ? [transcriptTag] : []
     lines.push(formatTitleLine(options.title, tags))
-    lines.push(...formatMetadataFields(options))
+    lines.push(
+      ...formatMetadataFields({
+        url: options.url,
+        channelUrl: options.channelUrl,
+        author: options.author,
+        duration: options.duration,
+        description: options.description,
+        urlField: options.urlField,
+        authorField: options.authorField,
+        includeAuthor: options.includeAuthor,
+        includeDescription: options.includeDescription,
+      }),
+    )
 
     if (options.transcriptAsFields) {
-      lines.push(...formatTranscriptField(chunks))
+      lines.push(...formatTranscriptField(chunks, options.transcriptField))
     } else {
       lines.push(...formatTranscriptChunks(chunks))
     }
@@ -202,11 +232,11 @@ function formatYouTubeTranscript(options: TanaFormatOptions): string {
 
 /**
  * Format browser page content with metadata for Tana
- * 
+ *
  * Extracts and formats web page content including title, URL, author, description,
  * and main content. Applies content cleaning, removes problematic characters,
  * and structures content hierarchically under a Content:: field.
- * 
+ *
  * @param options - Formatting options with page metadata and content
  * @returns Formatted Tana Paste string with structured page content
  */
@@ -214,18 +244,31 @@ function formatBrowserPageContent(options: TanaFormatOptions): string {
   const lines = ['%%tana%%']
 
   if (options.title) {
-    const tags = options.useSwipeTag ? ['swipe'] : []
+    const articleTag = options.articleTag
+    const tags = articleTag ? [articleTag] : []
     lines.push(formatTitleLine(options.title, tags))
 
     // Add metadata fields
-    lines.push(...formatMetadataFields(options))
+    lines.push(
+      ...formatMetadataFields({
+        url: options.url,
+        channelUrl: options.channelUrl,
+        author: options.author,
+        duration: options.duration,
+        description: options.description,
+        urlField: options.urlField,
+        authorField: options.authorField,
+        includeAuthor: options.includeAuthor,
+        includeDescription: options.includeDescription,
+      }),
+    )
 
     // Add content if present
     if (options.content) {
       // Clean content and remove colons to prevent field creation
       const cleanedContent = removeColonsInContent(options.content)
       // formatContentField handles all the hierarchical processing internally
-      lines.push(...formatContentField(cleanedContent))
+      lines.push(...formatContentField(cleanedContent, options.contentField))
     }
   }
 
@@ -234,10 +277,10 @@ function formatBrowserPageContent(options: TanaFormatOptions): string {
 
 /**
  * Format user-selected text content for Tana
- * 
+ *
  * Takes an array of selected text lines and formats them as a hierarchical
  * Tana structure. Preserves line structure and applies proper indentation.
- * 
+ *
  * @param options - Formatting options containing lines array
  * @returns Formatted Tana Paste string with hierarchical text structure
  */
@@ -253,10 +296,10 @@ function formatSelectedTextContent(options: TanaFormatOptions): string {
 
 /**
  * Format plain text content for Tana
- * 
+ *
  * Takes raw text content, splits it into lines, and formats as a hierarchical
  * Tana structure. Filters out empty lines while preserving content structure.
- * 
+ *
  * @param options - Formatting options containing raw text content
  * @returns Formatted Tana Paste string with hierarchical text structure
  */

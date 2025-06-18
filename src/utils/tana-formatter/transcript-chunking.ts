@@ -5,7 +5,7 @@
 
 /**
  * Represents a single chunk of transcript content with metadata
- * 
+ *
  * @interface TranscriptChunk
  * @property {string} content - The text content of this chunk
  * @property {number} chunkNumber - Sequential number of this chunk (1-indexed)
@@ -100,11 +100,11 @@ export function chunkTranscript(transcript: string, maxSize: number = 7000): Tra
 
 /**
  * Find the optimal split point near a target position using intelligent boundary detection
- * 
+ *
  * Attempts to split transcript content at natural boundaries (sentences, then words)
  * to maintain readability and context. Searches within a reasonable range around
  * the target position to find the best split point.
- * 
+ *
  * @param text - The complete text to analyze for split points
  * @param targetPosition - Desired position to split near
  * @param currentPosition - Current processing position (for progress validation)
@@ -198,10 +198,10 @@ function findBestSplitPoint(
 
 /**
  * Count the number of words in text content
- * 
+ *
  * Splits text on whitespace and filters out empty strings to get an accurate
  * word count. Used for chunk metadata and sizing calculations.
- * 
+ *
  * @param text - The text content to count words in
  * @returns Number of words in the text, or 0 if text is empty
  */

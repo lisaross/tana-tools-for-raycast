@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Form, ActionPanel, Action, showHUD, Clipboard } from '@raycast/api'
+import { Form, ActionPanel, Action, showHUD, Clipboard, getPreferenceValues } from '@raycast/api'
 import { formatForTana } from './utils/page-content-extractor'
 import { exec } from 'child_process'
 import { promisify } from 'util'
@@ -16,6 +16,22 @@ interface FormValues {
 }
 
 /**
+ * User preferences for Tana formatting
+ */
+interface Preferences {
+  videoTag: string
+  articleTag: string
+  transcriptTag: string
+  noteTag: string
+  urlField: string
+  authorField: string
+  transcriptField: string
+  contentField: string
+  includeAuthor: boolean
+  includeDescription: boolean
+}
+
+/**
  * Raycast command that provides a form interface for editing and converting text to Tana format
  * Loads clipboard content by default, allows user editing, converts to Tana format,
  * and opens the Tana application with the converted content
@@ -23,6 +39,7 @@ interface FormValues {
 export default function Command() {
   const [text, setText] = useState<string>('')
   const [isLoading, setIsLoading] = useState(true)
+  const preferences = getPreferenceValues<Preferences>()
 
   /**
    * On mount, try to get clipboard content and convert it to Tana format
@@ -33,8 +50,16 @@ export default function Command() {
         const clipboardText = await Clipboard.readText()
         if (clipboardText) {
           // Convert to Tana format immediately for editing
+          const noteTag = preferences.noteTag
           const tanaFormat = formatForTana({
             content: clipboardText,
+            noteTag,
+            urlField: preferences.urlField,
+            authorField: preferences.authorField,
+            transcriptField: preferences.transcriptField,
+            contentField: preferences.contentField,
+            includeAuthor: preferences.includeAuthor,
+            includeDescription: preferences.includeDescription,
           })
           setText(tanaFormat)
         }
@@ -57,8 +82,16 @@ export default function Command() {
       const clipboardText = await Clipboard.readText()
       if (clipboardText) {
         // Convert to Tana format for editing
+        const noteTag = preferences.noteTag
         const tanaFormat = formatForTana({
           content: clipboardText,
+          noteTag,
+          urlField: preferences.urlField,
+          authorField: preferences.authorField,
+          transcriptField: preferences.transcriptField,
+          contentField: preferences.contentField,
+          includeAuthor: preferences.includeAuthor,
+          includeDescription: preferences.includeDescription,
         })
         setText(tanaFormat)
       }
@@ -104,11 +137,7 @@ export default function Command() {
         <ActionPanel>
           <ActionPanel.Section>
             <Action.SubmitForm title="Convert and Open in Tana" onSubmit={handleSubmit} />
-            <Action
-              title="Load Clipboard Content"
-              shortcut={{ modifiers: ['cmd'], key: 'l' }}
-              onAction={loadClipboardContent}
-            />
+            <Action title="Load Clipboard Content" onAction={loadClipboardContent} />
           </ActionPanel.Section>
         </ActionPanel>
       }

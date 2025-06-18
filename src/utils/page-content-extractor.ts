@@ -263,11 +263,11 @@ export function makeAbsoluteUrl(url: string, baseUrl: string): string {
 
 /**
  * Helper function to process broken link patterns across multiple lines
- * 
+ *
  * Handles markdown links that have been split across lines by content extraction,
  * where the link text and URL appear on separate lines. Reconstructs proper
  * markdown links and converts relative URLs to absolute URLs when possible.
- * 
+ *
  * @param lines - Array of all content lines
  * @param startIndex - Index of the line containing the opening bracket
  * @param baseUrl - Base URL for converting relative links to absolute
@@ -280,7 +280,7 @@ function processBrokenLink(
 ): { linesConsumed: number; output: string } {
   const startLine = lines[startIndex]
   const baseIndent = startLine.match(/^(\s*)/)?.[1] || ''
-  
+
   let linkText = ''
   let linkUrl = ''
   let linesConsumed = 1 // Start with the current line
@@ -429,13 +429,13 @@ export async function extractMainContent(tabId: number, pageUrl: string = ''): P
 
       // Add custom rule to remove SVG elements
       turndownService.addRule('removeSvg', {
-        filter: (node: any) => node.nodeName === 'SVG' || node.nodeName === 'PATH',
+        filter: (node: Element) => node.nodeName === 'SVG' || node.nodeName === 'PATH',
         replacement: () => '',
       })
 
       // Add custom rule to filter out javascript:void links and unwanted links
       turndownService.addRule('filterBadLinks', {
-        filter: (node: any) => {
+        filter: (node: Element) => {
           if (node.nodeName === 'A') {
             const href = node.getAttribute('href') || ''
             const text = (node.textContent || '').trim()
@@ -466,7 +466,7 @@ export async function extractMainContent(tabId: number, pageUrl: string = ''): P
         replacement: (_content: string, node: Node) => {
           // Type guard and cast to any to work with DOM methods
           if (!node || typeof node !== 'object' || !('querySelectorAll' in node)) return ''
-          const element = node as any
+          const element = node as HTMLTableElement
 
           const rows = Array.from(element.querySelectorAll('tr'))
           if (rows.length === 0) return ''
@@ -477,9 +477,9 @@ export async function extractMainContent(tabId: number, pageUrl: string = ''): P
           let headers: string[] = []
           let hasHeaderRow = false
 
-          rows.forEach((row: any, _rowIndex) => {
+          rows.forEach((row: HTMLTableRowElement) => {
             const cells = Array.from(row.querySelectorAll('td, th'))
-            const cellContents = cells.map((cell: any) => (cell.textContent || '').trim())
+            const cellContents = cells.map((cell: Element) => (cell.textContent || '').trim())
 
             // Skip completely empty rows
             if (cellContents.every((content) => content.length === 0)) {
@@ -671,6 +671,16 @@ export function formatForTana(options: {
   content?: string
   lines?: string[]
   useSwipeTag?: boolean
+  videoTag?: string
+  articleTag?: string
+  transcriptTag?: string
+  noteTag?: string
+  urlField?: string
+  authorField?: string
+  transcriptField?: string
+  contentField?: string
+  includeAuthor?: boolean
+  includeDescription?: boolean
 }): string {
   // Convert to unified formatter options
   const tanaOptions: TanaFormatOptions = {
@@ -681,6 +691,16 @@ export function formatForTana(options: {
     content: options.content,
     lines: options.lines,
     useSwipeTag: options.useSwipeTag,
+    videoTag: options.videoTag,
+    articleTag: options.articleTag,
+    transcriptTag: options.transcriptTag,
+    noteTag: options.noteTag,
+    urlField: options.urlField,
+    authorField: options.authorField,
+    transcriptField: options.transcriptField,
+    contentField: options.contentField,
+    includeAuthor: options.includeAuthor,
+    includeDescription: options.includeDescription,
   }
 
   return formatForTanaUnified(tanaOptions)

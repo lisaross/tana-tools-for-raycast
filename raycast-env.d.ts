@@ -7,7 +7,28 @@
 
 /* eslint-disable @typescript-eslint/ban-types */
 
-type ExtensionPreferences = {}
+type ExtensionPreferences = {
+  /** Video Tag - Supertag to use for YouTube videos (e.g., 'video', 'youtube') */
+  "videoTag": string,
+  /** Article Tag - Supertag to use for web articles (leave empty for no tag) */
+  "articleTag": string,
+  /** Transcript Tag - Supertag to use for transcripts (leave empty for no tag) */
+  "transcriptTag": string,
+  /** Note Tag - Supertag to use for clipboard/plain text notes (leave empty for no tag) */
+  "noteTag": string,
+  /** URL Field Name - Field name for URLs */
+  "urlField": string,
+  /** Author Field Name - Field name for authors/creators */
+  "authorField": string,
+  /** Transcript Field Name - Field name for transcript content */
+  "transcriptField": string,
+  /** Content Field Name - Field name for main content */
+  "contentField": string,
+  /** Include Author Field - Whether to include author/creator information in output */
+  "includeAuthor": boolean,
+  /** Include Description Field - Whether to include description information in output */
+  "includeDescription": boolean
+}
 
 /** Preferences accessible in all the extension's commands */
 declare type Preferences = ExtensionPreferences

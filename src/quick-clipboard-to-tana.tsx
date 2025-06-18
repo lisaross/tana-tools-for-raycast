@@ -1,4 +1,4 @@
-import { Clipboard, showHUD } from '@raycast/api'
+import { Clipboard, showHUD, getPreferenceValues } from '@raycast/api'
 import { formatForTana } from './utils/page-content-extractor'
 import { exec } from 'child_process'
 import { promisify } from 'util'
@@ -6,11 +6,29 @@ import { promisify } from 'util'
 const execAsync = promisify(exec)
 
 /**
+ * User preferences for Tana formatting
+ */
+interface Preferences {
+  videoTag: string
+  articleTag: string
+  transcriptTag: string
+  noteTag: string
+  urlField: string
+  authorField: string
+  transcriptField: string
+  contentField: string
+  includeAuthor: boolean
+  includeDescription: boolean
+}
+
+/**
  * Raycast command that converts clipboard content to Tana format and opens Tana app
  * Reads text from the clipboard, converts it to Tana's paste format, copies it back,
  * and attempts to open the Tana application
  */
 export default async function Command() {
+  const preferences = getPreferenceValues<Preferences>()
+
   try {
     // Get clipboard content directly - no need to try selected text for quick clipboard command
     const clipboardText = await Clipboard.readText()
@@ -21,8 +39,16 @@ export default async function Command() {
     }
 
     // Convert to Tana format - let the system auto-detect content type
+    const noteTag = preferences.noteTag
     const tanaOutput = formatForTana({
       content: clipboardText,
+      noteTag,
+      urlField: preferences.urlField,
+      authorField: preferences.authorField,
+      transcriptField: preferences.transcriptField,
+      contentField: preferences.contentField,
+      includeAuthor: preferences.includeAuthor,
+      includeDescription: preferences.includeDescription,
     })
 
     // Copy back to clipboard

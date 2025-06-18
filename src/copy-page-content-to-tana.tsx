@@ -1,10 +1,26 @@
-import { Clipboard, Toast, showToast } from '@raycast/api'
+import { Clipboard, Toast, showToast, getPreferenceValues } from '@raycast/api'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import { PageInfo, getActiveTabContent } from './utils/page-content-extractor'
 import { formatForTana } from './utils/tana-formatter'
 
 const execAsync = promisify(exec)
+
+/**
+ * User preferences for Tana formatting
+ */
+interface Preferences {
+  videoTag: string
+  articleTag: string
+  transcriptTag: string
+  noteTag: string
+  urlField: string
+  authorField: string
+  transcriptField: string
+  contentField: string
+  includeAuthor: boolean
+  includeDescription: boolean
+}
 
 /**
  * Enhanced Copy Page Content to Tana
@@ -22,18 +38,20 @@ const execAsync = promisify(exec)
 
 /**
  * Extract content from the active browser tab and convert to Tana Paste format
- * 
+ *
  * Uses Raycast Browser Extension to extract clean page content using reader mode,
  * then converts it to Tana format with proper metadata (title, URL, description, author).
  * Automatically opens Tana application after copying content to clipboard.
- * 
+ *
  * Requirements:
  * - Raycast Browser Extension must be installed and enabled
  * - A browser tab must be open and focused
- * 
+ *
  * @returns Promise that resolves when command completes
  */
 export default async function Command() {
+  const preferences = getPreferenceValues<Preferences>()
+
   const toast = await showToast({
     style: Toast.Style.Animated,
     title: 'Extracting Page Content',
@@ -67,7 +85,13 @@ export default async function Command() {
       description: pageInfo.description,
       author: pageInfo.author,
       content: pageInfo.content,
-      useSwipeTag: true,
+      articleTag: preferences.articleTag,
+      urlField: preferences.urlField,
+      authorField: preferences.authorField,
+      transcriptField: preferences.transcriptField,
+      contentField: preferences.contentField,
+      includeAuthor: preferences.includeAuthor,
+      includeDescription: preferences.includeDescription,
     })
     await Clipboard.copy(tanaFormat)
 

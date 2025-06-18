@@ -9,7 +9,7 @@ import { chunkTranscript, TranscriptChunk } from './transcript-chunking'
  */
 /**
  * Represents a node in the hierarchical content structure
- * 
+ *
  * @interface ContentNode
  * @property {'heading' | 'content'} type - Whether this node is a heading or content
  * @property {number} [level] - Heading level (1-6) for heading nodes
@@ -25,7 +25,7 @@ interface ContentNode {
 
 /**
  * Represents a content section between headings
- * 
+ *
  * @interface ContentSection
  * @property {Object} [heading] - Optional heading information for this section
  * @property {number} heading.level - Heading level (1-6)
