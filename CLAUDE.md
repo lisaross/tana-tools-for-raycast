@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Coding Standards
 
-- **Formatting**: 2-space indentation, single quotes, trailing commas, semicolons
+- **Formatting**: Raycast's `ray lint` is the single source of truth (no custom .prettierrc or conflicting configs)
 - **Types**: Use explicit TypeScript types/interfaces, readonly where appropriate
 - **Imports**: Group external libraries first, then internal modules
 - **Naming**: PascalCase for classes/types, camelCase for variables/functions, UPPER_SNAKE_CASE for constants

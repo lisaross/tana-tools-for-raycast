@@ -1,13 +1,13 @@
 # Tana Tools for Raycast
 
-🚀 **Instantly convert web pages, YouTube videos, and text to Tana Paste format from Raycast**
+🚀 **Instantly convert web pages, YouTube videos, and text (including Markdown) to Tana Paste format from Raycast**
 
 Transform any content into Tana's structured format with just a few keystrokes. Perfect for knowledge workers, researchers, and anyone building their second brain in Tana.
 
 ![Raycast Extension](https://img.shields.io/badge/Raycast-Extension-FF6363)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
-> **⚠️ Important:** Web-based commands require the [Raycast Browser Extension](https://raycast.com/browser-extension)
+> **💡 Tip:** Web-based commands require the [Raycast Browser Extension](https://raycast.com/browser-extension) - quick setup, works great!
 
 ## ✨ What This Extension Does
 
@@ -15,7 +15,7 @@ Transform any content into Tana's structured format with just a few keystrokes. 
 - 📄 **Web pages** → Clean, formatted Tana nodes with metadata
 - 🎥 **YouTube videos** → Title, description, transcript, and metadata
 - 📝 **Text & clipboard** → Properly formatted Tana hierarchies
-- 🎙️ **Limitless transcripts** → Smart chunking and formatting
+- 🎙️ **Limitless transcripts** → Smart chunking so Tana limits are respected, and ready for AI review.
 
 **Everything automatically opens in Tana and copies to your clipboard** - just paste with ⌘+V!
 
@@ -30,7 +30,7 @@ Transform any content into Tana's structured format with just a few keystrokes. 
 ## 🛠 Commands
 
 ### 📋 Text & Clipboard
-- **Quick Clipboard to Tana** - Instantly convert clipboard content to Tana format
+- **Quick Clipboard to Tana** - Instantly convert clipboard content (perfect for Limitless transcripts!)
 - **Paste and Edit for Tana** - Review and edit text before converting
 
 ### 🌐 Web Content  
@@ -38,7 +38,15 @@ Transform any content into Tana's structured format with just a few keystrokes. 
 - **Copy Page Content to Tana (Select Tab)** - Choose from any open browser tab
 
 ### 🎥 YouTube Integration
-- **YouTube to Tana** - Extract video metadata, descriptions, and full transcripts
+- **YouTube to Tana** - Extract video metadata, descriptions, and full transcripts (note: you'll need to open the Transcript on the Youtube page first 😭)
+
+## 🎨 Customization
+
+**10 User Preferences** let you personalize the output:
+- **Custom Tags**: Set your own supertags for videos, articles, transcripts, and notes
+- **Field Names**: Customize field names (URL, Author, Transcript, Content) to match your Tana setup
+- **Content Control**: Toggle whether to include author and description fields
+- **Perfect Integration**: Make the output fit seamlessly into your existing Tana workflow
 
 ## 🚀 Quick Start
 
@@ -51,7 +59,7 @@ Transform any content into Tana's structured format with just a few keystrokes. 
 ### 2. Basic Usage
 
 1. **For web pages:** Open any article → Run "Copy Page Content to Tana" → Content appears in Tana
-2. **For YouTube:** Open a video → Click "Show transcript" → Run "YouTube to Tana" → Full video info + transcript in Tana
+2. **For YouTube:** Open a video → Click "more..." → "Show transcript" → Then run "YouTube to Tana" → Paste full video info + transcript in Tana
 3. **For text:** Copy anything → Run "Quick Clipboard to Tana" → Formatted content in Tana
 
 ### 3. Advanced Usage
@@ -75,7 +83,7 @@ Transform any content into Tana's structured format with just a few keystrokes. 
 
 2. **Usage Steps:**
    - Open any YouTube video
-   - **🔴 IMPORTANT:** Click "Show transcript" below the video first
+   - **🔴 IMPORTANT:** Click "more → Show transcript" below the video first
    - Run the Raycast command
    - Get complete video info + clean transcript text
 
@@ -93,19 +101,22 @@ Transform any content into Tana's structured format with just a few keystrokes. 
 **Output in Tana:**
 ```
 %%tana%%
-- How to Build Better Habits #swipe
-  - URL:: https://example.com/habits
-  - Author:: James Clear  
-  - Description:: Scientific approaches to habit formation
+- How to Build Better Habits #article
+  - URL::https://example.com/habits
+  - Author::James Clear  
+  - Description::Scientific approaches to habit formation
   - Content::
-    - !! Introduction
+    - Introduction
       - Habits are the compound interest of self-improvement
       - Small changes compound into remarkable results
-    - !! The Habit Loop
+    - The Habit Loop
       - Cue triggers the behavior
       - Routine is the behavior itself
       - Reward reinforces the habit
 ```
+
+**For Limitless Transcripts:**
+Just copy your transcript to clipboard and run "Quick Clipboard to Tana" - it automatically detects and formats transcripts with smart chunking!
 
 ## 🎨 Features
 
@@ -118,21 +129,12 @@ Transform any content into Tana's structured format with just a few keystrokes. 
 ✅ **Auto Tana Opening** - Seamlessly opens Tana after conversion  
 ✅ **Cross-Browser** - Works with Chrome, Arc, and Safari  
 
-## 🔧 Development
+## 💡 Pro Tips
 
-### Local Setup
-
-```bash
-git clone https://github.com/lisaross/tana-tools-for-raycast.git
-cd tana-tools-for-raycast
-npm install
-npm run build
-npm run dev
-```
-
-### Contributing
-
-Contributions welcome! Submit Pull Requests or open issues for feature requests.
+- **For YouTube**: Always click "Show transcript" below the video first for best results
+- **For Limitless**: Just copy your transcript text and use "Quick Clipboard to Tana"
+- **Customization**: Check Raycast preferences to personalize tags and field names
+- **Safari Users**: Enable developer features in Safari settings for web content extraction
 
 ## 📞 Support & Feedback
 
