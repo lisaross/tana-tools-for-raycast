@@ -1,10 +1,10 @@
-import { Clipboard, Toast, showToast, getPreferenceValues } from '@raycast/api'
-import { exec } from 'child_process'
-import { promisify } from 'util'
-import { PageInfo, getActiveTabContent } from './utils/page-content-extractor'
-import { formatForTana } from './utils/tana-formatter'
+import { Clipboard, Toast, showToast, getPreferenceValues } from "@raycast/api";
+import { exec } from "child_process";
+import { promisify } from "util";
+import { PageInfo, getActiveTabContent } from "./utils/page-content-extractor";
+import { formatForTana } from "./utils/tana-formatter";
 
-const execAsync = promisify(exec)
+const execAsync = promisify(exec);
 
 /**
  * Enhanced Copy Page Content to Tana
@@ -34,33 +34,33 @@ const execAsync = promisify(exec)
  * @returns Promise that resolves when command completes
  */
 export default async function Command() {
-  const preferences = getPreferenceValues<Preferences>()
+  const preferences = getPreferenceValues<Preferences>();
 
   const toast = await showToast({
     style: Toast.Style.Animated,
-    title: 'Extracting Page Content',
-  })
+    title: "Extracting Page Content",
+  });
 
   try {
     // Get content and tab info from focused window's active tab
-    const { content, tabInfo, metadata } = await getActiveTabContent()
+    const { content, tabInfo, metadata } = await getActiveTabContent();
 
-    toast.message = 'Converting to Tana format...'
+    toast.message = "Converting to Tana format...";
 
     // Combine all info using the metadata already fetched
     const pageInfo: PageInfo = {
-      title: metadata.title || tabInfo.title || 'Web Page',
+      title: metadata.title || tabInfo.title || "Web Page",
       url: metadata.url || tabInfo.url,
       description: metadata.description,
       author: metadata.author,
       content,
-    }
+    };
 
     console.log(
       `🔍 Final page info - Title: "${pageInfo.title}", Content length: ${pageInfo.content.length}`,
-    )
+    );
 
-    toast.message = 'Converting to Tana format...'
+    toast.message = "Converting to Tana format...";
 
     // Format for Tana using unified formatter
     const tanaFormat = formatForTana({
@@ -76,28 +76,29 @@ export default async function Command() {
       contentField: preferences.contentField,
       includeAuthor: preferences.includeAuthor,
       includeDescription: preferences.includeDescription,
-    })
-    await Clipboard.copy(tanaFormat)
+    });
+    await Clipboard.copy(tanaFormat);
 
     // Open Tana and update toast to success
     try {
-      await execAsync('open tana://')
-      toast.style = Toast.Style.Success
-      toast.title = 'Success!'
-      toast.message = 'Page content copied to clipboard and Tana opened'
+      await execAsync("open tana://");
+      toast.style = Toast.Style.Success;
+      toast.title = "Success!";
+      toast.message = "Page content copied to clipboard and Tana opened";
     } catch (error) {
-      console.error('Error opening Tana:', error)
-      toast.style = Toast.Style.Success
-      toast.title = 'Success!'
-      toast.message = 'Page content copied to clipboard (could not open Tana)'
+      console.error("Error opening Tana:", error);
+      toast.style = Toast.Style.Success;
+      toast.title = "Success!";
+      toast.message = "Page content copied to clipboard (could not open Tana)";
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
 
-    toast.style = Toast.Style.Failure
-    toast.title = 'Failed to extract page content'
-    toast.message = errorMessage
+    toast.style = Toast.Style.Failure;
+    toast.title = "Failed to extract page content";
+    toast.message = errorMessage;
 
-    console.error('Page content extraction error:', error)
+    console.error("Page content extraction error:", error);
   }
 }
